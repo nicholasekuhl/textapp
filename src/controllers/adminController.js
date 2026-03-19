@@ -2,27 +2,33 @@ const supabase = require('../db')
 
 const getUsers = async (req, res) => {
   try {
-    const { data: profiles, error } = await supabase
-      .from('user_profiles')
-      .select('id, email, agent_name, agency_name, created_at, is_suspended, suspended_at, suspended_reason, is_admin')
-      .order('created_at', { ascending: false })
+    // Use auth.admin.listUsers() — guaranteed to bypass RLS and return all users
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+    if (authError) throw authError
 
-    if (error) throw error
+    const authUsers = authData.users || []
+    const userIds = authUsers.map(u => u.id)
 
-    // Fetch lead counts and message counts per user in parallel
-    const userIds = profiles.map(p => p.id)
+    if (!userIds.length) return res.json({ users: [] })
 
     const monthStart = new Date()
     monthStart.setDate(1)
     monthStart.setHours(0, 0, 0, 0)
 
-    const [{ data: leadCounts }, { data: msgCounts }] = await Promise.all([
+    const [{ data: profiles }, { data: leadCounts }, { data: msgCounts }] = await Promise.all([
+      supabase
+        .from('user_profiles')
+        .select('id, agent_name, agency_name, created_at, is_suspended, suspended_at, suspended_reason, is_admin')
+        .in('id', userIds),
       supabase.from('leads').select('user_id').in('user_id', userIds),
       supabase.from('messages')
-        .select('conversation_id, conversations!inner(user_id)')
+        .select('conversation_id, conversations(user_id)')
         .eq('direction', 'outbound')
         .gte('sent_at', monthStart.toISOString())
     ])
+
+    const profileMap = {}
+    for (const p of profiles || []) profileMap[p.id] = p
 
     const leadCountMap = {}
     for (const l of leadCounts || []) {
@@ -35,11 +41,24 @@ const getUsers = async (req, res) => {
       if (uid) msgCountMap[uid] = (msgCountMap[uid] || 0) + 1
     }
 
-    const users = profiles.map(p => ({
-      ...p,
-      lead_count: leadCountMap[p.id] || 0,
-      message_count_this_month: msgCountMap[p.id] || 0
-    }))
+    const users = authUsers
+      .map(au => {
+        const profile = profileMap[au.id] || {}
+        return {
+          id: au.id,
+          email: au.email,
+          agent_name: profile.agent_name || null,
+          agency_name: profile.agency_name || null,
+          created_at: profile.created_at || au.created_at,
+          is_suspended: profile.is_suspended || false,
+          suspended_at: profile.suspended_at || null,
+          suspended_reason: profile.suspended_reason || null,
+          is_admin: profile.is_admin || false,
+          lead_count: leadCountMap[au.id] || 0,
+          message_count_this_month: msgCountMap[au.id] || 0
+        }
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
     res.json({ users })
   } catch (err) {
