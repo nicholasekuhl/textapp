@@ -104,29 +104,101 @@
     .bulk-bar.visible { display: flex; }
     .bulk-bar span { font-size: 13px; flex: 1; }
 
-    .conv-layout { display: flex; height: calc(100vh - 116px); background: white; border-radius: 16px; border: 1px solid #f0f0f0; overflow: hidden; }
-    .conv-sidebar { width: 300px; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; flex-shrink: 0; }
-    .conv-sidebar-header { padding: 16px 18px; border-bottom: 1px solid #f0f0f0; }
-    .conv-sidebar-header h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
-    .conv-search { width: 100%; padding: 7px 11px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; }
-    .conv-list { flex: 1; overflow-y: auto; }
-    .conv-item { padding: 12px 18px; border-bottom: 1px solid #f9fafb; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 10px; }
-    .conv-item:hover { background: #f9fafb; }
-    .conv-item.active { background: #f0f0ff; }
-    .conv-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; position: relative; }
-    .unread-dot { position: absolute; top: 0; right: 0; width: 9px; height: 9px; background: #6366f1; border-radius: 50%; border: 2px solid white; }
-    .conv-item-info { flex: 1; min-width: 0; }
-    .conv-item-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-    .conv-item-preview { font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .conv-item-time { font-size: 11px; color: #d1d5db; flex-shrink: 0; }
-    .conv-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .conv-header { padding: 14px 22px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
-    .conv-header-info { display: flex; align-items: center; gap: 10px; }
-    .conv-header-name { font-size: 15px; font-weight: 600; }
-    .conv-header-meta { font-size: 12px; color: #9ca3af; }
-    .conv-header-actions { display: flex; align-items: center; gap: 8px; }
-    .conv-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-    .conv-updated { font-size: 11px; color: #d1d5db; text-align: right; padding: 3px 18px; }
+    /* THREE-PANEL CONVERSATIONS */
+    .conv3-layout { display: flex; height: calc(100vh - 116px); background: white; border-radius: 16px; border: 1px solid #f0f0f0; overflow: hidden; }
+    /* LEFT PANEL */
+    .conv3-left { width: 280px; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; flex-shrink: 0; }
+    .conv3-left-header { padding: 14px 14px 0; border-bottom: 1px solid #f0f0f0; }
+    .conv3-left-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .conv3-left-title-row h2 { font-size: 15px; font-weight: 600; }
+    .conv3-filter-btn { background: none; border: none; cursor: pointer; padding: 5px 7px; border-radius: 6px; color: #9ca3af; font-size: 15px; line-height: 1; }
+    .conv3-filter-btn:hover { background: #f3f4f6; color: #374151; }
+    .conv3-filter-btn.active { background: #f0f0ff; color: #6366f1; }
+    .conv3-search { width: 100%; padding: 7px 11px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 10px; }
+    .conv3-search:focus { border-color: #6366f1; }
+    .conv3-tabs { display: flex; }
+    .conv3-tab { flex: 1; padding: 9px 4px; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 500; color: #9ca3af; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .conv3-tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+    .conv3-filter-bar { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; background: #fafafa; display: none; }
+    .conv3-filter-bar.open { display: block; }
+    .conv3-filter-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .conv3-filter-row:last-child { margin-bottom: 0; }
+    .conv3-filter-label { font-size: 12px; color: #6b7280; font-weight: 500; }
+    .conv3-filter-select { width: 100%; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 12px; outline: none; background: white; margin-top: 4px; }
+    .conv3-list { flex: 1; overflow-y: auto; }
+    /* Sidebar items */
+    .conv3-item { padding: 11px 14px; border-bottom: 1px solid #f9fafb; cursor: pointer; transition: background 0.12s; display: flex; align-items: flex-start; gap: 10px; position: relative; border-left: 3px solid transparent; }
+    .conv3-item:hover { background: #f9fafb; }
+    .conv3-item.active { background: #f0f0ff; border-left-color: #6366f1; }
+    .conv3-item.conv3-unread-item { background: #eff6ff; }
+    .conv3-item.conv3-unread-item:hover { background: #dbeafe; }
+    .conv3-item.conv3-starred-item { border-left-color: #f59e0b; }
+    .conv3-item.conv3-blocked-item { opacity: 0.55; }
+    .conv3-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; position: relative; }
+    .conv3-unread-dot { position: absolute; top: 0; right: 0; width: 9px; height: 9px; background: #3b82f6; border-radius: 50%; border: 2px solid white; }
+    .conv3-item-body { flex: 1; min-width: 0; padding-right: 18px; }
+    .conv3-item-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1px; }
+    .conv3-item-name { font-size: 14px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .conv3-item-time { font-size: 11px; color: #d1d5db; flex-shrink: 0; margin-left: 6px; }
+    .conv3-item-phone { font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+    .conv3-item-preview { font-size: 13px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv3-item-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .conv3-item-star { position: absolute; top: 9px; right: 8px; background: none; border: none; cursor: pointer; font-size: 13px; color: #d1d5db; padding: 3px; border-radius: 4px; opacity: 0; transition: opacity 0.12s; line-height: 1; }
+    .conv3-item:hover .conv3-item-star { opacity: 1; }
+    .conv3-item-star.starred { opacity: 1; color: #f59e0b; }
+    /* CENTER PANEL */
+    .conv3-center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .conv3-empty { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; color: #9ca3af; }
+    .conv3-conv-header { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .conv3-conv-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .conv3-conv-header-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv3-conv-header-meta { font-size: 11px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv3-conv-header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .conv3-icon-btn { background: none; border: none; cursor: pointer; padding: 6px 7px; border-radius: 6px; color: #9ca3af; font-size: 15px; line-height: 1; }
+    .conv3-icon-btn:hover { background: #f3f4f6; color: #374151; }
+    .conv3-subtabs { display: flex; border-bottom: 1px solid #f0f0f0; padding: 0 14px; gap: 12px; flex-shrink: 0; }
+    .conv3-subtab { padding: 8px 0; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 500; color: #9ca3af; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .conv3-subtab.active { color: #6366f1; border-bottom-color: #6366f1; }
+    .conv3-messages { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .conv3-updated { font-size: 11px; color: #d1d5db; text-align: right; padding: 2px 14px; flex-shrink: 0; }
+    .conv3-input-area { padding: 10px 14px; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
+    .conv3-toolbar { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+    .conv3-toolbar-btn { background: none; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; color: #6b7280; white-space: nowrap; }
+    .conv3-toolbar-btn:hover { background: #f3f4f6; color: #374151; }
+    .conv3-toolbar-btn.active { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+    .conv3-input-bottom { display: flex; align-items: flex-end; gap: 8px; }
+    .conv3-textarea { flex: 1; padding: 9px 13px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: inherit; resize: none; height: 42px; outline: none; transition: all 0.2s; }
+    .conv3-textarea:focus { border-color: #6366f1; height: 84px; }
+    .conv3-send-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .conv3-from-btn { font-size: 11px; color: #9ca3af; background: none; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; padding: 3px 7px; white-space: nowrap; }
+    .conv3-char-count { font-size: 11px; color: #d1d5db; text-align: right; }
+    .conv3-schedule-picker { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .conv3-schedule-picker.open { display: flex; }
+    /* RIGHT PANEL */
+    .conv3-right { width: 300px; border-left: 1px solid #f0f0f0; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; transition: width 0.2s; }
+    .conv3-right-header { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: sticky; top: 0; background: white; z-index: 2; }
+    .conv3-right-header h3 { font-size: 14px; font-weight: 600; }
+    .conv3-right-section { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; }
+    .conv3-right-section:last-child { border-bottom: none; }
+    .conv3-section-title { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .conv3-contact-row { display: flex; gap: 8px; margin-bottom: 7px; font-size: 13px; align-items: flex-start; }
+    .conv3-contact-label { font-size: 11px; color: #9ca3af; min-width: 60px; flex-shrink: 0; padding-top: 1px; }
+    .conv3-contact-val { color: #374151; flex: 1; word-break: break-word; }
+    .conv3-notes-ta { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; resize: none; height: 72px; outline: none; }
+    .conv3-notes-ta:focus { border-color: #6366f1; }
+    .conv3-quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .conv3-quick-btn { padding: 7px 8px; font-size: 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: white; cursor: pointer; text-align: center; color: #374151; font-weight: 500; }
+    .conv3-quick-btn:hover { background: #f9fafb; }
+    .conv3-enroll-item { padding: 7px 0; border-bottom: 1px solid #f9fafb; }
+    .conv3-enroll-item:last-child { border-bottom: none; }
+    .conv3-enroll-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+    .conv3-enroll-meta { font-size: 11px; color: #9ca3af; }
+    .conv3-scheduled-item { background: #f9fafb; border: 1px solid #f0f0f0; border-radius: 10px; padding: 9px 11px; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .conv3-scheduled-body { flex: 1; font-size: 13px; color: #374151; line-height: 1.4; }
+    .conv3-scheduled-time { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+    .conv3-scheduled-cancel { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 16px; padding: 2px 4px; border-radius: 4px; flex-shrink: 0; }
+    .conv3-scheduled-cancel:hover { background: #fee2e2; }
+    /* Message styles (shared) */
     .msg-si { font-size: 10px; margin-left: 3px; vertical-align: middle; }
     .msg-si.sending { color: #c4b5fd; }
     .msg-si.sent { color: #c4b5fd; }
@@ -143,16 +215,12 @@
     .msg.outbound .msg-time { text-align: right; }
     .msg-label { font-size: 10px; color: #9ca3af; margin-top: 2px; }
     .msg.outbound .msg-label { text-align: right; }
-    .conv-input-area { padding: 14px 22px; border-top: 1px solid #f0f0f0; }
-    .autopilot-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; margin-bottom: 8px; }
+    .msg-date-sep { text-align: center; font-size: 11px; color: #d1d5db; padding: 6px 0; align-self: center; background: #f3f4f6; border-radius: 20px; padding: 3px 12px; }
+    .autopilot-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; }
     .autopilot-status.on { background: #f0f0ff; color: #6366f1; }
     .autopilot-status.off { background: #f3f4f6; color: #9ca3af; }
-    .conv-input-row { display: flex; gap: 8px; }
-    .conv-textarea { flex: 1; padding: 9px 13px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: inherit; resize: none; height: 42px; outline: none; transition: all 0.2s; }
-    .conv-textarea:focus { border-color: #6366f1; height: 84px; }
     .ai-suggestion { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 9px 13px; font-size: 13px; color: #5b21b6; margin-bottom: 8px; line-height: 1.5; }
     .ai-suggestion-label { font-size: 11px; font-weight: 600; color: #8b5cf6; margin-bottom: 4px; }
-    .empty-conv { flex: 1; display: flex; align-items: center; justify-content: center; color: #d1d5db; font-size: 14px; flex-direction: column; gap: 8px; }
 
     .campaigns-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .campaigns-search { padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; width: 260px; outline: none; }
@@ -338,10 +406,7 @@
     .handoff-banner.red { background: #fee2e2; color: #991b1b; }
     .handoff-banner.gray { background: #f3f4f6; color: #6b7280; }
     .handoff-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .conv-sidebar-tabs { display: flex; border-bottom: 1px solid #f0f0f0; }
-    .conv-sidebar-tab { flex: 1; padding: 9px; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 500; color: #9ca3af; border-bottom: 2px solid transparent; transition: all 0.15s; }
-    .conv-sidebar-tab.active { color: #6366f1; border-bottom-color: #6366f1; }
-    .conv-item-handoff { font-size: 10px; font-weight: 600; margin-top: 2px; }
+    .conv3-back-btn { display: none; }
 
     /* CALENDAR */
     .cal-layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
@@ -472,7 +537,7 @@
     .settings-nav-mobile { display: none; }
 
     /* Conv back button */
-    .conv-back-btn { display: none; }
+    .conv3-back-btn { display: none; }
 
     /* ---- Tablet (768–1023px) ---- */
     @media (min-width: 768px) and (max-width: 1023px) {
@@ -482,7 +547,8 @@
       .stats { grid-template-columns: repeat(3, 1fr) !important; }
       .settings-layout { grid-template-columns: 180px 1fr; gap: 16px; }
       .cal-layout { grid-template-columns: 1fr 260px; }
-      .conv-sidebar { width: 250px; }
+      .conv3-left { width: 240px; }
+      .conv3-right { display: none !important; }
       .search-panel-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .notif-panel { width: 320px; }
     }
@@ -510,8 +576,8 @@
       /* Inputs — 16px prevents iOS zoom */
       input, select, textarea { font-size: 16px !important; min-height: 44px; }
       .form-group input, .form-group select, .form-group textarea { min-height: 44px; font-size: 16px !important; }
-      .conv-textarea { min-height: 44px; font-size: 16px !important; }
-      .conv-search { min-height: 44px; font-size: 16px !important; }
+      .conv3-search { min-height: 44px; font-size: 16px !important; }
+      .conv3-textarea { min-height: 44px; font-size: 16px !important; }
       .notes-input { font-size: 16px !important; height: auto; min-height: 44px; }
       .search-input { font-size: 16px !important; width: 100% !important; }
       .campaigns-search { font-size: 16px !important; }
@@ -541,17 +607,18 @@
       .notes-input { width: 100%; }
       .card-actions { flex-wrap: wrap; }
 
-      /* Conversations — single panel view */
-      .conv-layout { height: calc(100vh - 56px); position: relative; overflow: hidden; }
-      .conv-sidebar { width: 100%; border-right: none; }
-      .conv-main { display: none; position: absolute; inset: 0; background: white; z-index: 10; }
-      .conv-layout.conv-open .conv-sidebar { display: none; }
-      .conv-layout.conv-open .conv-main { display: flex; }
-      .conv-back-btn { display: inline-flex; }
-      .conv-header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
-      .conv-header-actions { flex-wrap: wrap; gap: 6px; width: 100%; }
-      .conv-messages { padding: 12px; }
-      .conv-input-area { padding: 10px 12px; }
+      /* Conversations — mobile single-panel */
+      .conv3-layout { height: calc(100vh - 56px); position: relative; overflow: hidden; border-radius: 0; border: none; }
+      .conv3-left { width: 100%; border-right: none; }
+      .conv3-center { display: none; position: absolute; inset: 0; background: white; z-index: 10; }
+      .conv3-right { display: none !important; }
+      .conv3-layout.conv3-open .conv3-left { display: none; }
+      .conv3-layout.conv3-open .conv3-center { display: flex; }
+      .conv3-back-btn { display: inline-flex !important; }
+      .conv3-conv-header { flex-wrap: wrap; gap: 6px; }
+      .conv3-conv-header-actions { flex-wrap: wrap; }
+      .conv3-messages { padding: 12px; }
+      .conv3-input-area { padding: 10px 12px; }
       .msg { max-width: 88%; }
 
       /* Campaigns table — horizontal scroll */
@@ -820,21 +887,47 @@
 
   <!-- CONVERSATIONS PAGE -->
   <div class="page" id="page-conversations">
-    <div class="conv-layout">
-      <div class="conv-sidebar">
-        <div class="conv-sidebar-header">
-          <h2>Conversations</h2>
-          <input type="text" class="conv-search" placeholder="Search..." oninput="filterConversations(this.value)">
+    <div class="conv3-layout" id="conv3-layout">
+      <!-- LEFT: Conversation list -->
+      <div class="conv3-left" id="conv3-left">
+        <div class="conv3-left-header">
+          <div class="conv3-left-title-row">
+            <h2>Conversations</h2>
+            <button class="conv3-filter-btn" id="conv3-filter-toggle" onclick="toggleConvFilters()" title="Filters">⚙</button>
+          </div>
+          <input type="text" class="conv3-search" id="conv3-search" placeholder="Search messages..." oninput="filterConversations(this.value)">
+          <div class="conv3-tabs">
+            <button class="conv3-tab active" id="conv3-tab-all" onclick="setConvTab('all')">All</button>
+            <button class="conv3-tab" id="conv3-tab-unread" onclick="setConvTab('unread')">Unread</button>
+            <button class="conv3-tab" id="conv3-tab-recent" onclick="setConvTab('recent')">Recent</button>
+            <button class="conv3-tab" id="conv3-tab-starred" onclick="setConvTab('starred')">Starred</button>
+          </div>
         </div>
-        <div class="conv-sidebar-tabs">
-          <button class="conv-sidebar-tab active" id="conv-tab-all" onclick="setConvTab('all')">All</button>
-          <button class="conv-sidebar-tab" id="conv-tab-review" onclick="setConvTab('review')">Needs Review <span id="review-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;padding:1px 5px;margin-left:2px;"></span></button>
+        <div class="conv3-filter-bar" id="conv3-filter-bar">
+          <div class="conv3-filter-row">
+            <label class="conv3-filter-label">Show blocked</label>
+            <label class="toggle" style="margin:0;"><input type="checkbox" id="conv3-show-blocked" onchange="filterConversations(document.getElementById('conv3-search').value)"><span class="toggle-slider"></span></label>
+          </div>
+          <div>
+            <select class="conv3-filter-select" id="conv3-disp-filter" onchange="filterConversations(document.getElementById('conv3-search').value)">
+              <option value="">All dispositions</option>
+            </select>
+          </div>
         </div>
-        <div class="conv-list" id="conv-list"></div>
+        <div class="conv3-list" id="conv3-list"></div>
       </div>
-      <div class="conv-main" id="conv-main">
-        <div class="empty-conv"><div style="font-size:32px;">💬</div><div>Select a conversation</div></div>
+
+      <!-- CENTER: Active conversation -->
+      <div class="conv3-center" id="conv3-center">
+        <div class="conv3-empty" id="conv3-empty">
+          <div style="font-size:40px;margin-bottom:12px;">💬</div>
+          <div style="font-size:16px;font-weight:600;color:#374151;margin-bottom:6px;">Select a conversation</div>
+          <div style="font-size:13px;color:#9ca3af;">Choose a conversation from the left to get started.</div>
+        </div>
       </div>
+
+      <!-- RIGHT: Contact details (hidden by default) -->
+      <div class="conv3-right" id="conv3-right" style="display:none;"></div>
     </div>
   </div>
 
@@ -2239,6 +2332,8 @@ const collectActions = () => {
 
   // CONVERSATIONS
   let convTab = 'all'
+  let convSubTab = 'all'
+  let rightPanelOpen = false
 
   const handoffLabels = {
     appointment_confirmed: { text: 'Appointment confirmed', color: 'green' },
@@ -2258,69 +2353,139 @@ const collectActions = () => {
     unresponsive_after_followups: 'No response after 2 follow-ups — dormant'
   }
 
+  const toggleConvFilters = () => {
+    const bar = document.getElementById('conv3-filter-bar')
+    const btn = document.getElementById('conv3-filter-toggle')
+    bar.classList.toggle('open')
+    btn.classList.toggle('active', bar.classList.contains('open'))
+  }
+
+  const toggleRightPanel = () => {
+    rightPanelOpen = !rightPanelOpen
+    const panel = document.getElementById('conv3-right')
+    const btn = document.getElementById('conv3-right-toggle')
+    if (rightPanelOpen) {
+      panel.style.display = 'flex'
+      panel.style.flexDirection = 'column'
+      if (btn) { btn.title = 'Hide details'; btn.textContent = '›' }
+      // Re-render right panel if a conversation is open
+      if (activeConvId) {
+        const conv = allConversations.find(c => c.id === activeConvId)
+        if (conv) renderRightPanel(conv, conv.leads, [])
+      }
+    } else {
+      panel.style.display = 'none'
+      if (btn) { btn.title = 'Show details'; btn.textContent = '‹' }
+    }
+  }
+
   const setConvTab = (tab) => {
     convTab = tab
-    document.getElementById('conv-tab-all').classList.toggle('active', tab === 'all')
-    document.getElementById('conv-tab-review').classList.toggle('active', tab === 'review')
-    filterConversations(document.querySelector('.conv-search')?.value || '')
+    ;['all', 'unread', 'recent', 'starred'].forEach(t => {
+      document.getElementById(`conv3-tab-${t}`)?.classList.toggle('active', t === tab)
+    })
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+  }
+
+  const setConvSubTab = (tab) => {
+    convSubTab = tab
+    document.querySelectorAll('.conv3-subtab').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab)
+    })
+    if (!activeConvId) return
+    if (tab === 'scheduled') { loadConvScheduled(activeConvId); return }
+    const conv = allConversations.find(c => c.id === activeConvId)
+    if (conv) renderMessages(conv, tab)
   }
 
   const loadConversations = async () => {
     try {
-      const res = await fetch('/conversations')
+      const showBlocked = document.getElementById('conv3-show-blocked')?.checked ? 'true' : 'false'
+      const res = await fetch(`/conversations?show_blocked=${showBlocked}`)
       const data = await res.json()
       allConversations = data.conversations || []
-      const reviewCount = allConversations.filter(c => c.needs_agent_review).length
-      const badge = document.getElementById('review-badge')
-      if (reviewCount > 0) { badge.textContent = reviewCount; badge.style.display = 'inline' }
-      else badge.style.display = 'none'
-      const searchVal = document.querySelector('.conv-search')?.value || ''
-      filterConversations(searchVal)
+      filterConversations(document.getElementById('conv3-search')?.value || '')
     } catch (err) { console.error(err) }
   }
 
   const renderConversationList = (convs) => {
-    const list = document.getElementById('conv-list')
+    const list = document.getElementById('conv3-list')
+    if (!list) return
     if (!convs.length) {
-      if (!allConversations.length) {
-        list.innerHTML = `<div style="padding:40px 20px;text-align:center;">
-          <div style="font-size:32px;margin-bottom:10px;">💬</div>
-          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">No conversations yet</div>
-          <div style="font-size:12px;color:#9ca3af;line-height:1.5;">Conversations appear here when leads reply to your messages.</div>
-        </div>`
-      } else {
-        list.innerHTML = `<div style="padding:32px;text-align:center;color:#d1d5db;font-size:13px;">No conversations match</div>`
+      const emptyMsgs = {
+        all: ['💬', 'No conversations yet', 'Conversations appear when leads reply to your messages.'],
+        unread: ['✅', "You're all caught up!", 'No conversations waiting for a reply.'],
+        recent: ['🕐', 'No recent activity', 'No conversations in the last 7 days.'],
+        starred: ['⭐', 'No starred conversations', 'Star conversations to find them quickly.']
       }
+      const [icon, title, sub] = emptyMsgs[convTab] || emptyMsgs.all
+      list.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:10px;">${icon}</div>
+        <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">${title}</div>
+        <div style="font-size:12px;color:#9ca3af;line-height:1.5;">${sub}</div>
+      </div>`
       return
     }
     list.innerHTML = convs.map(c => {
-      const lead = allLeads.find(l => l.id === c.lead_id)
+      const lead = c.leads
       const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ') : 'Unknown'
       const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
-      const lastMsg = c.messages?.[c.messages.length - 1]
-      const hasUnread = c.messages?.some(m => m.direction === 'inbound' && !m.read)
-      const handoff = c.needs_agent_review && c.handoff_reason ? handoffLabels[c.handoff_reason] : null
-      return `<div class="conv-item ${activeConvId === c.id ? 'active' : ''}" onclick="openConversation('${c.id}')">
-        <div class="conv-avatar" style="${c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''}">${initials}${hasUnread ? '<div class="unread-dot"></div>' : ''}</div>
-        <div class="conv-item-info">
-          <div class="conv-item-name">${name}</div>
-          <div class="conv-item-preview">${lastMsg?.body || 'No messages yet'}</div>
-          ${handoff ? `<div class="conv-item-handoff" style="color:${handoff.color === 'red' ? '#dc2626' : handoff.color === 'green' ? '#059669' : handoff.color === 'blue' ? '#2563eb' : handoff.color === 'purple' ? '#7c3aed' : handoff.color === 'amber' ? '#d97706' : '#6b7280'};">⚑ ${handoff.text}</div>` : ''}
+      const msgs = c.messages || []
+      const lastMsg = msgs[msgs.length - 1]
+      const isUnread = lastMsg?.direction === 'inbound'
+      const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
+      const isBlocked = lead?.is_blocked
+      const isStarred = c.is_starred
+      const borderStyle = dispTag && !c.needs_agent_review ? `border-left-color:${dispTag.color};` : ''
+      const classes = [
+        activeConvId === c.id ? 'active' : '',
+        isUnread && !isBlocked ? 'conv3-unread-item' : '',
+        isStarred ? 'conv3-starred-item' : '',
+        isBlocked ? 'conv3-blocked-item' : ''
+      ].filter(Boolean).join(' ')
+      const dispPill = dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};font-size:10px;padding:1px 7px;">${dispTag.name}</span>` : ''
+      const blockedBadge = isBlocked ? `<span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 6px;font-weight:600;">Blocked</span>` : ''
+      return `<div class="conv3-item ${classes}" style="${borderStyle}" onclick="openConversation('${c.id}')">
+        <div class="conv3-avatar" style="${c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''}">${initials}${isUnread && !isBlocked ? '<div class="conv3-unread-dot"></div>' : ''}</div>
+        <div class="conv3-item-body">
+          <div class="conv3-item-top">
+            <div class="conv3-item-name">${name}</div>
+            <div class="conv3-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
+          </div>
+          <div class="conv3-item-phone">${lead?.phone || ''}</div>
+          <div class="conv3-item-preview">${lastMsg?.body || 'No messages yet'}</div>
+          ${dispPill || blockedBadge ? `<div class="conv3-item-tags">${dispPill}${blockedBadge}</div>` : ''}
         </div>
-        <div class="conv-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
+        <button class="conv3-item-star ${isStarred ? 'starred' : ''}" onclick="starConversation('${c.id}',event)" title="${isStarred ? 'Unstar' : 'Star'}">★</button>
       </div>`
     }).join('')
   }
 
   const filterConversations = (search) => {
-    let filtered = allConversations
-    if (convTab === 'review') filtered = filtered.filter(c => c.needs_agent_review)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    let filtered = [...allConversations]
+    const showBlocked = document.getElementById('conv3-show-blocked')?.checked
+    if (!showBlocked) filtered = filtered.filter(c => !c.leads?.is_blocked)
+    const dispFilter = document.getElementById('conv3-disp-filter')?.value
+    if (dispFilter) filtered = filtered.filter(c => c.leads?.disposition_tag_id === dispFilter)
+    if (convTab === 'unread') {
+      filtered = filtered.filter(c => {
+        const msgs = c.messages || []
+        return msgs.length > 0 && msgs[msgs.length - 1].direction === 'inbound'
+      })
+    } else if (convTab === 'starred') {
+      filtered = filtered.filter(c => c.is_starred)
+    } else if (convTab === 'recent') {
+      filtered = filtered.filter(c => c.updated_at >= sevenDaysAgo)
+    }
     if (search) {
       const q = search.toLowerCase()
       filtered = filtered.filter(c => {
-        const lead = allLeads.find(l => l.id === c.lead_id)
+        const lead = c.leads
         const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ').toLowerCase() : ''
-        return name.includes(q)
+        const phone = lead?.phone || ''
+        const lastMsg = (c.messages || []).slice(-1)[0]?.body?.toLowerCase() || ''
+        return name.includes(q) || phone.includes(q) || lastMsg.includes(q)
       })
     }
     renderConversationList(filtered)
@@ -2333,77 +2498,316 @@ const collectActions = () => {
     return `<span class="msg-si sent" title="Sent">✓</span>`
   }
 
+  const renderMessages = (conv, subTab) => {
+    const container = document.getElementById('conv3-messages')
+    if (!container) return
+    let msgs = conv.messages || []
+    if (subTab === 'sent') msgs = msgs.filter(m => m.direction === 'outbound')
+    else if (subTab === 'rejected') msgs = msgs.filter(m => m.status === 'failed' || m.status === 'undelivered')
+    if (!msgs.length) {
+      const labels = { all: 'No messages yet', sent: 'No sent messages', rejected: 'No failed messages' }
+      container.innerHTML = `<div style="text-align:center;color:#d1d5db;font-size:13px;padding:32px;">${labels[subTab] || 'No messages'}</div>`
+      return
+    }
+    let lastDate = null
+    container.innerHTML = msgs.map(m => {
+      const msgDate = new Date(m.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const sep = msgDate !== lastDate ? `<div class="msg-date-sep">${msgDate}</div>` : ''
+      lastDate = msgDate
+      return `${sep}<div class="msg ${m.direction} ${m.is_ai ? 'ai' : ''}">
+        <div class="msg-bubble">${m.body}</div>
+        <div class="msg-time">${formatTime(m.sent_at)}${m.direction === 'outbound' ? msgStatusIcon(m.status, m.error_message) : ''}</div>
+        ${m.is_ai ? '<div class="msg-label">AI response</div>' : ''}
+      </div>`
+    }).join('')
+    container.scrollTop = container.scrollHeight
+  }
+
   const backToConversations = () => {
     activeConvId = null
-    document.querySelector('.conv-layout')?.classList.remove('conv-open')
-    renderConversationList(allConversations)
+    document.getElementById('conv3-layout')?.classList.remove('conv3-open')
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+  }
+
+  const starConversation = async (convId, e) => {
+    e.stopPropagation()
+    try {
+      const res = await fetch(`/conversations/${convId}/star`, { method: 'PATCH' })
+      const data = await res.json()
+      const conv = allConversations.find(c => c.id === convId)
+      if (conv) conv.is_starred = data.is_starred
+      filterConversations(document.getElementById('conv3-search')?.value || '')
+      if (activeConvId === convId) {
+        const btn = document.getElementById('conv3-star-btn')
+        if (btn) { btn.textContent = data.is_starred ? '★' : '☆'; btn.style.color = data.is_starred ? '#f59e0b' : ''; btn.title = data.is_starred ? 'Unstar' : 'Star' }
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const loadConvScheduled = async (convId) => {
+    const container = document.getElementById('conv3-messages')
+    if (!container) return
+    container.innerHTML = '<div style="text-align:center;color:#d1d5db;font-size:13px;padding:32px;">Loading...</div>'
+    try {
+      const res = await fetch(`/conversations/${convId}/scheduled`)
+      const data = await res.json()
+      const items = data.scheduled_messages || []
+      if (!items.length) {
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📅</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">No scheduled messages</div>
+          <div style="font-size:12px;color:#9ca3af;">Use the Schedule button below to schedule a message.</div>
+        </div>`
+        return
+      }
+      container.innerHTML = items.map(sm => `<div class="conv3-scheduled-item" id="sched-${sm.id}">
+        <div style="font-size:20px;flex-shrink:0;">📅</div>
+        <div class="conv3-scheduled-body">
+          <div>${sm.body}</div>
+          <div class="conv3-scheduled-time">Sends ${new Date(sm.send_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+        </div>
+        <button class="conv3-scheduled-cancel" onclick="deleteScheduledMessage('${sm.id}')" title="Cancel">✕</button>
+      </div>`).join('')
+    } catch (err) {
+      container.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:13px;padding:32px;">Error loading scheduled messages</div>'
+    }
+  }
+
+  const deleteScheduledMessage = async (id) => {
+    try {
+      await fetch(`/scheduled-messages/${id}`, { method: 'DELETE' })
+      document.getElementById(`sched-${id}`)?.remove()
+      const container = document.getElementById('conv3-messages')
+      if (container && !container.querySelector('.conv3-scheduled-item')) {
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📅</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">No scheduled messages</div>
+          <div style="font-size:12px;color:#9ca3af;">Use the Schedule button below to schedule a message.</div>
+        </div>`
+      }
+    } catch (err) { alert('Could not cancel scheduled message') }
+  }
+
+  const toggleSchedulePicker = () => {
+    const picker = document.getElementById('conv3-schedule-picker')
+    const btn = document.getElementById('conv3-schedule-btn')
+    if (!picker) return
+    const isOpen = picker.classList.contains('open')
+    picker.classList.toggle('open', !isOpen)
+    btn?.classList.toggle('active', !isOpen)
+  }
+
+  const scheduleConvMessage = async (convId, leadId) => {
+    const input = document.getElementById('conv-input')
+    const body = input?.value.trim()
+    const dateInput = document.getElementById('conv3-schedule-date')
+    const timeInput = document.getElementById('conv3-schedule-time')
+    if (!body) return alert('Type a message first')
+    if (!dateInput?.value || !timeInput?.value) return alert('Pick a date and time')
+    const send_at = new Date(`${dateInput.value}T${timeInput.value}`).toISOString()
+    try {
+      const res = await fetch(`/conversations/${convId}/scheduled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body, send_at, lead_id: leadId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        input.value = ''
+        document.getElementById('conv3-schedule-picker')?.classList.remove('open')
+        document.getElementById('conv3-schedule-btn')?.classList.remove('active')
+        setConvSubTab('scheduled')
+      } else alert(data.error || 'Failed to schedule')
+    } catch (err) { alert('Something went wrong') }
+  }
+
+  const blockConvLead = async (leadId, convId) => {
+    if (!confirm('Block this lead? They will no longer receive automated messages or AI responses.')) return
+    try {
+      const res = await fetch(`/leads/${leadId}/block`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { await loadConversations(); openConversation(convId) }
+    } catch (err) { alert('Failed to block lead') }
+  }
+
+  const unblockConvLead = async (leadId, convId) => {
+    try {
+      const res = await fetch(`/leads/${leadId}/unblock`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { await loadConversations(); openConversation(convId) }
+    } catch (err) { alert('Failed to unblock lead') }
+  }
+
+  const saveConvNotes = async (leadId, value) => {
+    try {
+      await fetch(`/leads/${leadId}/notes`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: value }) })
+    } catch (err) { console.error('Notes save failed', err) }
+  }
+
+  const contactRow = (label, val) => `<div class="conv3-contact-row"><span class="conv3-contact-label">${label}</span><span class="conv3-contact-val">${val}</span></div>`
+
+  const renderRightPanel = (conv, lead, _campaigns) => {
+    const panel = document.getElementById('conv3-right')
+    if (!panel) return
+    const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
+    const localTime = lead?.timezone ? getLocalTime(lead.timezone) : null
+    const safeName = [lead?.first_name, lead?.last_name].filter(Boolean).join(' ').replace(/'/g, "\\'")
+    panel.innerHTML = `
+      <div class="conv3-right-header">
+        <h3>Contact Details</h3>
+        <button class="conv3-icon-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')" title="Edit disposition">🏷️</button>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Contact Info</div>
+        ${contactRow('Name', [lead?.first_name, lead?.last_name].filter(Boolean).join(' ') || '—')}
+        ${contactRow('Phone', lead?.phone || '—')}
+        ${lead?.email ? contactRow('Email', lead.email) : ''}
+        ${lead?.state ? contactRow('State', lead.state + (lead.zip ? ' ' + lead.zip : '')) : ''}
+        ${lead?.date_of_birth ? contactRow('DOB', lead.date_of_birth) : ''}
+        ${lead?.plan_type ? contactRow('Plan', lead.plan_type) : ''}
+        ${lead?.address ? contactRow('Address', lead.address) : ''}
+        ${localTime ? contactRow('Local time', localTime) : ''}
+        ${lead?.timezone ? contactRow('Timezone', lead.timezone.replace('America/', '').replace(/_/g, ' ')) : ''}
+        ${lead?.created_at ? contactRow('Added', new Date(lead.created_at).toLocaleDateString()) : ''}
+        ${lead?.bucket ? contactRow('Source', lead.bucket) : ''}
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Tags</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};">${dispTag.name}</span>` : '<span style="font-size:12px;color:#9ca3af;">No disposition</span>'}
+          ${lead?.autopilot ? `<span class="autopilot-status on" style="margin:0;font-size:11px;">⚡ Autopilot</span>` : ''}
+          ${lead?.is_cold ? `<span class="tag" style="background:#e0f2fe;color:#0369a1;">❄️ Cold</span>` : ''}
+          ${lead?.is_blocked ? `<span class="tag" style="background:#fee2e2;color:#dc2626;font-weight:600;">🚫 Blocked</span>` : ''}
+        </div>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Quick Actions</div>
+        <div class="conv3-quick-actions">
+          <button class="conv3-quick-btn" onclick="callLead('${lead?.phone}')">📞 Call</button>
+          <button class="conv3-quick-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')">🏷️ Disposition</button>
+          ${lead?.is_blocked
+            ? `<button class="conv3-quick-btn" style="color:#059669;" onclick="unblockConvLead('${lead.id}','${conv.id}')">✅ Unblock</button>`
+            : `<button class="conv3-quick-btn" style="color:#dc2626;" onclick="blockConvLead('${lead?.id}','${conv.id}')">🚫 Block</button>`}
+          <button class="conv3-quick-btn" onclick="window.open('/lead.html?id=${lead?.id}','_blank')">👤 Full Profile</button>
+        </div>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Notes</div>
+        <textarea class="conv3-notes-ta" placeholder="Add notes..." onblur="saveConvNotes('${lead?.id}',this.value)">${lead?.notes || ''}</textarea>
+      </div>
+    `
   }
 
   const openConversation = async (convId) => {
     activeConvId = convId
-    renderConversationList(allConversations)
-    // On mobile, switch to conversation view
+    convSubTab = 'all'
+    filterConversations(document.getElementById('conv3-search')?.value || '')
     if (window.innerWidth < 768) {
-      document.querySelector('.conv-layout')?.classList.add('conv-open')
+      document.getElementById('conv3-layout')?.classList.add('conv3-open')
     }
+    const center = document.getElementById('conv3-center')
+    center.innerHTML = '<div class="conv3-empty"><div style="font-size:28px;margin-bottom:8px;">⏳</div><div style="color:#9ca3af;font-size:13px;">Loading...</div></div>'
     try {
       const res = await fetch(`/conversations/${convId}`)
       const data = await res.json()
       const conv = data.conversation
-      const lead = allLeads.find(l => l.id === conv.lead_id)
+      const lead = conv.leads
       const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ') : 'Unknown'
       const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
       const isAutopilot = lead?.autopilot || false
       const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
       const bannerColor = conv.needs_agent_review && conv.handoff_reason ? (handoffLabels[conv.handoff_reason]?.color || 'gray') : null
       const bannerText = conv.needs_agent_review && conv.handoff_reason ? handoffBannerText[conv.handoff_reason] : null
-      document.getElementById('conv-main').innerHTML = `
+      const localTime = lead?.timezone ? getLocalTime(lead.timezone) : null
+      const isBlocked = lead?.is_blocked
+      const safeName = name.replace(/'/g, "\\'")
+
+      // Update allConversations with fresh data
+      const existingIdx = allConversations.findIndex(c => c.id === convId)
+      if (existingIdx >= 0) {
+        allConversations[existingIdx] = { ...allConversations[existingIdx], ...conv }
+      }
+
+      center.innerHTML = `
         ${bannerText ? `<div class="handoff-banner ${bannerColor}">
           <span>⚑ ${bannerText}</span>
           <div class="handoff-banner-actions">
-            <button class="btn btn-sm" style="background:white;color:#374151;" onclick="takeOverConversation('${conv.id}', '${lead?.id}')">Take Over</button>
+            <button class="btn btn-sm" style="background:white;color:#374151;" onclick="takeOverConversation('${conv.id}','${lead?.id}')">Take Over</button>
             <button class="btn btn-sm" style="background:rgba(0,0,0,0.1);color:inherit;" onclick="markConvResolved('${conv.id}')">Mark Resolved</button>
           </div>
         </div>` : ''}
-        <div class="conv-header">
-          <div class="conv-header-info">
-            <button class="conv-back-btn btn btn-ghost btn-sm" onclick="backToConversations()" style="margin-right:4px;min-height:36px;">← Back</button>
-            <div class="conv-avatar" style="width:38px;height:38px;font-size:13px;">${initials}</div>
-            <div>
-              <div class="conv-header-name">${name} ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};font-size:11px;">${dispTag.name}</span>` : ''}</div>
-              <div class="conv-header-meta">${lead?.phone || ''} ${lead?.state ? '· ' + lead.state : ''} ${lead?.timezone ? '· ' + getLocalTime(lead.timezone) + ' local' : ''}</div>
+        <div class="conv3-conv-header">
+          <div class="conv3-conv-header-left">
+            <button class="btn btn-ghost btn-sm conv3-back-btn" onclick="backToConversations()" style="flex-shrink:0;min-height:36px;">← Back</button>
+            <div class="conv3-avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0;">${initials}</div>
+            <div style="min-width:0;">
+              <div class="conv3-conv-header-name">${name}${dispTag ? ` <span class="disposition-pill" style="background:${dispTag.color};font-size:10px;">${dispTag.name}</span>` : ''}${isBlocked ? ' <span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 6px;font-weight:600;">Blocked</span>' : ''}</div>
+              <div class="conv3-conv-header-meta">${lead?.phone || ''}${localTime ? ' · ' + localTime + ' local' : ''}${lead?.state ? ' · ' + lead.state : ''}</div>
             </div>
           </div>
-          <div class="conv-header-actions">
-            <span class="autopilot-status ${isAutopilot ? 'on' : 'off'}">${isAutopilot ? '⚡ Autopilot ON' : '✋ Manual'}</span>
-            <button class="btn btn-secondary btn-sm" onclick="resumeLeadCampaigns('${lead?.id}', this)" title="Resume any paused campaign drip sequences for this lead">▶ Resume Campaign</button>
-            <button class="btn btn-disposition btn-sm" onclick="openDispositionModal('${lead?.id}', '${name.replace(/'/g, "\\'")}')">🏷️ Disposition</button>
-            <button class="btn btn-call btn-sm" onclick="callLead('${lead?.phone}')">📞 Call</button>
+          <div class="conv3-conv-header-actions">
+            <span class="autopilot-status ${isAutopilot ? 'on' : 'off'}" style="font-size:11px;margin:0;">${isAutopilot ? '⚡ Auto' : '✋ Manual'}</span>
+            <button id="conv3-star-btn" class="conv3-icon-btn" onclick="starConversation('${conv.id}',event)" title="${conv.is_starred ? 'Unstar' : 'Star'}" style="color:${conv.is_starred ? '#f59e0b' : ''};">${conv.is_starred ? '★' : '☆'}</button>
+            <div class="actions-menu">
+              <button class="conv3-icon-btn actions-btn" onclick="toggleActionsMenu(this)" style="font-size:18px;">⋯</button>
+              <div class="actions-dropdown down">
+                <button onclick="window.open('/lead.html?id=${lead?.id}','_blank');closeAllMenus()">👤 View full profile</button>
+                ${isBlocked
+                  ? `<button onclick="unblockConvLead('${lead?.id}','${conv.id}');closeAllMenus()">✅ Unblock lead</button>`
+                  : `<button onclick="blockConvLead('${lead?.id}','${conv.id}');closeAllMenus()">🚫 Block lead</button>`}
+                <button onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume campaigns</button>
+                <button onclick="markConvResolved('${conv.id}');closeAllMenus()">✓ Mark resolved</button>
+              </div>
+            </div>
+            <button id="conv3-right-toggle" class="conv3-icon-btn" onclick="toggleRightPanel()" title="${rightPanelOpen ? 'Hide details' : 'Show details'}" style="font-size:16px;">${rightPanelOpen ? '›' : '‹'}</button>
           </div>
         </div>
-        <div class="conv-updated" id="conv-last-updated"></div>
-        <div class="conv-messages" id="conv-messages">
-          ${conv.messages?.length ? conv.messages.map(m => `
-            <div class="msg ${m.direction} ${m.is_ai ? 'ai' : ''}">
-              <div class="msg-bubble">${m.body}</div>
-              <div class="msg-time">${formatTime(m.sent_at)}${m.direction === 'outbound' ? msgStatusIcon(m.status, m.error_message) : ''}</div>
-              ${m.is_ai ? '<div class="msg-label">AI response</div>' : ''}
-            </div>
-          `).join('') : '<div style="text-align:center;color:#d1d5db;font-size:13px;padding:32px;">No messages yet</div>'}
+        <div class="conv3-subtabs">
+          <button class="conv3-subtab active" data-tab="all" onclick="setConvSubTab('all')">All</button>
+          <button class="conv3-subtab" data-tab="scheduled" onclick="setConvSubTab('scheduled')">Scheduled</button>
+          <button class="conv3-subtab" data-tab="sent" onclick="setConvSubTab('sent')">Sent</button>
+          <button class="conv3-subtab" data-tab="rejected" onclick="setConvSubTab('rejected')">Rejected</button>
         </div>
-        <div class="conv-input-area">
-          ${!isAutopilot ? `<div class="ai-suggestion" id="ai-suggestion-box" style="display:none;"><div class="ai-suggestion-label">⚡ AI suggestion</div><div id="ai-suggestion-text"></div></div>` : `<div class="autopilot-status on" style="margin-bottom:8px;display:inline-flex;">⚡ Autopilot is handling this conversation</div>`}
+        <div class="conv3-updated" id="conv3-last-updated"></div>
+        <div class="conv3-messages" id="conv3-messages"></div>
+        <div class="conv3-input-area">
+          ${isAutopilot ? `<div class="autopilot-status on" style="margin-bottom:8px;">⚡ Autopilot is handling this conversation</div>` : `<div class="ai-suggestion" id="ai-suggestion-box" style="display:none;"><div class="ai-suggestion-label">⚡ AI suggestion</div><div id="ai-suggestion-text"></div></div>`}
           <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;" id="template-pills"></div>
-          <div class="conv-input-row">
-            <textarea class="conv-textarea" id="conv-input" placeholder="${isAutopilot ? 'Autopilot active — type to override' : 'Type a message...'}" ${!isAutopilot ? `onfocus="loadAISuggestion('${conv.id}', '${conv.lead_id}')"` : ''}></textarea>
-            <button class="btn btn-primary" onclick="sendConvMessage('${conv.id}', '${conv.lead_id}')">Send</button>
+          <div class="conv3-schedule-picker" id="conv3-schedule-picker">
+            <input type="date" id="conv3-schedule-date" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
+            <input type="time" id="conv3-schedule-time" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
+            <button class="btn btn-primary btn-sm" onclick="scheduleConvMessage('${conv.id}','${lead?.id}')">Schedule</button>
+          </div>
+          <div class="conv3-toolbar">
+            <button class="conv3-toolbar-btn" id="conv3-schedule-btn" onclick="toggleSchedulePicker()">📅 Schedule</button>
+            <button class="conv3-toolbar-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')">🏷️ Disposition</button>
+            <button class="conv3-toolbar-btn" onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume Campaign</button>
+            <button class="conv3-toolbar-btn" onclick="callLead('${lead?.phone}')">📞 Call</button>
+          </div>
+          <div class="conv3-input-bottom">
+            <textarea class="conv3-textarea" id="conv-input" placeholder="${isAutopilot ? 'Autopilot active — type to override' : 'Type a message...'}" oninput="updateConvCharCount(this)" ${!isAutopilot ? `onfocus="loadAISuggestion('${conv.id}','${conv.lead_id}')"` : ''}></textarea>
+            <div class="conv3-send-area">
+              <button class="btn btn-primary" onclick="sendConvMessage('${conv.id}','${conv.lead_id}')">Send</button>
+              <div class="conv3-char-count" id="conv3-char-count">0</div>
+            </div>
           </div>
         </div>
       `
-      const msgs = document.getElementById('conv-messages')
-      if (msgs) msgs.scrollTop = msgs.scrollHeight
+
+      renderMessages(conv, 'all')
       renderTemplatePills(conv.lead_id)
-      // Initialize polling state for this conversation
+      if (rightPanelOpen) renderRightPanel(conv, lead, [])
+
+      // Populate disposition filter dropdown (once)
+      const dispSelect = document.getElementById('conv3-disp-filter')
+      if (dispSelect && allDispositionTags.length && dispSelect.options.length === 1) {
+        allDispositionTags.forEach(t => {
+          const opt = document.createElement('option')
+          opt.value = t.id; opt.textContent = t.name
+          dispSelect.appendChild(opt)
+        })
+      }
+
       const allMsgs = conv.messages || []
       lastMessageTimestamp = allMsgs.length ? allMsgs[allMsgs.length - 1].sent_at : null
       lastUpdatedTime = Date.now()
@@ -2413,16 +2817,21 @@ const collectActions = () => {
     } catch (err) { console.error(err) }
   }
 
+  const updateConvCharCount = (ta) => {
+    const el = document.getElementById('conv3-char-count')
+    if (el) el.textContent = ta.value.length
+  }
+
   // POLLING
   const updateLastUpdatedLabel = () => {
-    const el = document.getElementById('conv-last-updated')
+    const el = document.getElementById('conv3-last-updated')
     if (!el || !lastUpdatedTime) return
     const secs = Math.round((Date.now() - lastUpdatedTime) / 1000)
     el.textContent = secs < 5 ? 'Updated just now' : `Updated ${secs}s ago`
   }
 
   const pollMessages = async () => {
-    if (!activeConvId || document.hidden) return
+    if (!activeConvId || document.hidden || convSubTab === 'scheduled') return
     try {
       const res = await fetch(`/conversations/${activeConvId}`)
       const data = await res.json()
@@ -2430,11 +2839,8 @@ const collectActions = () => {
         lastMessageTimestamp ? new Date(m.sent_at) > new Date(lastMessageTimestamp) : true
       )
       if (incoming.length > 0) {
-        const container = document.getElementById('conv-messages')
-        if (container) {
-          // Remove "no messages" placeholder if present
-          const placeholder = container.querySelector('div[style*="text-align:center"]')
-          if (placeholder) placeholder.remove()
+        const container = document.getElementById('conv3-messages')
+        if (container && convSubTab === 'all') {
           const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60
           incoming.forEach(m => {
             const div = document.createElement('div')
@@ -2444,6 +2850,12 @@ const collectActions = () => {
           })
           if (wasAtBottom) container.scrollTop = container.scrollHeight
           lastMessageTimestamp = incoming[incoming.length - 1].sent_at
+        }
+        const existingConv = allConversations.find(c => c.id === activeConvId)
+        if (existingConv) {
+          existingConv.messages = data.conversation.messages
+          existingConv.updated_at = data.conversation.updated_at
+          filterConversations(document.getElementById('conv3-search')?.value || '')
         }
       }
       lastUpdatedTime = Date.now()
@@ -2489,12 +2901,8 @@ const collectActions = () => {
       if (data.success) {
         btn.textContent = data.resumed > 0 ? `✓ Resumed ${data.resumed}` : 'Nothing paused'
         btn.style.color = data.resumed > 0 ? '#059669' : '#9ca3af'
-      } else {
-        btn.textContent = 'Error'
-      }
-    } catch {
-      btn.textContent = 'Error'
-    }
+      } else { btn.textContent = 'Error' }
+    } catch { btn.textContent = 'Error' }
     setTimeout(() => { btn.textContent = orig; btn.style.color = ''; btn.disabled = false }, 3000)
   }
 
@@ -2524,7 +2932,7 @@ const collectActions = () => {
     try {
       const res = await fetch('/messages/send-manual', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: convId, lead_id: leadId, body }) })
       const data = await res.json()
-      if (data.success) { input.value = ''; const box = document.getElementById('ai-suggestion-box'); if (box) box.style.display = 'none'; openConversation(convId) }
+      if (data.success) { input.value = ''; updateConvCharCount(input); const box = document.getElementById('ai-suggestion-box'); if (box) box.style.display = 'none'; openConversation(convId) }
       else alert(data.error || 'Failed to send')
     } catch (err) { alert('Something went wrong') }
   }

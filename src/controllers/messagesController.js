@@ -207,6 +207,30 @@ const handleIncomingMessage = async (req, res) => {
       return res.send('<Response></Response>')
     }
 
+    // Blocked leads: log message but never respond
+    if (lead.is_blocked) {
+      let { data: blockedConv } = await supabase
+        .from('conversations').select('id').eq('lead_id', lead.id).eq('user_id', userId).single()
+      if (!blockedConv) {
+        const { data: newConv } = await supabase
+          .from('conversations')
+          .insert({ lead_id: lead.id, status: 'active', user_id: userId })
+          .select('id').single()
+        blockedConv = newConv
+      }
+      if (blockedConv) {
+        await supabase.from('messages').insert({
+          conversation_id: blockedConv.id,
+          direction: 'inbound',
+          body: Body,
+          sent_at: new Date().toISOString()
+        })
+        await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', blockedConv.id)
+      }
+      res.set('Content-Type', 'text/xml')
+      return res.send('<Response></Response>')
+    }
+
     const { data: pausedRows } = await supabase.from('campaign_leads')
       .update({ status: 'paused', paused_at: new Date().toISOString() })
       .eq('lead_id', lead.id)

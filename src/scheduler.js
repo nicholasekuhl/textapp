@@ -228,6 +228,42 @@ const processScheduledMessages = async () => {
       }
     }
 
+    // Process one-off scheduled messages
+    const { data: dueOneOff } = await supabase
+      .from('scheduled_messages')
+      .select('*, leads (id, first_name, phone, status, is_blocked)')
+      .eq('status', 'pending')
+      .lte('send_at', now.toISOString())
+
+    if (dueOneOff && dueOneOff.length > 0) {
+      for (const sm of dueOneOff) {
+        if (!sm.leads) continue
+        if (sm.leads.status === 'opted_out' || sm.leads.is_blocked) {
+          await supabase.from('scheduled_messages').update({ status: 'cancelled' }).eq('id', sm.id)
+          continue
+        }
+        const fromNumber = (sm.user_id ? phoneNumberMap[sm.user_id] : null) || process.env.TWILIO_PHONE_NUMBER
+        const result = await sendSMS(sm.leads.phone, sm.body, fromNumber)
+        if (result.success) {
+          messagesSent++
+          await supabase.from('scheduled_messages').update({ status: 'sent', sent_at: now.toISOString() }).eq('id', sm.id)
+          if (sm.conversation_id) {
+            await supabase.from('messages').insert({
+              conversation_id: sm.conversation_id,
+              direction: 'outbound',
+              body: sm.body,
+              sent_at: now.toISOString(),
+              status: 'sent'
+            })
+            await supabase.from('conversations').update({ updated_at: now.toISOString() }).eq('id', sm.conversation_id)
+          }
+        } else {
+          errorsCount++
+          await supabase.from('scheduled_messages').update({ status: 'failed' }).eq('id', sm.id)
+        }
+      }
+    }
+
     await supabase
       .from('scheduler_health')
       .update({ messages_sent_last_run: messagesSent, errors_last_run: errorsCount })

@@ -542,4 +542,44 @@ const resumeCampaigns = async (req, res) => {
   }
 }
 
-module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, createLead, resumeCampaigns }
+const blockLead = async (req, res) => {
+  try {
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ is_blocked: true, blocked_at: now, autopilot: false, updated_at: now })
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single()
+    if (error) throw error
+
+    await supabase
+      .from('campaign_leads')
+      .update({ status: 'paused', paused_at: now })
+      .eq('lead_id', req.params.id)
+      .in('status', ['pending', 'active'])
+
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const unblockLead = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ is_blocked: false, blocked_at: null, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single()
+    if (error) throw error
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, createLead, resumeCampaigns, blockLead, unblockLead }
