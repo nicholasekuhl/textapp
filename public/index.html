@@ -271,6 +271,16 @@
     .search-panel-grid .form-group { margin-bottom: 0; }
     .search-panel-grid .form-group label { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
     .search-panel-grid input, .search-panel-grid select { padding: 7px 11px; font-size: 13px; }
+    .ms-widget { position: relative; }
+    .ms-pills { border: 1px solid #e5e7eb; border-radius: 8px; padding: 3px 8px; min-height: 33px; cursor: text; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: white; transition: border-color 0.2s; }
+    .ms-pills:focus-within { border-color: #6366f1; }
+    .ms-pill { background: #ede9fe; color: #6d28d9; border-radius: 12px; padding: 2px 6px 2px 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .ms-pill button { background: none; border: none; cursor: pointer; padding: 0; color: #7c3aed; font-size: 15px; line-height: 1; display: flex; align-items: center; }
+    .ms-pills input { border: none; outline: none; font-size: 13px; min-width: 60px; flex: 1; padding: 2px 2px; font-family: inherit; background: transparent; }
+    .ms-dropdown { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 300; }
+    .ms-option { padding: 7px 12px; cursor: pointer; font-size: 13px; color: #374151; display: flex; align-items: center; gap: 8px; }
+    .ms-option:hover { background: #f3f4f6; }
+    .ms-option.ms-selected { color: #6d28d9; }
     .search-panel-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
     .active-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .filter-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #f0f0ff; color: #6366f1; border-radius: 20px; font-size: 12px; font-weight: 500; }
@@ -420,7 +430,8 @@
         </div>
       </div>
       <div class="search-panel-grid">
-        <div class="form-group">
+        <!-- Row 1: Search, Status, State -->
+        <div class="form-group" style="grid-column:span 2;">
           <label>Search</label>
           <input type="text" id="sf-search" placeholder="Name, phone, email...">
         </div>
@@ -440,21 +451,32 @@
             <option value="">All states</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Plan Type</label>
-          <select id="sf-plan">
-            <option value="">All plans</option>
-            <option value="ACA">ACA</option>
-            <option value="Medicare">Medicare</option>
-            <option value="Medicaid">Medicaid</option>
-          </select>
-        </div>
-        <div class="form-group">
+        <!-- Row 2: Disposition Tag, Exclude Dispositions -->
+        <div class="form-group" style="grid-column:span 2;">
           <label>Disposition Tag</label>
-          <select id="sf-disposition">
-            <option value="">All dispositions</option>
-          </select>
+          <div class="ms-widget" id="sf-disposition-widget">
+            <div class="ms-pills" onclick="openMsDropdown('disposition')">
+              <span id="sf-disposition-pills"></span>
+              <input type="text" id="sf-disposition-input" placeholder="Filter by tag..." oninput="filterMsOptions('disposition')" autocomplete="off">
+            </div>
+            <div class="ms-dropdown" id="sf-disposition-dropdown" style="display:none;">
+              <div id="sf-disposition-options"></div>
+            </div>
+          </div>
         </div>
+        <div class="form-group" style="grid-column:span 2;">
+          <label>Exclude Dispositions</label>
+          <div class="ms-widget" id="sf-exclude-disposition-widget">
+            <div class="ms-pills" onclick="openMsDropdown('exclude-disposition')">
+              <span id="sf-exclude-disposition-pills"></span>
+              <input type="text" id="sf-exclude-disposition-input" placeholder="Exclude tags..." oninput="filterMsOptions('exclude-disposition')" autocomplete="off">
+            </div>
+            <div class="ms-dropdown" id="sf-exclude-disposition-dropdown" style="display:none;">
+              <div id="sf-exclude-disposition-options"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Row 3: Campaign, Bucket, Timezone -->
         <div class="form-group">
           <label>Campaign</label>
           <select id="sf-campaign">
@@ -467,7 +489,7 @@
             <option value="">All buckets</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="grid-column:span 2;">
           <label>Timezone</label>
           <select id="sf-timezone">
             <option value="">All timezones</option>
@@ -480,6 +502,7 @@
             <option value="Pacific/Honolulu">Hawaii</option>
           </select>
         </div>
+        <!-- Row 4: Autopilot, Sold, Date From, Date To -->
         <div class="form-group">
           <label>Autopilot</label>
           <select id="sf-autopilot">
@@ -494,11 +517,6 @@
             <option value="">All</option>
             <option value="true">Sold only</option>
             <option value="false">Not Sold</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Exclude Dispositions</label>
-          <select id="sf-exclude-disposition" multiple style="height:72px;">
           </select>
         </div>
         <div class="form-group">
@@ -1020,6 +1038,61 @@
   let dispositionTargetLeadId = null
   let activeBucket = ''
   let activeCampaignQuickFilter = ''
+  const msState = { 'disposition': { selected: [] }, 'exclude-disposition': { selected: [] } }
+
+  const openMsDropdown = (key) => {
+    document.getElementById(`sf-${key}-dropdown`).style.display = 'block'
+    renderMsOptions(key)
+    document.getElementById(`sf-${key}-input`)?.focus()
+  }
+
+  const filterMsOptions = (key) => {
+    document.getElementById(`sf-${key}-dropdown`).style.display = 'block'
+    renderMsOptions(key)
+  }
+
+  const renderMsOptions = (key) => {
+    const query = (document.getElementById(`sf-${key}-input`)?.value || '').toLowerCase()
+    const selectedIds = msState[key].selected.map(s => s.id)
+    const matches = query ? allDispositionTags.filter(t => t.name.toLowerCase().includes(query)) : allDispositionTags
+    const el = document.getElementById(`sf-${key}-options`)
+    if (!el) return
+    if (!matches.length) { el.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:#9ca3af;">No tags found</div>'; return }
+    el.innerHTML = matches.map(t => {
+      const sel = selectedIds.includes(t.id)
+      return `<div class="ms-option ${sel ? 'ms-selected' : ''}" onclick="toggleMsOption('${key}','${t.id}','${t.name.replace(/'/g, "\\'")}')">
+        <span style="width:16px;font-size:11px;flex-shrink:0;">${sel ? '✓' : ''}</span>${t.name}
+      </div>`
+    }).join('')
+  }
+
+  const toggleMsOption = (key, id, name) => {
+    const idx = msState[key].selected.findIndex(s => s.id === id)
+    if (idx === -1) msState[key].selected.push({ id, name })
+    else msState[key].selected.splice(idx, 1)
+    const input = document.getElementById(`sf-${key}-input`)
+    if (input) input.value = ''
+    renderMsPills(key)
+    renderMsOptions(key)
+    filterLeads()
+  }
+
+  const removeMsOption = (key, id) => {
+    msState[key].selected = msState[key].selected.filter(s => s.id !== id)
+    renderMsPills(key)
+    renderMsOptions(key)
+    filterLeads()
+  }
+
+  const renderMsPills = (key) => {
+    const el = document.getElementById(`sf-${key}-pills`)
+    if (!el) return
+    el.innerHTML = msState[key].selected.map(s =>
+      `<span class="ms-pill">${s.name}<button type="button" onclick="event.stopPropagation();removeMsOption('${key}','${s.id}')">×</button></span>`
+    ).join('')
+    const input = document.getElementById(`sf-${key}-input`)
+    if (input) input.placeholder = msState[key].selected.length ? '' : (key === 'disposition' ? 'Filter by tag...' : 'Exclude tags...')
+  }
   let importFile = null
   let campaignSortKey = 'created_at'
   let campaignSortDir = -1
@@ -1082,8 +1155,6 @@
     const search = document.getElementById('sf-search')?.value.toLowerCase() || ''
     const status = document.getElementById('sf-status')?.value || ''
     const state = document.getElementById('sf-state')?.value || ''
-    const plan = document.getElementById('sf-plan')?.value || ''
-    const disposition = document.getElementById('sf-disposition')?.value || ''
     const campaign = document.getElementById('sf-campaign')?.value || ''
     const bucket = document.getElementById('sf-bucket')?.value || activeBucket || ''
     const timezone = document.getElementById('sf-timezone')?.value || ''
@@ -1091,7 +1162,6 @@
     const sold = document.getElementById('sf-sold')?.value || ''
     const dateFrom = document.getElementById('sf-date-from')?.value || ''
     const dateTo = document.getElementById('sf-date-to')?.value || ''
-    const ids = ['sf-search', 'sf-status', 'sf-state', 'sf-plan', 'sf-disposition', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-cold', 'sf-date-from', 'sf-date-to']
 
     let filtered = allLeads
 
@@ -1100,16 +1170,16 @@
     if (search) filtered = filtered.filter(l => [l.first_name, l.last_name, l.phone, l.email, l.state, l.zip_code].some(v => v?.toLowerCase().includes(search)))
     if (status) filtered = filtered.filter(l => l.status === status)
     if (state) filtered = filtered.filter(l => l.state === state)
-    if (plan) filtered = filtered.filter(l => l.plan_type === plan)
-    if (disposition) filtered = filtered.filter(l => l.disposition_tag_id === disposition)
+    const selDisp = msState['disposition'].selected
+    if (selDisp.length) filtered = filtered.filter(l => selDisp.some(s => s.id === l.disposition_tag_id))
+    const selExcl = msState['exclude-disposition'].selected
+    if (selExcl.length) filtered = filtered.filter(l => !selExcl.some(s => s.id === l.disposition_tag_id))
     if (campaign) filtered = filtered.filter(l => l.campaign_tags?.includes(campaign))
     if (timezone) filtered = filtered.filter(l => l.timezone === timezone)
     if (autopilot === 'true') filtered = filtered.filter(l => l.autopilot === true)
     if (autopilot === 'false') filtered = filtered.filter(l => !l.autopilot)
     if (sold === 'true') filtered = filtered.filter(l => l.is_sold === true)
     if (sold === 'false') filtered = filtered.filter(l => !l.is_sold)
-    const excludeDispositions = [...(document.getElementById('sf-exclude-disposition')?.selectedOptions || [])].map(o => o.value).filter(Boolean)
-    if (excludeDispositions.length) filtered = filtered.filter(l => !excludeDispositions.includes(l.disposition_tag_id))
     if (activeCampaignQuickFilter) filtered = filtered.filter(l => l.campaign_tags?.includes(activeCampaignQuickFilter))
     if (dateFrom) filtered = filtered.filter(l => l.created_at && new Date(l.created_at) >= new Date(dateFrom))
     if (dateTo) filtered = filtered.filter(l => l.created_at && new Date(l.created_at) <= new Date(dateTo + 'T23:59:59'))
@@ -1124,13 +1194,12 @@
   const applyFilters = () => filterLeads()
 
   const resetFilters = () => {
-    const ids = ['sf-search', 'sf-status', 'sf-state', 'sf-plan', 'sf-disposition', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-date-from']
-    ids.forEach(id => {
-      const el = document.getElementById(id)
-      if (el) el.value = ''
-    })
-    const excludeEl = document.getElementById('sf-exclude-disposition')
-    if (excludeEl) Array.from(excludeEl.options).forEach(o => o.selected = false)
+    const ids = ['sf-search', 'sf-status', 'sf-state', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-date-from', 'sf-date-to']
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+    msState['disposition'].selected = []
+    msState['exclude-disposition'].selected = []
+    renderMsPills('disposition')
+    renderMsPills('exclude-disposition')
     activeBucket = ''
     activeCampaignQuickFilter = ''
     document.getElementById('campaign-quick-input').value = ''
@@ -1148,12 +1217,11 @@
       { id: 'sf-search', label: 'Search' },
       { id: 'sf-status', label: 'Status' },
       { id: 'sf-state', label: 'State' },
-      { id: 'sf-plan', label: 'Plan' },
       { id: 'sf-timezone', label: 'Timezone' },
       { id: 'sf-autopilot', label: 'Autopilot' },
       { id: 'sf-sold', label: 'Sold' },
       { id: 'sf-date-from', label: 'From date' },
-      { id: 'sf-date-to', label: 'To date' },      
+      { id: 'sf-date-to', label: 'To date' },
     ]
     checks.forEach(({ id, label }) => {
       const el = document.getElementById(id)
@@ -1161,11 +1229,8 @@
         pills.push(`<div class="filter-pill">${label}: ${el.value} <button onclick="clearFilter('${id}')">×</button></div>`)
       }
     })
-    const dispEl = document.getElementById('sf-disposition')
-    if (dispEl?.value) {
-      const tag = allDispositionTags.find(t => t.id === dispEl.value)
-      if (tag) pills.push(`<div class="filter-pill">Disposition: ${tag.name} <button onclick="clearFilter('sf-disposition')">×</button></div>`)
-    }
+    msState['disposition'].selected.forEach(s => pills.push(`<div class="filter-pill">Tag: ${s.name} <button onclick="removeMsOption('disposition','${s.id}')">×</button></div>`))
+    msState['exclude-disposition'].selected.forEach(s => pills.push(`<div class="filter-pill">Excl: ${s.name} <button onclick="removeMsOption('exclude-disposition','${s.id}')">×</button></div>`))
     const campEl = document.getElementById('sf-campaign')
     if (campEl?.value) pills.push(`<div class="filter-pill">Campaign: ${campEl.value} <button onclick="clearFilter('sf-campaign')">×</button></div>`)
     if (activeBucket) pills.push(`<div class="filter-pill">Bucket: ${activeBucket} <button onclick="clearBucketFilter()">×</button></div>`)
@@ -1190,8 +1255,6 @@
     const search = document.getElementById('sf-search')?.value
     const status = document.getElementById('sf-status')?.value
     const state = document.getElementById('sf-state')?.value
-    const plan = document.getElementById('sf-plan')?.value
-    const disposition = document.getElementById('sf-disposition')?.value
     const campaign = document.getElementById('sf-campaign')?.value
     const bucket = activeBucket || document.getElementById('sf-bucket')?.value
     const timezone = document.getElementById('sf-timezone')?.value
@@ -1202,8 +1265,8 @@
     if (search) params.set('search', search)
     if (status) params.set('status', status)
     if (state) params.set('state', state)
-    if (plan) params.set('plan_type', plan)
-    if (disposition) params.set('disposition_tag_id', disposition)
+    const dispIds = msState['disposition'].selected.map(s => s.id)
+    if (dispIds.length) params.set('disposition_tag_id', dispIds[0])
     if (campaign) params.set('campaign_tag', campaign)
     if (bucket) params.set('bucket', bucket)
     if (timezone) params.set('timezone', timezone)
@@ -1320,14 +1383,8 @@
       bucketEl.innerHTML = '<option value="">All buckets</option>' + allBuckets.map(b => `<option value="${b.bucket}">${b.bucket}</option>`).join('')
     }
 
-    const dispEl = document.getElementById('sf-disposition')
-    if (dispEl) {
-      dispEl.innerHTML = '<option value="">All dispositions</option>' + allDispositionTags.map(t => `<option value="${t.id}">${t.name}</option>`).join('')
-    }
-    const excludeEl = document.getElementById('sf-exclude-disposition')
-    if (excludeEl) {
-      excludeEl.innerHTML = allDispositionTags.map(t => `<option value="${t.id}">${t.name}</option>`).join('')
-    }
+    renderMsOptions('disposition')
+    renderMsOptions('exclude-disposition')
   }
 
   const toggleSelectAll = (cb) => {
@@ -2572,6 +2629,12 @@ const collectActions = () => {
     if (!e.target.closest('#campaign-quick-input') && !e.target.closest('#campaign-quick-dropdown')) {
       const dd = document.getElementById('campaign-quick-dropdown')
       if (dd) dd.style.display = 'none'
+    }
+    for (const key of ['disposition', 'exclude-disposition']) {
+      if (!e.target.closest(`#sf-${key}-widget`)) {
+        const dd = document.getElementById(`sf-${key}-dropdown`)
+        if (dd) dd.style.display = 'none'
+      }
     }
   })
 
