@@ -246,4 +246,39 @@ const cancelInvite = async (req, res) => {
   }
 }
 
-module.exports = { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite }
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'Email is required' })
+
+    const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${appUrl}/reset-password.html`
+    })
+    if (error) throw error
+
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token_hash, password } = req.body
+    if (!token_hash || !password) return res.status(400).json({ error: 'Token and password are required' })
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
+    if (error || !data?.user) return res.status(400).json({ error: 'Reset link is invalid or expired' })
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(data.user.id, { password })
+    if (updateError) throw updateError
+
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite, forgotPassword, resetPassword }
