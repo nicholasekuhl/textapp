@@ -126,6 +126,7 @@
     .conv-header-meta { font-size: 12px; color: #9ca3af; }
     .conv-header-actions { display: flex; align-items: center; gap: 8px; }
     .conv-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .conv-updated { font-size: 11px; color: #d1d5db; text-align: right; padding: 3px 18px; }
     .msg { display: flex; flex-direction: column; max-width: 68%; }
     .msg.inbound { align-self: flex-start; }
     .msg.outbound { align-self: flex-end; }
@@ -1059,6 +1060,11 @@
   let messageStepCount = 0
   let dispMessageStepCount = 0
   let activeConvId = null
+  let lastMessageTimestamp = null
+  let lastUpdatedTime = null
+  let lastUpdatedDisplayInterval = null
+  let pollMessagesTimer = null
+  let pollSidebarTimer = null
   let smsTargetLeadId = null
   let dispositionTargetLeadId = null
   let activeBucket = ''
@@ -1915,7 +1921,8 @@ const collectActions = () => {
       const badge = document.getElementById('review-badge')
       if (reviewCount > 0) { badge.textContent = reviewCount; badge.style.display = 'inline' }
       else badge.style.display = 'none'
-      filterConversations('')
+      const searchVal = document.querySelector('.conv-search')?.value || ''
+      filterConversations(searchVal)
     } catch (err) { console.error(err) }
   }
 
@@ -1991,6 +1998,7 @@ const collectActions = () => {
             <button class="btn btn-call btn-sm" onclick="callLead('${lead?.phone}')">📞 Call</button>
           </div>
         </div>
+        <div class="conv-updated" id="conv-last-updated"></div>
         <div class="conv-messages" id="conv-messages">
           ${conv.messages?.length ? conv.messages.map(m => `
             <div class="msg ${m.direction} ${m.is_ai ? 'ai' : ''}">
@@ -2012,8 +2020,74 @@ const collectActions = () => {
       const msgs = document.getElementById('conv-messages')
       if (msgs) msgs.scrollTop = msgs.scrollHeight
       renderTemplatePills(conv.lead_id)
+      // Initialize polling state for this conversation
+      const allMsgs = conv.messages || []
+      lastMessageTimestamp = allMsgs.length ? allMsgs[allMsgs.length - 1].sent_at : null
+      lastUpdatedTime = Date.now()
+      clearInterval(lastUpdatedDisplayInterval)
+      lastUpdatedDisplayInterval = setInterval(updateLastUpdatedLabel, 5000)
+      updateLastUpdatedLabel()
     } catch (err) { console.error(err) }
   }
+
+  // POLLING
+  const updateLastUpdatedLabel = () => {
+    const el = document.getElementById('conv-last-updated')
+    if (!el || !lastUpdatedTime) return
+    const secs = Math.round((Date.now() - lastUpdatedTime) / 1000)
+    el.textContent = secs < 5 ? 'Updated just now' : `Updated ${secs}s ago`
+  }
+
+  const pollMessages = async () => {
+    if (!activeConvId || document.hidden) return
+    try {
+      const res = await fetch(`/conversations/${activeConvId}`)
+      const data = await res.json()
+      const incoming = (data.conversation.messages || []).filter(m =>
+        lastMessageTimestamp ? new Date(m.sent_at) > new Date(lastMessageTimestamp) : true
+      )
+      if (incoming.length > 0) {
+        const container = document.getElementById('conv-messages')
+        if (container) {
+          // Remove "no messages" placeholder if present
+          const placeholder = container.querySelector('div[style*="text-align:center"]')
+          if (placeholder) placeholder.remove()
+          const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60
+          incoming.forEach(m => {
+            const div = document.createElement('div')
+            div.className = `msg ${m.direction}${m.is_ai ? ' ai' : ''}`
+            div.innerHTML = `<div class="msg-bubble">${m.body}</div><div class="msg-time">${formatTime(m.sent_at)}</div>${m.is_ai ? '<div class="msg-label">AI response</div>' : ''}`
+            container.appendChild(div)
+          })
+          if (wasAtBottom) container.scrollTop = container.scrollHeight
+          lastMessageTimestamp = incoming[incoming.length - 1].sent_at
+        }
+      }
+      lastUpdatedTime = Date.now()
+      updateLastUpdatedLabel()
+    } catch (err) { console.error('Poll messages error:', err) }
+  }
+
+  const pollSidebar = async () => {
+    if (document.hidden) return
+    await loadConversations()
+  }
+
+  const startPolling = () => {
+    stopPolling()
+    pollMessagesTimer = setInterval(pollMessages, 10000)
+    pollSidebarTimer = setInterval(pollSidebar, 15000)
+  }
+
+  const stopPolling = () => {
+    clearInterval(pollMessagesTimer)
+    clearInterval(pollSidebarTimer)
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopPolling()
+    else startPolling()
+  })
 
   const takeOverConversation = async (convId, leadId) => {
     await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null }) })
@@ -2307,6 +2381,7 @@ const collectActions = () => {
     await Promise.all([loadDispositionTags(), loadTemplates(), loadProfile()])
     loadLeads()
     loadAppointments()
+    startPolling()
   }
 
   // CALENDAR
