@@ -821,6 +821,30 @@
             <div id="profile-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
             <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
           </div>
+          <div class="settings-card">
+            <h2>Compliance Footer</h2>
+            <p>Automatically appended to the first message sent to each lead. Required for TCPA compliance.</p>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+              <label class="toggle">
+                <input type="checkbox" id="compliance-enabled" onchange="updateCompliancePreview()">
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:13px;color:#374151;">Enable compliance footer</span>
+            </div>
+            <div id="compliance-fields">
+              <div class="form-group">
+                <label>Footer Text <span style="font-weight:400;color:#9ca3af;">(leave blank to use default)</span></label>
+                <textarea id="compliance-footer" rows="2" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;" placeholder="Reply STOP to opt out. [Agency Name]" oninput="updateCompliancePreview()"></textarea>
+                <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Use <strong>[Agency Name]</strong> as a placeholder — it will be replaced with your agency name.</div>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Preview</div>
+                <div id="compliance-preview" style="font-size:13px;color:#374151;white-space:pre-line;"></div>
+              </div>
+            </div>
+            <div id="compliance-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+            <button class="btn btn-primary" onclick="saveCompliance()">Save Compliance Settings</button>
+          </div>
         </div>
       </div>
     </div>
@@ -897,6 +921,7 @@
       <label style="font-size:13px;font-weight:500;color:#374151;">Message Sequence</label>
       <button class="btn btn-secondary btn-sm" onclick="addMessageStep()">+ Add Message</button>
     </div>
+    <div id="campaign-footer-note" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-bottom:10px;">Compliance footer is enabled — it will be automatically appended to the first message sent to each lead.</div>
     <div id="message-steps"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
@@ -2846,6 +2871,8 @@ const collectActions = () => {
     }
   }
 
+  let complianceFooterEnabled = true
+
   const loadProfile = async () => {
     try {
       const res = await fetch('/auth/me')
@@ -2858,7 +2885,54 @@ const collectActions = () => {
       document.getElementById('profile-calendly-url').value = p.calendly_url || ''
       document.getElementById('profile-timezone').value = p.timezone || 'America/New_York'
       document.getElementById('profile-email').value = p.email || ''
+      // Compliance
+      complianceFooterEnabled = p.compliance_footer_enabled !== false
+      document.getElementById('compliance-enabled').checked = complianceFooterEnabled
+      document.getElementById('compliance-footer').value = p.compliance_footer || ''
+      updateCompliancePreview()
+      const note = document.getElementById('campaign-footer-note')
+      if (note) note.style.display = complianceFooterEnabled ? 'block' : 'none'
     } catch (err) { console.error('Profile load error:', err) }
+  }
+
+  const updateCompliancePreview = () => {
+    const enabled = document.getElementById('compliance-enabled').checked
+    complianceFooterEnabled = enabled
+    const note = document.getElementById('campaign-footer-note')
+    if (note) note.style.display = enabled ? 'block' : 'none'
+    const fields = document.getElementById('compliance-fields')
+    const previewEl = document.getElementById('compliance-preview')
+    const customFooter = document.getElementById('compliance-footer').value.trim()
+    const agencyName = document.getElementById('profile-agency-name').value.trim()
+    const footer = customFooter || (agencyName ? `Reply STOP to opt out. ${agencyName}` : 'Reply STOP to opt out.')
+    const sampleMsg = `Hi there! This is Nick with Coverage by Kuhl. I saw you were exploring health insurance options and I'd love to help you find the right plan for your needs and budget. Do you have a few minutes to connect?`
+    previewEl.textContent = enabled ? `${sampleMsg}\n${footer}` : sampleMsg
+  }
+
+  const saveCompliance = async () => {
+    const statusEl = document.getElementById('compliance-save-status')
+    statusEl.style.display = 'block'
+    statusEl.style.color = '#6366f1'
+    statusEl.textContent = 'Saving...'
+    try {
+      const body = {
+        compliance_footer_enabled: document.getElementById('compliance-enabled').checked,
+        compliance_footer: document.getElementById('compliance-footer').value.trim() || null
+      }
+      const res = await fetch('/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      if (data.success) {
+        statusEl.style.color = '#059669'
+        statusEl.textContent = 'Saved!'
+      } else {
+        statusEl.style.color = '#dc2626'
+        statusEl.textContent = data.error || 'Save failed'
+      }
+    } catch {
+      statusEl.style.color = '#dc2626'
+      statusEl.textContent = 'Save failed'
+    }
+    setTimeout(() => { statusEl.style.display = 'none' }, 3000)
   }
 
   const saveProfile = async () => {

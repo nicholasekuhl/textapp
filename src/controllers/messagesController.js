@@ -1,10 +1,10 @@
 const supabase = require('../db')
-const { sendSMS } = require('../twilio')
+const { sendSMS, buildMessageBody } = require('../twilio')
 const { spintext } = require('../spintext')
 
 const getInitialMessage = (lead) => {
   const firstName = lead.first_name || 'there'
-  return `Hi ${firstName}! This is Nick with Coverage by Kuhl. I saw you were exploring health insurance options and I'd love to help you find the right plan for your needs and budget. Do you have a few minutes to connect? Reply STOP to opt out.`
+  return `Hi ${firstName}! This is Nick with Coverage by Kuhl. I saw you were exploring health insurance options and I'd love to help you find the right plan for your needs and budget. Do you have a few minutes to connect?`
 }
 
 const getUserFromNumber = async (userId) => {
@@ -37,7 +37,8 @@ const sendInitialOutreach = async (req, res) => {
     }
 
     const fromNumber = await getUserFromNumber(req.user.id)
-    const messageBody = getInitialMessage(lead)
+    const rawBody = getInitialMessage(lead)
+    const messageBody = buildMessageBody(rawBody, req.user.profile, lead, true)
     const result = await sendSMS(lead.phone, messageBody, fromNumber)
     if (!result.success) return res.status(500).json({ error: result.error })
 
@@ -52,6 +53,7 @@ const sendInitialOutreach = async (req, res) => {
 
     await supabase.from('leads').update({
       status: 'contacted',
+      first_message_sent: true,
       updated_at: new Date().toISOString()
     }).eq('id', leadId)
 
@@ -264,17 +266,22 @@ const handleIncomingMessage = async (req, res) => {
         const aiResponse = await generateAIResponse(lead, history, profile)
 
         if (aiResponse) {
-          const result = await sendSMS(lead.phone, aiResponse, fromNumber)
+          const aiBody = buildMessageBody(aiResponse, profile, lead, false)
+          const result = await sendSMS(lead.phone, aiBody, fromNumber)
           if (result.success) {
             await supabase.from('messages').insert({
               conversation_id: conversation.id,
               direction: 'outbound',
-              body: aiResponse,
+              body: aiBody,
               sent_at: new Date().toISOString(),
               is_ai: true,
               twilio_sid: result.sid,
               status: 'sent'
             })
+            if (!lead.first_message_sent) {
+              await supabase.from('leads').update({ first_message_sent: true }).eq('id', lead.id)
+              lead = { ...lead, first_message_sent: true }
+            }
             await supabase.from('conversations')
               .update({ updated_at: new Date().toISOString() })
               .eq('id', conversation.id)
@@ -312,13 +319,14 @@ const sendManualMessage = async (req, res) => {
 
     const fromNumber = await getUserFromNumber(req.user.id)
     const processedBody = spintext(body).replace(/\[First Name\]/g, lead.first_name || 'there')
-    const result = await sendSMS(lead.phone, processedBody, fromNumber)
+    const finalBody = buildMessageBody(processedBody, req.user.profile, lead, false)
+    const result = await sendSMS(lead.phone, finalBody, fromNumber)
     if (!result.success) return res.status(500).json({ error: result.error })
 
     await supabase.from('messages').insert({
       conversation_id,
       direction: 'outbound',
-      body: processedBody,
+      body: finalBody,
       sent_at: new Date().toISOString(),
       is_ai: false,
       twilio_sid: result.sid,
@@ -329,9 +337,9 @@ const sendManualMessage = async (req, res) => {
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversation_id)
 
-    await supabase.from('leads')
-      .update({ status: 'contacted', updated_at: new Date().toISOString() })
-      .eq('id', lead_id)
+    const leadUpdates = { status: 'contacted', updated_at: new Date().toISOString() }
+    if (!lead.first_message_sent) leadUpdates.first_message_sent = true
+    await supabase.from('leads').update(leadUpdates).eq('id', lead_id)
 
     res.json({ success: true })
   } catch (err) {

@@ -27,4 +27,20 @@ const sendSMS = async (to, body, fromNumber) => {
   }
 }
 
-module.exports = { sendSMS, getMasterClient }
+const buildMessageBody = (body, userProfile, lead, isFirstMessage) => {
+  const isFirst = isFirstMessage || !lead?.first_message_sent
+  if (!isFirst) return body
+  if (userProfile?.compliance_footer_enabled === false) return body
+
+  let footer
+  if (userProfile?.compliance_footer) {
+    footer = userProfile.compliance_footer
+  } else {
+    const agencyName = userProfile?.agency_name
+    footer = agencyName ? `Reply STOP to opt out. ${agencyName}` : 'Reply STOP to opt out.'
+  }
+
+  return `${body}\n${footer}`
+}
+
+module.exports = { sendSMS, getMasterClient, buildMessageBody }

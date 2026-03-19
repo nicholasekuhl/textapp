@@ -54,13 +54,15 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { agent_name, agency_name, calendly_url, timezone } = req.body
+    const { agent_name, agency_name, calendly_url, timezone, compliance_footer, compliance_footer_enabled } = req.body
 
     const updates = { updated_at: new Date().toISOString() }
     if (agent_name !== undefined) updates.agent_name = agent_name
     if (agency_name !== undefined) updates.agency_name = agency_name
     if (calendly_url !== undefined) updates.calendly_url = calendly_url
     if (timezone !== undefined) updates.timezone = timezone
+    if (compliance_footer !== undefined) updates.compliance_footer = compliance_footer
+    if (compliance_footer_enabled !== undefined) updates.compliance_footer_enabled = compliance_footer_enabled
 
     const { data, error } = await supabase
       .from('user_profiles').update(updates).eq('id', req.user.id).select().single()
