@@ -492,14 +492,14 @@
             <h3>Quick Stats</h3>
             <div class="quick-stat"><span class="lbl">Status</span><span class="val">${lead.status}</span></div>
             <div class="quick-stat"><span class="lbl">Autopilot</span><span class="val">${lead.autopilot ? 'ON' : 'OFF'}</span></div>
-            <div class="quick-stat"><span class="lbl">Bucket</span><span class="val">${lead.bucket || '—'}</span></div>
+            <div class="quick-stat"><span class="lbl">📁 Bucket</span><span class="val">${lead.bucket || '—'}</span></div>
             <div class="quick-stat"><span class="lbl">Added</span><span class="val">${formatDate(lead.created_at)}</span></div>
             <div class="quick-stat"><span class="lbl">Product</span><span class="val">${lead.product || '—'}</span></div>
             <div class="quick-stat"><span class="lbl">Timezone</span><span class="val">${lead.timezone?.replace('America/', '') || '—'}</span></div>
           </div>
 
           <div class="panel-card">
-            <h3>Active Campaigns</h3>
+            <h3>⚡ Active Campaign</h3>
             <div id="active-campaigns-list"><div style="font-size:13px;color:#d1d5db;">Loading...</div></div>
           </div>
 
@@ -1023,15 +1023,21 @@
       const activeTags = lead.campaign_tags || []
       const active = campaigns.filter(c => activeTags.includes(c.name))
       if (!active.length) {
-        container.innerHTML = '<div style="font-size:13px;color:#d1d5db;">No active campaigns</div>'
+        container.innerHTML = '<div style="font-size:13px;color:#9ca3af;">No active campaign</div>'
         return
       }
-      container.innerHTML = active.map(c => `
-        <div class="quick-stat">
-          <span class="lbl">${c.name}</span>
-          <span class="val" style="color:${c.status === 'active' ? '#059669' : '#9ca3af'}">${c.status}</span>
-        </div>
-      `).join('')
+      const day = lead.campaign_day != null ? lead.campaign_day : null
+      container.innerHTML = active.map(c => {
+        const steps = c.campaign_messages?.length || 0
+        const dayInfo = day != null ? ` — Day ${day}${steps ? ' of ' + steps : ''}` : ''
+        const isPaused = c.status === 'paused'
+        return `
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="font-size:13px;font-weight:600;color:#1d4ed8;">⚡ ${c.name}${dayInfo}</div>
+            <div style="font-size:11px;color:${isPaused ? '#d97706' : '#059669'};font-weight:500;">${isPaused ? 'Paused' : 'Active'}</div>
+          </div>
+        `
+      }).join('')
     } catch (err) { console.error(err) }
   }
 

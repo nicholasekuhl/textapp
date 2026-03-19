@@ -803,13 +803,14 @@
       <div class="stat-card"><div class="num" id="stat-booked">0</div><div class="lbl">Booked</div></div>
       <div class="stat-card"><div class="num" id="stat-autopilot">0</div><div class="lbl">On Autopilot</div></div>
     </div>
+    <div style="font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;padding-left:2px;">Buckets</div>
     <div class="bucket-tabs" id="bucket-tabs">
       <div class="bucket-tab active" onclick="selectBucket('', this)">All Leads</div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
       <input type="text" id="bucket-search" placeholder="Search buckets..." oninput="filterBucketTabs()" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;font-size:13px;outline:none;width:160px;">
       <div style="position:relative;">
-        <input type="text" id="campaign-quick-input" placeholder="Search campaigns..." oninput="showCampaignDropdown()" autocomplete="off" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;font-size:13px;outline:none;width:180px;">
+        <input type="text" id="campaign-quick-input" placeholder="⚡ Filter by campaign..." oninput="showCampaignDropdown()" autocomplete="off" title="Filter by active drip campaign" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;font-size:13px;outline:none;width:190px;">
         <button id="campaign-clear-btn" onclick="clearCampaignQuickFilter()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;">×</button>
         <div id="campaign-quick-dropdown" style="display:none;position:absolute;top:100%;left:0;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:200px;max-height:200px;overflow-y:auto;z-index:100;margin-top:2px;"></div>
       </div>
@@ -878,13 +879,13 @@
         </div>
         <!-- Row 3: Campaign, Bucket, Timezone -->
         <div class="form-group">
-          <label>Campaign</label>
+          <label title="Filter by active drip campaign">⚡ Enrolled Campaign</label>
           <select id="sf-campaign">
             <option value="">All campaigns</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Bucket</label>
+          <label title="Leads imported in this batch">📁 Bucket</label>
           <select id="sf-bucket">
             <option value="">All buckets</option>
           </select>
@@ -1006,7 +1007,9 @@
             <th onclick="sortCampaigns('created_at')">Created ↕</th>
             <th>Messages</th>
             <th onclick="sortCampaigns('status')">Status ↕</th>
-            <th>Progress</th>
+            <th>Enrolled</th>
+            <th>Completed</th>
+            <th>Paused</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -1745,7 +1748,7 @@
     const allTab = `<div class="bucket-tab active" onclick="selectBucket('', this)">All Leads <span class="count">${allLeads.length}</span></div>`
     const bucketTabs = allBuckets.map(b => {
       const count = allLeads.filter(l => l.bucket === b.bucket).length
-      return `<div class="bucket-tab" onclick="selectBucket('${b.bucket}', this)">${b.bucket} <span class="count">${count}</span></div>`
+      return `<div class="bucket-tab" onclick="selectBucket('${b.bucket}', this)" title="Leads imported in this batch">📁 ${b.bucket} <span class="count">${count}</span></div>`
     }).join('')
     container.innerHTML = allTab + bucketTabs
   }
@@ -1921,10 +1924,12 @@
             : `<span style="background:#f3f4f6;color:#9ca3af;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;">No reply</span>`)
         : ''
 
-      // Campaign progress
+      // Campaign progress pill
       const campProgress = (tags.length && lead.campaign_day != null)
-        ? `<span class="tag" style="background:#fff7ed;color:#c2410c;font-size:10px;font-weight:600;">Day ${lead.campaign_day} — ${tags[0]}</span>`
-        : ''
+        ? `<span class="tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;border:1px solid #bfdbfe;">⚡ ${tags[0]} — Day ${lead.campaign_day}</span>`
+        : tags.length
+          ? `<span class="tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;border:1px solid #bfdbfe;">⚡ ${tags[0]}</span>`
+          : ''
 
       return `
         <div class="lead-card" style="border-left: 4px solid ${borderColor};">
@@ -1938,7 +1943,6 @@
                 <div class="lead-name">
                   <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;cursor:pointer;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='inherit'">${name}</a>
                   ${lead.is_sold ? '<span class="sold-badge">✓ SOLD</span>' : ''}
-                  ${lead.bucket ? `<span class="tag tag-bucket" style="font-size:10px;">${lead.bucket}</span>` : ''}
                   ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color}">${dispTag.name}</span>` : ''}
                   ${replyBadge}
                 </div>
@@ -1953,9 +1957,9 @@
                 </div>
                 <div class="lead-tags">
                   <span class="tag tag-${lead.status}">${lead.status}</span>
+                  ${lead.bucket ? `<span class="tag tag-bucket" style="font-size:10px;" title="Leads imported in this batch">📁 ${lead.bucket}</span>` : ''}
                   ${lead.product ? `<span class="tag tag-plan" style="cursor:pointer;" onclick="editLeadProduct('${lead.id}', this)" title="Click to edit">${lead.product}</span>` : ''}
                   ${campProgress}
-                  ${tags.length && !campProgress ? tags.map(t => `<span class="tag tag-campaign">${t}</span>`).join('') : ''}
                 </div>
               </div>
             </div>
@@ -3354,7 +3358,9 @@ const collectActions = () => {
           <td><div class="skeleton" style="height:13px;width:70px;"></div></td>
           <td><div class="skeleton" style="height:13px;width:40px;"></div></td>
           <td><div class="skeleton" style="height:22px;width:60px;border-radius:20px;"></div></td>
-          <td><div class="skeleton" style="height:8px;width:100%;border-radius:4px;margin-bottom:4px;"></div><div class="skeleton" style="height:11px;width:40px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
           <td><div class="skeleton" style="height:22px;width:30px;border-radius:6px;"></div></td>
         </tr>`).join('')
     }
@@ -3387,7 +3393,7 @@ const collectActions = () => {
     })
     const tbody = document.getElementById('campaigns-tbody')
     if (!sorted.length) {
-      tbody.innerHTML = `<tr><td colspan="7">
+      tbody.innerHTML = `<tr><td colspan="9">
         <div style="text-align:center;padding:72px 20px;">
           <div style="font-size:40px;margin-bottom:14px;">📋</div>
           <div style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No campaigns yet</div>
@@ -3398,10 +3404,11 @@ const collectActions = () => {
       return
     }
     tbody.innerHTML = sorted.map((c, idx) => {
-      const total = c.campaign_leads?.length || 0
-      const completed = c.campaign_leads?.filter(l => l.status === 'completed').length || 0
+      const leads = c.campaign_leads || []
+      const enrolled = leads.length
+      const completed = leads.filter(l => l.status === 'completed').length
+      const paused = leads.filter(l => l.status === 'paused').length
       const steps = c.campaign_messages?.length || 0
-      const pct = total > 0 ? Math.round((completed / total) * 100) : 0
       const isLast = idx >= sorted.length - 2
       return `<tr>
         <td><div class="campaign-name-cell">${c.name}</div>${c.description ? `<div class="campaign-desc">${c.description}</div>` : ''}</td>
@@ -3409,7 +3416,9 @@ const collectActions = () => {
         <td style="color:#6b7280;font-size:13px;">${formatDate(c.created_at)}</td>
         <td style="color:#6b7280;font-size:13px;">${steps} msg${steps !== 1 ? 's' : ''}</td>
         <td><span class="status-badge status-${c.status}">${c.status}</span></td>
-        <td><div class="progress-wrap"><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div><div class="progress-text">${completed}/${total}</div></div></td>
+        <td style="font-size:13px;font-weight:600;color:#1a1a2e;">${enrolled}</td>
+        <td style="font-size:13px;color:#059669;font-weight:600;">${completed}</td>
+        <td style="font-size:13px;color:#d97706;font-weight:600;">${paused}</td>
         <td>
           <div class="actions-menu">
             <button class="actions-btn" onclick="toggleActionsMenu('menu-${c.id}', ${isLast})">⋯</button>
