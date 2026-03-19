@@ -1146,6 +1146,69 @@
         </div>
       </div>
     </div>
+
+    <!-- Commission Dashboard -->
+    <div id="an-commission-section" style="margin-top:8px;">
+      <div style="font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:14px;display:flex;align-items:center;gap:8px;">💰 Commission Earnings</div>
+      <!-- Commission metric cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="an-comm-grid">
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+          <div class="num" style="color:#059669;" id="an-comm-today">—</div>
+          <div class="lbl">Today</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+          <div class="num" style="color:#059669;" id="an-comm-week">—</div>
+          <div class="lbl">This Week</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+          <div class="num" style="color:#059669;" id="an-comm-month">—</div>
+          <div class="lbl">This Month</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+          <div class="num" style="color:#059669;" id="an-comm-year">—</div>
+          <div class="lbl">This Year</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #6366f1;">
+          <div class="num" id="an-comm-alltime">—</div>
+          <div class="lbl">All Time</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #6366f1;">
+          <div class="num" id="an-comm-avg">—</div>
+          <div class="lbl">Avg per Sale</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #f59e0b;">
+          <div class="num" id="an-comm-sales-month">—</div>
+          <div class="lbl">Sales This Month</div>
+        </div>
+      </div>
+      <!-- Commission line chart -->
+      <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;margin-bottom:20px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a2e;">Commission by Date <span style="font-size:12px;font-weight:400;color:#9ca3af;">(last 30 days)</span></div>
+        <div style="position:relative;height:200px;"><canvas id="an-commission-chart"></canvas></div>
+      </div>
+      <!-- Commission sales table -->
+      <div class="table-card" style="margin-bottom:20px;">
+        <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;font-size:15px;font-weight:600;">Recent Sales</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th>Lead</th>
+                <th>Product</th>
+                <th style="text-align:right;">Premium</th>
+                <th style="text-align:right;">Commission</th>
+                <th>Date Sold</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="an-commission-tbody">
+              <tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af;font-size:13px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- CALENDAR PAGE -->
@@ -1278,6 +1341,11 @@
         </div>
         <!-- ACCOUNT PANEL -->
         <div class="settings-panel" id="panel-account">
+          <div id="account-earnings-banner" style="display:none;background:linear-gradient(135deg,#064e3b,#065f46);border-radius:14px;padding:18px 22px;margin-bottom:20px;color:white;">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">This Month</div>
+            <div style="font-size:24px;font-weight:800;" id="account-earnings-amount">—</div>
+            <div style="font-size:13px;opacity:0.8;margin-top:3px;" id="account-earnings-sub">in commissions</div>
+          </div>
           <div class="settings-card">
             <h2>Profile Settings</h2>
             <p>Your identity and Twilio credentials used for all outbound messages.</p>
@@ -1489,6 +1557,13 @@
     <div class="form-group">
       <label>Product Sold</label>
       <input type="text" id="sold-plan-type" placeholder="e.g. UHC PPO $245/mo, Term Life $500k, 6kW Solar System...">
+    </div>
+    <div class="form-group">
+      <label>Expected Commission</label>
+      <div style="position:relative;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none;">$</span>
+        <input type="number" id="sold-commission" placeholder="0.00" step="0.01" min="0" style="padding-left:26px;">
+      </div>
     </div>
     <div class="form-group">
       <label>Monthly Premium</label>
@@ -1718,6 +1793,23 @@
     if (mobileSelect) mobileSelect.value = panel
     if (panel === 'team') loadInvites()
     if (panel === 'phone-numbers') loadPhoneNumbers()
+    if (panel === 'account') loadAccountEarnings()
+  }
+
+  const loadAccountEarnings = async () => {
+    try {
+      const res = await fetch('/stats/sold')
+      const data = await res.json()
+      const banner = document.getElementById('account-earnings-banner')
+      if (!banner) return
+      const amount = data.commission_month || 0
+      const sales = data.sold_this_month || 0
+      if (amount > 0 || sales > 0) {
+        document.getElementById('account-earnings-amount').textContent = fmtComm(amount)
+        document.getElementById('account-earnings-sub').textContent = `in commissions across ${sales} sale${sales !== 1 ? 's' : ''}`
+        banner.style.display = 'block'
+      }
+    } catch (e) {}
   }
 
   const showSettingsPanelMobile = (panel) => {
@@ -2237,6 +2329,7 @@
     soldTargetLeadName = leadName
     document.getElementById('sold-modal-title').textContent = `Mark ${leadName} as Sold 🎉`
     document.getElementById('sold-plan-type').value = ''
+    document.getElementById('sold-commission').value = ''
     document.getElementById('sold-premium').value = ''
     document.getElementById('sold-notes').value = ''
     document.getElementById('sold-modal').classList.add('open')
@@ -2245,19 +2338,20 @@
 
   const submitMarkSold = async () => {
     const planType = document.getElementById('sold-plan-type').value.trim()
+    const commission = parseFloat(document.getElementById('sold-commission').value) || null
     const premium = parseFloat(document.getElementById('sold-premium').value) || null
     const notes = document.getElementById('sold-notes').value.trim()
     try {
       const res = await fetch(`/leads/${soldTargetLeadId}/sold`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sold_plan_type: planType || null, sold_premium: premium, sold_notes: notes || null })
+        body: JSON.stringify({ sold_plan_type: planType || null, sold_premium: premium, sold_notes: notes || null, commission: commission || null })
       })
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
       document.getElementById('sold-modal').classList.remove('open')
       const lead = allLeads.find(l => l.id === soldTargetLeadId)
-      if (lead) Object.assign(lead, { is_sold: true, status: 'sold', sold_at: data.lead.sold_at, sold_plan_type: data.lead.sold_plan_type, sold_premium: data.lead.sold_premium })
+      if (lead) Object.assign(lead, { is_sold: true, status: 'sold', sold_at: data.lead.sold_at, sold_plan_type: data.lead.sold_plan_type, sold_premium: data.lead.sold_premium, commission: data.lead.commission, commission_status: data.lead.commission_status })
       toast.success(`${soldTargetLeadName} marked as sold!`, planType ? `${planType}${premium ? ` — $${premium}/mo` : ''}` : 'Sale recorded')
       fireConfetti()
       filterLeads()
@@ -2272,7 +2366,7 @@
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
       const lead = allLeads.find(l => l.id === leadId)
-      if (lead) Object.assign(lead, { is_sold: false, status: data.lead.status, sold_at: null, sold_plan_type: null, sold_premium: null })
+      if (lead) Object.assign(lead, { is_sold: false, status: data.lead.status, sold_at: null, sold_plan_type: null, sold_premium: null, commission: null, commission_status: null })
       toast.info('Sold status removed', `${leadName} moved back to ${data.lead.status}`)
       filterLeads()
     } catch (err) { toast.error('Error', err.message || 'Could not remove sold status') }
@@ -3626,6 +3720,86 @@ const collectActions = () => {
     document.getElementById('an-monthly-premium-sub').textContent = sold.avg_premium ? `avg $${sold.avg_premium}/mo per sale` : 'No premium data yet'
     const badge = document.getElementById('an-sold-month-badge')
     if (badge) badge.textContent = sold.sold_this_month ? `${sold.sold_this_month} this month` : ''
+    renderCommissionMetrics(sold)
+    renderCommissionChart(sold.commission_chart || [])
+    renderCommissionTable(sold.recent || [])
+  }
+
+  const fmtComm = (n) => n > 0 ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'
+
+  const renderCommissionMetrics = (sold) => {
+    document.getElementById('an-comm-today').textContent = fmtComm(sold.commission_today || 0)
+    document.getElementById('an-comm-week').textContent = fmtComm(sold.commission_week || 0)
+    document.getElementById('an-comm-month').textContent = fmtComm(sold.commission_month || 0)
+    document.getElementById('an-comm-year').textContent = fmtComm(sold.commission_year || 0)
+    document.getElementById('an-comm-alltime').textContent = fmtComm(sold.commission_alltime || 0)
+    document.getElementById('an-comm-avg').textContent = sold.commission_avg ? fmtComm(sold.commission_avg) : '—'
+    document.getElementById('an-comm-sales-month').textContent = sold.sold_this_month ?? '—'
+  }
+
+  let commissionChart = null
+  const renderCommissionChart = (data) => {
+    const ctx = document.getElementById('an-commission-chart')
+    if (!ctx) return
+    if (commissionChart) { commissionChart.destroy(); commissionChart = null }
+    commissionChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => {
+          const dt = new Date(d.date + 'T00:00:00')
+          return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }),
+        datasets: [{
+          label: 'Commission',
+          data: data.map(d => d.amount),
+          borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)',
+          borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.3, fill: true
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString()}` } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
+          y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 }, callback: v => `$${v.toLocaleString()}` }, beginAtZero: true }
+        }
+      }
+    })
+  }
+
+  const markCommissionPaid = async (leadId, currentStatus) => {
+    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid'
+    try {
+      const res = await fetch(`/leads/${leadId}/commission-status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) })
+      const data = await res.json()
+      if (data.success) loadAnalytics()
+    } catch (e) { toast.error('Error', 'Could not update commission status') }
+  }
+
+  const renderCommissionTable = (recent) => {
+    const tbody = document.getElementById('an-commission-tbody')
+    if (!tbody) return
+    if (!recent.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">No sales recorded yet</td></tr>`
+      return
+    }
+    const statusColors = { pending: { bg: '#fef3c7', color: '#92400e' }, paid: { bg: '#d1fae5', color: '#065f46' }, cancelled: { bg: '#fee2e2', color: '#991b1b' } }
+    tbody.innerHTML = recent.map(s => {
+      const name = [s.first_name, s.last_name].filter(Boolean).join(' ') || 'Unknown'
+      const date = s.sold_at ? new Date(s.sold_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+      const st = s.commission_status || 'pending'
+      const sc = statusColors[st] || statusColors.pending
+      const isPaid = st === 'paid'
+      return `<tr>
+        <td style="font-size:13px;font-weight:600;color:#1a1a2e;">${name}</td>
+        <td style="font-size:12px;color:#6b7280;">${s.sold_plan_type || s.product || '—'}</td>
+        <td style="text-align:right;font-size:13px;color:#059669;">${s.sold_premium ? '$' + parseFloat(s.sold_premium).toFixed(0) + '/mo' : '—'}</td>
+        <td style="text-align:right;font-size:13px;font-weight:700;color:#1a1a2e;">${s.commission ? '$' + parseFloat(s.commission).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—'}</td>
+        <td style="font-size:12px;color:#6b7280;">${date}</td>
+        <td><span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:${sc.bg};color:${sc.color};">${st}</span></td>
+        <td><button onclick="markCommissionPaid('${s.id}', '${st}')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #e5e7eb;background:${isPaid ? '#f3f4f6' : '#d1fae5'};color:${isPaid ? '#6b7280' : '#065f46'};cursor:pointer;font-weight:500;">${isPaid ? 'Mark Pending' : 'Mark Paid'}</button></td>
+      </tr>`
+    }).join('')
   }
 
   const renderSoldList = (sold) => {

@@ -288,26 +288,58 @@ const getSoldStats = async (req, res) => {
     const userId = req.user.id
     const { data: sold, error } = await supabase
       .from('leads')
-      .select('id, first_name, last_name, sold_at, sold_plan_type, sold_premium, sold_notes')
+      .select('id, first_name, last_name, sold_at, sold_plan_type, sold_premium, sold_notes, product, commission, commission_status, commission_paid_at')
       .eq('user_id', userId)
       .eq('is_sold', true)
       .order('sold_at', { ascending: false })
     if (error) throw error
 
     const now = new Date()
-    const thisMonth = (sold || []).filter(l => {
-      if (!l.sold_at) return false
-      const d = new Date(l.sold_at)
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    })
+    const r2 = (n) => Math.round(n * 100) / 100
+    const sumComm = (arr) => arr.reduce((s, l) => s + (parseFloat(l.commission) || 0), 0)
+
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0)
+    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+
+    const allSold = sold || []
+    const inRange = (l, since) => l.sold_at && new Date(l.sold_at) >= since
+
+    const thisMonth = allSold.filter(l => inRange(l, startOfMonth))
     const totalPremium = thisMonth.reduce((s, l) => s + (parseFloat(l.sold_premium) || 0), 0)
+    const withComm = allSold.filter(l => l.commission)
+
+    // 30-day commission chart
+    const commByDay = {}
+    const thirtyAgo = new Date(now); thirtyAgo.setDate(now.getDate() - 29); thirtyAgo.setHours(0, 0, 0, 0)
+    for (const l of allSold) {
+      if (!l.sold_at || !l.commission) continue
+      const d = new Date(l.sold_at)
+      if (d < thirtyAgo) continue
+      const key = d.toISOString().split('T')[0]
+      commByDay[key] = (commByDay[key] || 0) + (parseFloat(l.commission) || 0)
+    }
+    const commission_chart = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now); d.setDate(now.getDate() - i)
+      const key = d.toISOString().split('T')[0]
+      commission_chart.push({ date: key, amount: r2(commByDay[key] || 0) })
+    }
 
     res.json({
-      total_sold: sold?.length || 0,
+      total_sold: allSold.length,
       sold_this_month: thisMonth.length,
-      total_premium: Math.round(totalPremium * 100) / 100,
-      avg_premium: thisMonth.length > 0 ? Math.round((totalPremium / thisMonth.length) * 100) / 100 : null,
-      recent: (sold || []).slice(0, 10)
+      total_premium: r2(totalPremium),
+      avg_premium: thisMonth.length > 0 ? r2(totalPremium / thisMonth.length) : null,
+      commission_today: r2(sumComm(allSold.filter(l => inRange(l, startOfToday)))),
+      commission_week: r2(sumComm(allSold.filter(l => inRange(l, startOfWeek)))),
+      commission_month: r2(sumComm(thisMonth)),
+      commission_year: r2(sumComm(allSold.filter(l => inRange(l, startOfYear)))),
+      commission_alltime: r2(sumComm(allSold)),
+      commission_avg: withComm.length > 0 ? r2(sumComm(withComm) / withComm.length) : null,
+      commission_chart,
+      recent: allSold.slice(0, 20)
     })
   } catch (err) {
     res.status(500).json({ error: err.message })

@@ -496,6 +496,7 @@
             <div class="quick-stat"><span class="lbl">Added</span><span class="val">${formatDate(lead.created_at)}</span></div>
             <div class="quick-stat"><span class="lbl">Product</span><span class="val">${lead.product || '—'}</span></div>
             <div class="quick-stat"><span class="lbl">Timezone</span><span class="val">${lead.timezone?.replace('America/', '') || '—'}</span></div>
+            ${lead.is_sold && lead.commission ? `<div class="quick-stat"><span class="lbl">💰 Commission</span><span class="val" style="color:${lead.commission_status === 'paid' ? '#059669' : '#d97706'};font-weight:600;">$${parseFloat(lead.commission).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} <span style="font-size:11px;opacity:0.8;">(${lead.commission_status === 'paid' ? 'paid ✓' : lead.commission_status || 'pending'})</span></span></div>` : ''}
           </div>
 
           <div class="panel-card">
@@ -1057,6 +1058,7 @@
     const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Lead'
     document.getElementById('lp-sold-modal-title').textContent = `Mark ${name} as Sold 🎉`
     document.getElementById('lp-sold-plan-type').value = ''
+    document.getElementById('lp-sold-commission').value = ''
     document.getElementById('lp-sold-premium').value = ''
     document.getElementById('lp-sold-notes').value = ''
     document.getElementById('lp-sold-modal').style.display = 'flex'
@@ -1065,13 +1067,14 @@
 
   const submitMarkSold = async () => {
     const planType = document.getElementById('lp-sold-plan-type').value.trim()
+    const commission = parseFloat(document.getElementById('lp-sold-commission').value) || null
     const premium = parseFloat(document.getElementById('lp-sold-premium').value) || null
     const notes = document.getElementById('lp-sold-notes').value.trim()
     try {
       const res = await fetch(`/leads/${leadId}/sold`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sold_plan_type: planType || null, sold_premium: premium, sold_notes: notes || null })
+        body: JSON.stringify({ sold_plan_type: planType || null, sold_premium: premium, sold_notes: notes || null, commission: commission || null })
       })
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
@@ -1114,6 +1117,13 @@
     <div style="margin-bottom:12px;">
       <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Product Sold</label>
       <input type="text" id="lp-sold-plan-type" placeholder="e.g. UHC PPO $245/mo, Term Life $500k, 6kW Solar System..." style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Expected Commission</label>
+      <div style="position:relative;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none;">$</span>
+        <input type="number" id="lp-sold-commission" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:8px 12px 8px 26px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;">
+      </div>
     </div>
     <div style="margin-bottom:12px;">
       <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Monthly Premium</label>

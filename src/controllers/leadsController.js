@@ -583,7 +583,7 @@ const unblockLead = async (req, res) => {
 
 const markSold = async (req, res) => {
   try {
-    const { sold_plan_type, sold_premium, sold_notes } = req.body
+    const { sold_plan_type, sold_premium, sold_notes, commission } = req.body
     const now = new Date().toISOString()
 
     const { data: lead, error: fetchErr } = await supabase
@@ -593,6 +593,7 @@ const markSold = async (req, res) => {
     const saleParts = ['Marked as sold']
     if (sold_plan_type) saleParts.push(sold_plan_type)
     if (sold_premium) saleParts.push(`$${sold_premium}/month`)
+    if (commission) saleParts.push(`commission $${commission}`)
     if (sold_notes) saleParts.push(sold_notes)
     const saleNote = saleParts.join(' — ')
     const newNotes = lead.notes ? `${lead.notes}\n${saleNote}` : saleNote
@@ -604,6 +605,8 @@ const markSold = async (req, res) => {
         sold_plan_type: sold_plan_type || null,
         sold_premium: sold_premium ? parseFloat(sold_premium) : null,
         sold_notes: sold_notes || null,
+        commission: commission ? parseFloat(commission) : null,
+        commission_status: 'pending',
         status: 'sold', autopilot: false, notes: newNotes, updated_at: now
       })
       .eq('id', req.params.id).eq('user_id', req.user.id).select().single()
@@ -636,11 +639,29 @@ const unmarkSold = async (req, res) => {
       .update({
         is_sold: false, sold_at: null,
         sold_plan_type: null, sold_premium: null, sold_notes: null,
+        commission: null, commission_status: null, commission_paid_at: null,
         status: newStatus, notes: newNotes, updated_at: now
       })
       .eq('id', req.params.id).eq('user_id', req.user.id).select().single()
     if (error) throw error
 
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const updateCommissionStatus = async (req, res) => {
+  try {
+    const { status } = req.body
+    if (!['pending', 'paid', 'cancelled'].includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    const now = new Date().toISOString()
+    const updates = { commission_status: status, updated_at: now }
+    if (status === 'paid') updates.commission_paid_at = now
+    if (status !== 'paid') updates.commission_paid_at = null
+    const { data, error } = await supabase
+      .from('leads').update(updates).eq('id', req.params.id).eq('user_id', req.user.id).select().single()
+    if (error) throw error
     res.json({ success: true, lead: data })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -662,4 +683,4 @@ const updateProduct = async (req, res) => {
   }
 }
 
-module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold }
+module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold }
