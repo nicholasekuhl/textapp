@@ -26,7 +26,36 @@
     .invalid-icon { font-size: 40px; }
     .invalid-text { font-size: 15px; font-weight: 600; color: #374151; }
     .invalid-sub { font-size: 13px; color: #9ca3af; }
+    .tos-check-wrap { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 4px; }
+    .tos-check-wrap input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; accent-color: #6366f1; cursor: pointer; }
+    .tos-check-label { font-size: 13px; color: #374151; line-height: 1.5; cursor: pointer; }
+    .tos-check-label a { color: #6366f1; text-decoration: underline; cursor: pointer; }
+    .tos-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .tos-modal-overlay.open { display: flex; }
+    .tos-modal { background: white; border-radius: 16px; padding: 32px; max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto; position: relative; }
+    .tos-modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1a1a2e; }
+    .tos-modal ol { padding-left: 20px; }
+    .tos-modal li { font-size: 13px; color: #374151; margin-bottom: 10px; line-height: 1.6; }
+    .tos-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; line-height: 1; padding: 4px; }
+    .tos-close:hover { color: #374151; }
   </style>
+
+  <!-- ToS Modal -->
+  <div class="tos-modal-overlay" id="tos-overlay" onclick="if(event.target===this)closeTos()">
+    <div class="tos-modal">
+      <button class="tos-close" onclick="closeTos()">&times;</button>
+      <h2>Terms of Service</h2>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">By using TextApp you agree to the following:</p>
+      <ol>
+        <li>You are a licensed insurance professional or authorized representative.</li>
+        <li>All leads you upload have consented to be contacted by licensed insurance professionals regarding insurance products.</li>
+        <li>You will immediately honor all opt-out requests.</li>
+        <li>You are solely responsible for compliance with the Telephone Consumer Protection Act (TCPA), CAN-SPAM Act, and all applicable federal and state regulations.</li>
+        <li>TextApp is a technology platform only. TextApp assumes no liability for how you use the platform or the content of messages you send.</li>
+        <li>Violation of these terms may result in immediate account termination.</li>
+      </ol>
+    </div>
+  </div>
 </head>
 <body>
   <div class="card">
@@ -77,7 +106,13 @@
           <option value="Pacific/Honolulu">Hawaii</option>
         </select>
       </div>
-      <button class="btn" id="submit-btn" onclick="createAccount()">Create Account</button>
+      <div class="tos-check-wrap">
+        <input type="checkbox" id="tos-checkbox" onchange="document.getElementById('submit-btn').disabled=!this.checked">
+        <label class="tos-check-label" for="tos-checkbox">
+          I agree to the <a onclick="openTos();return false;" href="#">Terms of Service</a> and confirm that all leads I upload have consented to be contacted by licensed insurance professionals. I am solely responsible for compliance with TCPA and applicable federal and state regulations.
+        </label>
+      </div>
+      <button class="btn" id="submit-btn" onclick="createAccount()" disabled>Create Account</button>
     </div>
   </div>
 
@@ -105,6 +140,9 @@
         </div>`
     }
 
+    const openTos = () => document.getElementById('tos-overlay').classList.add('open')
+    const closeTos = () => document.getElementById('tos-overlay').classList.remove('open')
+
     const createAccount = async () => {
       const token = document.getElementById('invite-token').value
       const password = document.getElementById('password').value
@@ -116,6 +154,7 @@
       const btn = document.getElementById('submit-btn')
       const errEl = document.getElementById('error-msg')
 
+      if (!document.getElementById('tos-checkbox').checked) { errEl.textContent = 'You must agree to the Terms of Service to create an account.'; errEl.style.display = 'block'; return }
       if (!password || !confirm) { errEl.textContent = 'Password is required.'; errEl.style.display = 'block'; return }
       if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return }
       if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return }
@@ -148,7 +187,10 @@
       }
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') createAccount() })
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeTos()
+      else if (e.key === 'Enter') createAccount()
+    })
     init()
   </script>
 </body>

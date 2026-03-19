@@ -3118,7 +3118,10 @@ const collectActions = () => {
   const checkAuth = async () => {
     try {
       const res = await fetch('/auth/me')
-      if (res.status === 401) {
+      if (res.status === 401) { window.location.href = '/login.html'; return false }
+      if (res.status === 403) {
+        const data = await res.json()
+        if (data.error === 'tos_required') { window.location.href = '/tos-required.html'; return false }
         window.location.href = '/login.html'
         return false
       }

@@ -210,7 +210,9 @@ const signupWithToken = async (req, res) => {
       agent_name: agent_name || invite.email.split('@')[0],
       agency_name: agency_name || null,
       calendly_url: calendly_url || null,
-      timezone: timezone || 'America/New_York'
+      timezone: timezone || 'America/New_York',
+      tos_agreed: true,
+      tos_agreed_at: new Date().toISOString()
     })
 
     await supabase.from('invites').update({ used: true }).eq('id', invite.id)
@@ -284,4 +286,17 @@ const resetPassword = async (req, res) => {
   }
 }
 
-module.exports = { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite, forgotPassword, resetPassword }
+const agreeTos = async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ tos_agreed: true, tos_agreed_at: new Date().toISOString() })
+      .eq('id', req.user.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite, forgotPassword, resetPassword, agreeTos }

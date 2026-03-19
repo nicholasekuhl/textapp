@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service — TextApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: white; border-radius: 20px; padding: 40px; width: 100%; max-width: 520px; border: 1px solid #f0f0f0; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+    .logo { font-size: 24px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .logo span { color: #6366f1; }
+    h2 { font-size: 18px; font-weight: 700; margin: 20px 0 8px; color: #1a1a2e; }
+    .sub { font-size: 13px; color: #9ca3af; margin-bottom: 24px; }
+    ol { padding-left: 20px; margin-bottom: 24px; }
+    li { font-size: 13px; color: #374151; margin-bottom: 10px; line-height: 1.6; }
+    .tos-check-wrap { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+    .tos-check-wrap input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; accent-color: #6366f1; cursor: pointer; }
+    .tos-check-label { font-size: 13px; color: #374151; line-height: 1.5; cursor: pointer; }
+    .btn { width: 100%; padding: 11px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+    .btn:hover { background: #4f46e5; }
+    .btn:disabled { background: #c7d2fe; cursor: not-allowed; }
+    .error { background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .logout-link { display: block; text-align: center; margin-top: 14px; font-size: 13px; color: #9ca3af; cursor: pointer; }
+    .logout-link:hover { color: #374151; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Text<span>App</span></div>
+    <h2>Terms of Service</h2>
+    <div class="sub">Please review and agree to the Terms of Service to continue.</div>
+    <div class="error" id="error-msg"></div>
+    <ol>
+      <li>You are a licensed insurance professional or authorized representative.</li>
+      <li>All leads you upload have consented to be contacted by licensed insurance professionals regarding insurance products.</li>
+      <li>You will immediately honor all opt-out requests.</li>
+      <li>You are solely responsible for compliance with the Telephone Consumer Protection Act (TCPA), CAN-SPAM Act, and all applicable federal and state regulations.</li>
+      <li>TextApp is a technology platform only. TextApp assumes no liability for how you use the platform or the content of messages you send.</li>
+      <li>Violation of these terms may result in immediate account termination.</li>
+    </ol>
+    <div class="tos-check-wrap">
+      <input type="checkbox" id="tos-checkbox" onchange="document.getElementById('agree-btn').disabled=!this.checked">
+      <label class="tos-check-label" for="tos-checkbox">
+        I agree to the Terms of Service and confirm that all leads I upload have consented to be contacted by licensed insurance professionals. I am solely responsible for compliance with TCPA and applicable federal and state regulations.
+      </label>
+    </div>
+    <button class="btn" id="agree-btn" onclick="agreeToTos()" disabled>I Agree — Continue to TextApp</button>
+    <a class="logout-link" onclick="logout()">Sign out</a>
+  </div>
+
+  <script>
+    const agreeToTos = async () => {
+      const btn = document.getElementById('agree-btn')
+      const errEl = document.getElementById('error-msg')
+      btn.disabled = true
+      btn.textContent = 'Saving...'
+      errEl.style.display = 'none'
+      try {
+        const res = await fetch('/auth/agree-tos', { method: 'POST' })
+        const data = await res.json()
+        if (data.success) {
+          window.location.href = '/'
+        } else {
+          errEl.textContent = data.error || 'Something went wrong.'
+          errEl.style.display = 'block'
+          btn.disabled = false
+          btn.textContent = 'I Agree — Continue to TextApp'
+        }
+      } catch {
+        errEl.textContent = 'Something went wrong. Try again.'
+        errEl.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'I Agree — Continue to TextApp'
+      }
+    }
+
+    const logout = async () => {
+      await fetch('/auth/logout', { method: 'POST' })
+      window.location.href = '/login.html'
+    }
+  </script>
+</body>
+</html>

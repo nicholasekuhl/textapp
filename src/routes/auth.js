@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite, forgotPassword, resetPassword } = require('../controllers/authController')
-const { authMiddleware } = require('../middleware/auth')
+const { login, logout, getMe, updateProfile, signup, authCallback, inviteAgent, validateToken, signupWithToken, getInvites, cancelInvite, forgotPassword, resetPassword, agreeTos } = require('../controllers/authController')
+const { authMiddleware, authMiddlewareNoTos } = require('../middleware/auth')
 
 router.post('/login', login)
 router.post('/signup', signup)
@@ -16,5 +16,6 @@ router.get('/validate-token/:token', validateToken)
 router.get('/callback', authCallback)
 router.post('/forgot-password', forgotPassword)
 router.post('/reset-password', resetPassword)
+router.post('/agree-tos', authMiddlewareNoTos, agreeTos)
 
 module.exports = router
