@@ -582,6 +582,7 @@
     <button class="nav-btn" onclick="showPage('stats', this)">Stats</button>
     <button class="nav-btn" onclick="showPage('calendar', this)" id="nav-calendar">Calendar <span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:2px;"></span></button>
     <button class="nav-btn" onclick="showPage('settings', this)">Settings</button>
+    <a href="/admin.html" id="admin-nav-link" class="nav-btn" style="display:none;text-decoration:none;">Admin</a>
   </nav>
   <div class="header-right" style="display:flex;align-items:center;gap:10px;">
     <span id="header-agent-name" style="font-size:13px;color:#888;"></span>
@@ -3367,6 +3368,7 @@ const collectActions = () => {
       if (res.status === 403) {
         const data = await res.json()
         if (data.error === 'tos_required') { window.location.href = '/tos-required.html'; return false }
+        if (data.error === 'suspended') { window.location.href = '/suspended.html'; return false }
         window.location.href = '/login.html'
         return false
       }
@@ -3388,6 +3390,12 @@ const collectActions = () => {
       document.getElementById('header-agent-name').textContent = p.agent_name || p.email || ''
       const drawerName = document.getElementById('drawer-agent-name')
       if (drawerName) drawerName.textContent = p.agent_name || p.email || ''
+      if (p.is_admin) {
+        const adminLink = document.getElementById('admin-nav-link')
+        if (adminLink) adminLink.style.display = 'inline-flex'
+        const adminDrawerBtn = document.getElementById('drawer-btn-admin')
+        if (adminDrawerBtn) adminDrawerBtn.style.display = 'flex'
+      }
       document.getElementById('profile-agent-name').value = p.agent_name || ''
       document.getElementById('profile-agency-name').value = p.agency_name || ''
       document.getElementById('profile-calendly-url').value = p.calendly_url || ''
@@ -4256,6 +4264,9 @@ const collectActions = () => {
     <button class="nav-drawer-btn" id="drawer-btn-settings" onclick="showPage('settings', document.querySelectorAll('.nav-btn')[5]); closeNavDrawer()">
       <span class="nav-drawer-icon">⚙️</span> Settings
     </button>
+    <a href="/admin.html" id="drawer-btn-admin" class="nav-drawer-btn" style="display:none;text-decoration:none;color:#374151;">
+      <span class="nav-drawer-icon">🛡️</span> Admin
+    </a>
   </div>
   <div class="nav-drawer-footer">
     <div class="nav-drawer-agent" id="drawer-agent-name"></div>

@@ -47,6 +47,12 @@ const authMiddleware = async (req, res, next) => {
       return res.status(403).json({ error: 'tos_required' })
     }
 
+    if (profile.is_suspended) {
+      res.clearCookie('session')
+      res.clearCookie('refresh')
+      return res.status(403).json({ error: 'suspended', message: 'Your account has been suspended. Contact support for assistance.' })
+    }
+
     req.user = { id: user.id, email: user.email, profile }
     next()
   } catch (err) {
@@ -91,4 +97,11 @@ const authMiddlewareNoTos = async (req, res, next) => {
   }
 }
 
-module.exports = { authMiddleware, authMiddlewareNoTos }
+const adminMiddleware = async (req, res, next) => {
+  if (!req.user?.profile?.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' })
+  }
+  next()
+}
+
+module.exports = { authMiddleware, authMiddlewareNoTos, adminMiddleware }
