@@ -283,13 +283,19 @@ const renderLeads = (leads) => {
     const tags = lead.campaign_tags || []
     const dispTag = allDispositionTags.find(t => t.id === lead.disposition_tag_id)
     const safeName = name.replace(/'/g, "\\'")
-    const borderColor = lead.is_sold ? '#22c55e' : lead.is_blocked ? '#dc2626' : dispTag?.color || '#e5e7eb'
+    const hasActiveCampaign = (lead.campaign_leads || []).some(cl => cl.status === 'active' || cl.status === 'pending')
+    const borderColor = lead.opted_out ? '#ef4444'
+      : lead.is_blocked ? '#9ca3af'
+      : lead.is_sold ? '#16a34a'
+      : hasActiveCampaign ? '#3b82f6'
+      : dispTag ? dispTag.color
+      : 'transparent'
     const replyBadge = lead.has_replied != null
       ? (lead.has_replied
           ? `<span style="background:#d1fae5;color:#065f46;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;">Replied</span>`
           : `<span style="background:#f3f4f6;color:#9ca3af;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;">No reply</span>`)
       : ''
-    const hasActiveEnrollment = (lead.campaign_leads || []).some(cl => cl.status === 'active' || cl.status === 'pending')
+    const hasActiveEnrollment = hasActiveCampaign
     const campProgress = tags.length
       ? hasActiveEnrollment && lead.campaign_day != null
         ? `<span class="tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;border:1px solid #bfdbfe;">⚡ ${tags[0]} — Day ${lead.campaign_day}</span>`
@@ -353,24 +359,24 @@ const renderLeads = (leads) => {
         </div>
         <div class="lead-qa-bar">
           <button class="lead-qa-btn qa-sms" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
-            <span class="qa-icon">💬</span><span class="qa-label">Send Text</span>
+            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="qa-label">Send Text</span>
           </button>
           <div class="qa-sep"></div>
           <button class="lead-qa-btn qa-convo" onclick="event.stopPropagation();viewConversation('${lead.id}')">
-            <span class="qa-icon">🗨️</span><span class="qa-label">Conversation</span>
+            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="qa-label">Conversation</span>
           </button>
           <div class="qa-sep"></div>
           <button class="lead-qa-btn qa-disp" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">
-            <span class="qa-icon">🏷</span><span class="qa-label">Disposition</span>
+            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="qa-label">Disposition</span>
           </button>
           <div class="qa-sep"></div>
           <button class="lead-qa-btn qa-note" onclick="event.stopPropagation();quickNote('${lead.id}')">
-            <span class="qa-icon">✏️</span><span class="qa-label">Quick Note</span>
+            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><span class="qa-label">Quick Note</span>
           </button>
           <div class="qa-sep"></div>
           <div style="position:relative;display:inline-block;">
             <button class="lead-qa-btn" onclick="event.stopPropagation();toggleBucketDropdown('${lead.id}')">
-              <span class="qa-icon">📁</span><span class="qa-label">Bucket</span>
+              <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span><span class="qa-label">Bucket</span>
             </button>
             <div id="bucket-dd-${lead.id}" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:200;min-width:160px;max-height:200px;overflow-y:auto;padding:4px 0;">
               <div onclick="event.stopPropagation();moveToBucket('${lead.id}',null)" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#6b7280;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">— No bucket</div>
@@ -380,14 +386,14 @@ const renderLeads = (leads) => {
           <div class="qa-sep"></div>
           ${lead.is_sold
             ? `<button class="lead-qa-btn qa-unsold" onclick="event.stopPropagation();markUnsold('${lead.id}','${safeName}')">
-                <span class="qa-icon">↩</span><span class="qa-label">Unsold</span>
+                <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span><span class="qa-label">Unsold</span>
               </button>`
             : `<button class="lead-qa-btn qa-sold" onclick="event.stopPropagation();openMarkSoldModal('${lead.id}','${safeName}')">
-                <span class="qa-icon">🎉</span><span class="qa-label">Mark Sold</span>
+                <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span class="qa-label">Mark Sold</span>
               </button>`}
           <div class="qa-sep"></div>
           <a class="lead-qa-btn qa-profile" href="/lead.html?id=${lead.id}" target="_blank" onclick="event.stopPropagation()">
-            <span class="qa-icon">👤</span><span class="qa-label">Profile</span>
+            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="qa-label">Profile</span>
           </a>
         </div>
       </div>
