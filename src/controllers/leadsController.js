@@ -698,4 +698,83 @@ const updateLeadBucket = async (req, res) => {
   }
 }
 
-module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold }
+const deleteLead = async (req, res) => {
+  try {
+    const leadId = req.params.id
+    const userId = req.user.id
+
+    const { data: lead, error: fetchErr } = await supabase
+      .from('leads').select('id').eq('id', leadId).eq('user_id', userId).single()
+    if (fetchErr || !lead) return res.status(404).json({ error: 'Lead not found' })
+
+    await supabase.from('messages').delete().eq('lead_id', leadId)
+    await supabase.from('conversations').delete().eq('lead_id', leadId)
+    await supabase.from('tasks').delete().eq('lead_id', leadId)
+    await supabase.from('campaign_leads').delete().eq('lead_id', leadId)
+    await supabase.from('lead_dispositions').delete().eq('lead_id', leadId)
+    await supabase.from('notifications').delete().eq('lead_id', leadId)
+    await supabase.from('appointments').delete().eq('lead_id', leadId)
+
+    const { error } = await supabase.from('leads').delete().eq('id', leadId).eq('user_id', userId)
+    if (error) throw error
+
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const skipToday = async (req, res) => {
+  try {
+    const lead = await supabase.from('leads').select('timezone').eq('id', req.params.id).eq('user_id', req.user.id).single()
+    if (lead.error) throw lead.error
+    const tz = lead.data?.timezone || 'America/New_York'
+    const now = new Date()
+    const endOfDay = new Date(now.toLocaleDateString('en-US', { timeZone: tz }))
+    endOfDay.setDate(endOfDay.getDate() + 1)
+    const skipUntil = endOfDay.toISOString()
+
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ skip_until: skipUntil, updated_at: now.toISOString() })
+      .eq('id', req.params.id).eq('user_id', req.user.id)
+      .select().single()
+    if (error) throw error
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const pauseDrips = async (req, res) => {
+  try {
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('campaign_leads')
+      .update({ status: 'paused', paused_at: now })
+      .eq('lead_id', req.params.id)
+      .eq('user_id', req.user.id)
+      .in('status', ['pending', 'active'])
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const markCalled = async (req, res) => {
+  try {
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ last_called_at: now, updated_at: now })
+      .eq('id', req.params.id).eq('user_id', req.user.id)
+      .select().single()
+    if (error) throw error
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled }
