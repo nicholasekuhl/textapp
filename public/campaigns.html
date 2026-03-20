@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campaigns — TextApp</title>
+  <link rel="stylesheet" href="/css/shared.css">
+  <script src="/toast.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">Text<span>App</span></div>
+  <nav class="nav">
+    <a href="/leads.html" class="nav-btn">Leads</a>
+    <a href="/conversations.html" class="nav-btn">Conversations</a>
+    <a href="/campaigns.html" class="nav-btn active">Campaigns</a>
+    <a href="/stats.html" class="nav-btn">Stats</a>
+    <a href="/calendar.html" class="nav-btn" id="nav-calendar">Calendar <span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:2px;"></span></a>
+    <a href="/settings.html" class="nav-btn">Settings</a>
+    <a href="/admin.html" id="admin-nav-link" class="nav-btn" style="display:none;text-decoration:none;">Admin</a>
+  </nav>
+  <div class="header-right" style="display:flex;align-items:center;gap:8px;">
+    <div class="notif-wrap" id="notif-wrap">
+      <button class="btn btn-ghost btn-sm notif-btn" onclick="toggleNotifPanel(event)" title="Notifications">
+        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      </button>
+      <div class="notif-panel" id="notif-panel" style="display:none;">
+        <div class="notif-panel-header">
+          <span>Notifications</span>
+          <a onclick="markAllNotifRead()">Mark all read</a>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+        <div class="notif-footer">Showing last 30 notifications</div>
+      </div>
+    </div>
+    <div class="profile-menu" id="profile-menu">
+      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger">
+        <span class="profile-trigger-name" id="header-agent-name"></span>
+        <span class="profile-chevron">▼</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <div class="profile-dropdown-header">
+          <div class="profile-dropdown-name" id="profile-dropdown-name"></div>
+          <div class="profile-dropdown-email" id="profile-dropdown-email"></div>
+        </div>
+        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()">
+          <span class="profile-dropdown-icon">👤</span> Profile &amp; Settings
+        </button>
+        <button class="profile-dropdown-item" onclick="goToSettingsNotif(); closeProfileMenu()">
+          <span class="profile-dropdown-icon">🔔</span> Notification Settings
+        </button>
+        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;">
+          <span class="profile-dropdown-icon">🛡️</span> Admin Panel
+        </a>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item danger" onclick="logout()">
+          <span class="profile-dropdown-icon">→</span> Log out
+        </button>
+      </div>
+    </div>
+    <button class="hamburger-btn" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="campaigns-toolbar">
+    <input type="text" class="campaigns-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)">
+    <button class="btn btn-primary" onclick="openCreateCampaignModal()">+ New Campaign</button>
+  </div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortCampaigns('name')">Name ↕</th>
+          <th>Type</th>
+          <th onclick="sortCampaigns('created_at')">Created ↕</th>
+          <th>Messages</th>
+          <th onclick="sortCampaigns('status')">Status ↕</th>
+          <th>Enrolled</th>
+          <th>Completed</th>
+          <th>Paused</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="campaigns-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CREATE/EDIT CAMPAIGN MODAL -->
+<div class="modal-overlay" id="campaign-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="campaign-modal-title">Create Campaign</h2>
+      <button class="modal-close" onclick="closeCampaignModal()">×</button>
+    </div>
+    <div class="tip">Use <strong>[First Name]</strong> for personalization. Use <strong>{Hi|Hey|Hello}</strong> to randomize phrasing — the scheduler picks one variation per send.</div>
+    <div class="form-group">
+      <label>Campaign Name</label>
+      <input type="text" id="campaign-name" placeholder="e.g. End of Month Push">
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <input type="text" id="campaign-description" placeholder="Internal note">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <label style="font-size:13px;font-weight:500;color:#374151;">Message Sequence</label>
+      <button class="btn btn-secondary btn-sm" onclick="addMessageStep()">+ Add Message</button>
+    </div>
+    <div id="campaign-footer-note" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-bottom:10px;">Compliance footer is enabled — it will be automatically appended to the first message sent to each lead.</div>
+    <div id="message-steps"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCampaign()">Save Campaign</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAG LEADS MODAL -->
+<div class="modal-overlay" id="enroll-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Tag Leads with Campaign</h2>
+      <button class="modal-close" onclick="closeEnrollModal()">×</button>
+    </div>
+    <div class="tip">Messages fire at the exact day and time set in the campaign, in each lead's local timezone.</div>
+    <div class="form-group">
+      <label>Select Campaign</label>
+      <select id="enroll-campaign-select"></select>
+    </div>
+    <div class="form-group">
+      <label>First Message Sends On</label>
+      <input type="datetime-local" id="enroll-start-date">
+    </div>
+    <div id="enroll-leads-list" style="max-height:260px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEnrollModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="enrollSelectedLeads()">Tag Leads</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE NAV OVERLAY + DRAWER -->
+<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
+<div class="nav-drawer" id="nav-drawer">
+  <div class="nav-drawer-header">
+    <div class="nav-drawer-logo">Text<span>App</span></div>
+    <button class="nav-drawer-close" onclick="closeNavDrawer()">×</button>
+  </div>
+  <div class="nav-drawer-items">
+    <a href="/leads.html" class="nav-drawer-btn" id="drawer-btn-leads">
+      <span class="nav-drawer-icon">👥</span> Leads
+    </a>
+    <a href="/conversations.html" class="nav-drawer-btn" id="drawer-btn-conversations">
+      <span class="nav-drawer-icon">💬</span> Conversations
+    </a>
+    <a href="/campaigns.html" class="nav-drawer-btn active" id="drawer-btn-campaigns">
+      <span class="nav-drawer-icon">📋</span> Campaigns
+    </a>
+    <a href="/stats.html" class="nav-drawer-btn" id="drawer-btn-stats">
+      <span class="nav-drawer-icon">📊</span> Stats
+    </a>
+    <a href="/calendar.html" class="nav-drawer-btn" id="drawer-btn-calendar">
+      <span class="nav-drawer-icon">📅</span> Calendar
+    </a>
+    <a href="/settings.html" class="nav-drawer-btn" id="drawer-btn-settings">
+      <span class="nav-drawer-icon">⚙️</span> Settings
+    </a>
+    <a href="/admin.html" id="drawer-btn-admin" class="nav-drawer-btn" style="display:none;text-decoration:none;color:#374151;">
+      <span class="nav-drawer-icon">🛡️</span> Admin
+    </a>
+  </div>
+  <div class="nav-drawer-footer">
+    <div class="nav-drawer-agent" id="drawer-agent-name"></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="logout()">Log out</button>
+  </div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+  let allCampaigns = []
+  let allLeads = []
+  let selectedLeads = new Set()
+  let editingCampaignId = null
+  let messageStepCount = 0
+  let campaignSortKey = 'created_at'
+  let campaignSortDir = -1
+
+  const loadCampaigns = async () => {
+    const tbody = document.getElementById('campaigns-tbody')
+    if (tbody && !allCampaigns.length) {
+      tbody.innerHTML = Array(3).fill(0).map(() => `
+        <tr>
+          <td><div class="skeleton" style="height:14px;width:60%;margin-bottom:5px;"></div><div class="skeleton" style="height:11px;width:40%;"></div></td>
+          <td><div class="skeleton" style="height:20px;width:50px;border-radius:6px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:70px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:40px;"></div></td>
+          <td><div class="skeleton" style="height:22px;width:60px;border-radius:20px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
+          <td><div class="skeleton" style="height:22px;width:30px;border-radius:6px;"></div></td>
+        </tr>`).join('')
+    }
+    try {
+      const res = await fetch('/campaigns')
+      const data = await res.json()
+      allCampaigns = data.campaigns || []
+      renderCampaignsTable(allCampaigns)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load campaigns', 'Please try again')
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Could not load campaigns.</td></tr>`
+    }
+  }
+
+  const sortCampaigns = (key) => {
+    if (campaignSortKey === key) campaignSortDir *= -1
+    else { campaignSortKey = key; campaignSortDir = 1 }
+    renderCampaignsTable(allCampaigns)
+  }
+
+  const filterCampaigns = (search) => {
+    renderCampaignsTable(allCampaigns.filter(c => c.name.toLowerCase().includes(search.toLowerCase())))
+  }
+
+  const renderCampaignsTable = (campaigns) => {
+    const sorted = [...campaigns].sort((a, b) => {
+      const av = a[campaignSortKey] || '', bv = b[campaignSortKey] || ''
+      return av < bv ? -campaignSortDir : av > bv ? campaignSortDir : 0
+    })
+    const tbody = document.getElementById('campaigns-tbody')
+    if (!sorted.length) {
+      tbody.innerHTML = `<tr><td colspan="9">
+        <div style="text-align:center;padding:72px 20px;">
+          <div style="font-size:40px;margin-bottom:14px;">📋</div>
+          <div style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No campaigns yet</div>
+          <div style="font-size:13px;color:#9ca3af;margin-bottom:20px;">Create a drip campaign to automatically follow up with leads over time.</div>
+          <button class="btn btn-primary" style="width:auto;padding:8px 20px;" onclick="openCreateCampaignModal()">Create Campaign</button>
+        </div>
+      </td></tr>`
+      return
+    }
+    tbody.innerHTML = sorted.map((c, idx) => {
+      const leads = c.campaign_leads || []
+      const enrolled = leads.length
+      const completed = leads.filter(l => l.status === 'completed').length
+      const paused = leads.filter(l => l.status === 'paused').length
+      const steps = c.campaign_messages?.length || 0
+      const isLast = idx >= sorted.length - 2
+      return `<tr>
+        <td><div class="campaign-name-cell">${c.name}</div>${c.description ? `<div class="campaign-desc">${c.description}</div>` : ''}</td>
+        <td><span class="type-label">Workflow</span><span class="drip-badge">Drip</span></td>
+        <td style="color:#6b7280;font-size:13px;">${formatDate(c.created_at)}</td>
+        <td style="color:#6b7280;font-size:13px;">${steps} msg${steps !== 1 ? 's' : ''}</td>
+        <td><span class="status-badge status-${c.status}">${c.status}</span></td>
+        <td style="font-size:13px;font-weight:600;color:#1a1a2e;">${enrolled}</td>
+        <td style="font-size:13px;color:#059669;font-weight:600;">${completed}</td>
+        <td style="font-size:13px;color:#d97706;font-weight:600;">${paused}</td>
+        <td>
+          <div class="actions-menu">
+            <button class="actions-btn" onclick="toggleActionsMenu('menu-${c.id}', ${isLast})">⋯</button>
+            <div class="actions-dropdown ${isLast ? 'up' : 'down'}" id="menu-${c.id}">
+              ${c.status === 'draft' ? `<button onclick="startCampaign('${c.id}')">Activate</button>` : ''}
+              ${c.status === 'active' ? `<button onclick="pauseCampaign('${c.id}')">Pause</button>` : ''}
+              ${c.status === 'paused' ? `<button onclick="startCampaign('${c.id}')">Resume</button>` : ''}
+              <button onclick="editCampaign('${c.id}')">Edit</button>
+              <button class="danger" onclick="deleteCampaign('${c.id}')">Delete</button>
+            </div>
+          </div>
+        </td>
+      </tr>`
+    }).join('')
+  }
+
+  const toggleActionsMenu = (id, isLast) => {
+    document.querySelectorAll('.actions-dropdown').forEach(d => { if (d.id !== id) d.classList.remove('open') })
+    const menu = document.getElementById(id)
+    if (menu) { menu.className = `actions-dropdown ${isLast ? 'up' : 'down'} ${menu.classList.contains('open') ? '' : 'open'}` }
+  }
+
+  document.addEventListener('click', (e) => { if (!e.target.closest('.actions-menu')) document.querySelectorAll('.actions-dropdown').forEach(d => d.classList.remove('open')) })
+
+  const startCampaign = async (id) => { await fetch(`/campaigns/${id}/start`, { method: 'POST' }); loadCampaigns(); toast.success('Campaign active', 'Campaign is now running') }
+  const pauseCampaign = async (id) => { await fetch(`/campaigns/${id}/pause`, { method: 'POST' }); loadCampaigns(); toast.info('Campaign paused', 'No new messages will be sent') }
+  const deleteCampaign = async (id) => { if (!await confirmModal('Delete campaign?', 'All campaign data will be removed. Enrolled leads already contacted will not be affected.', 'Delete', true)) return; await fetch(`/campaigns/${id}`, { method: 'DELETE' }); loadCampaigns(); toast.info('Campaign deleted', 'Campaign removed') }
+
+  const editCampaign = async (id) => {
+    const res = await fetch(`/campaigns/${id}`)
+    const data = await res.json()
+    const c = data.campaign
+    editingCampaignId = id
+    messageStepCount = 0
+    document.getElementById('campaign-name').value = c.name
+    document.getElementById('campaign-description').value = c.description || ''
+    document.getElementById('message-steps').innerHTML = ''
+    document.getElementById('campaign-modal-title').textContent = 'Edit Campaign'
+    c.campaign_messages.sort((a, b) => a.day_number - b.day_number).forEach(msg => {
+      messageStepCount++
+      const container = document.getElementById('message-steps')
+      const step = document.createElement('div')
+      step.className = 'message-step'
+      step.id = `step-${messageStepCount}`
+      step.innerHTML = `
+        <div class="message-step-header"><span>Message ${messageStepCount}</span><button class="btn btn-danger btn-sm" onclick="removeStep('step-${messageStepCount}')">Remove</button></div>
+        <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${msg.day_number}"><label>at</label><input type="time" class="step-time" value="${msg.send_time || '10:00'}"><span style="font-size:11px;color:#9ca3af;">lead's local time</span></div>
+        <textarea class="step-body" rows="3" oninput="updateCharCount(this)">${msg.message_body}</textarea>
+        <div class="char-count">${msg.message_body.length} / 160</div>
+      `
+      container.appendChild(step)
+    })
+    document.getElementById('campaign-modal').classList.add('open')
+  }
+
+  const openCreateCampaignModal = () => {
+    editingCampaignId = null
+    messageStepCount = 0
+    document.getElementById('campaign-name').value = ''
+    document.getElementById('campaign-description').value = ''
+    document.getElementById('message-steps').innerHTML = ''
+    document.getElementById('campaign-modal-title').textContent = 'Create Campaign'
+    addMessageStep()
+    document.getElementById('campaign-modal').classList.add('open')
+  }
+
+  const closeCampaignModal = () => document.getElementById('campaign-modal').classList.remove('open')
+
+  const addMessageStep = () => {
+    messageStepCount++
+    const container = document.getElementById('message-steps')
+    const step = document.createElement('div')
+    step.className = 'message-step'
+    step.id = `step-${messageStepCount}`
+    step.innerHTML = `
+      <div class="message-step-header"><span>Message ${messageStepCount}</span><button class="btn btn-danger btn-sm" onclick="removeStep('step-${messageStepCount}')">Remove</button></div>
+      <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${messageStepCount === 1 ? 1 : messageStepCount * 3}"><label>at</label><input type="time" class="step-time" value="10:00"><span style="font-size:11px;color:#9ca3af;">lead's local time</span></div>
+      <textarea class="step-body" placeholder="Hi [First Name], this is [Your Name] with [Your Agency]..." rows="3" oninput="updateCharCount(this)"></textarea>
+      <div class="char-count">0 / 160</div>
+    `
+    container.appendChild(step)
+  }
+
+  const updateCharCount = (textarea) => {
+    const count = textarea.value.length
+    const div = textarea.nextElementSibling
+    div.textContent = `${count} / 160`
+    div.className = 'char-count' + (count > 160 ? ' danger' : count > 130 ? ' warning' : '')
+  }
+
+  const removeStep = (id) => document.getElementById(id)?.remove()
+
+  const saveCampaign = async () => {
+    const name = document.getElementById('campaign-name').value.trim()
+    const description = document.getElementById('campaign-description').value.trim()
+    if (!name) return toast.error('Required', 'Please enter a campaign name')
+    const steps = document.querySelectorAll('.message-step')
+    const messages = []
+    let valid = true
+    steps.forEach(step => {
+      const day = parseInt(step.querySelector('.step-day').value)
+      const time = step.querySelector('.step-time').value || '10:00'
+      const body = step.querySelector('.step-body').value.trim()
+      if (!body) { valid = false; return }
+      messages.push({ day_number: day, send_time: time, message_body: body })
+    })
+    if (!valid) return toast.error('Incomplete', 'Please fill in all message bodies')
+    if (!messages.length) return toast.error('Required', 'Add at least one message step')
+    messages.sort((a, b) => a.day_number - b.day_number)
+    try {
+      const url = editingCampaignId ? `/campaigns/${editingCampaignId}` : '/campaigns'
+      const method = editingCampaignId ? 'PUT' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description, messages }) })
+      const data = await res.json()
+      if (data.success) { closeCampaignModal(); loadCampaigns(); toast.success('Campaign saved', editingCampaignId ? 'Campaign updated successfully' : 'New campaign created') }
+      else toast.error('Save failed', data.error || 'Could not save campaign')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const openEnrollModal = (campaignId) => {
+    const select = document.getElementById('enroll-campaign-select')
+    select.innerHTML = allCampaigns.map(c => `<option value="${c.id}" ${c.id === campaignId ? 'selected' : ''}>${c.name}</option>`).join('')
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(10, 0, 0, 0)
+    const pad = n => String(n).padStart(2, '0')
+    document.getElementById('enroll-start-date').value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`
+    document.getElementById('enroll-leads-list').innerHTML = '<div style="padding:16px;font-size:13px;color:#9ca3af;">Go to the Leads page to select leads and tag them with a campaign.</div>'
+    document.getElementById('enroll-modal').classList.add('open')
+  }
+
+  const closeEnrollModal = () => document.getElementById('enroll-modal').classList.remove('open')
+
+  const enrollSelectedLeads = async () => {
+    const campaignId = document.getElementById('enroll-campaign-select').value
+    const startDate = document.getElementById('enroll-start-date').value
+    const checkedLeads = Array.from(document.querySelectorAll('#enroll-leads-list input:checked')).map(cb => cb.dataset.id)
+    if (!campaignId) return toast.error('Required', 'Please select a campaign')
+    if (!startDate) return toast.error('Required', 'Please set a start date and time')
+    if (!checkedLeads.length) return toast.error('Required', 'No leads selected')
+    try {
+      const res = await fetch(`/campaigns/${campaignId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lead_ids: checkedLeads, start_date: new Date(startDate).toISOString() }) })
+      const data = await res.json()
+      if (data.success) { closeEnrollModal(); toast.success('Enrolled', `${data.count} lead${data.count !== 1 ? 's' : ''} added to campaign`) }
+      else toast.error('Enrollment failed', data.error || 'Could not enroll leads')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const init = async () => {
+    const authed = await checkAuth()
+    if (!authed) return
+    await loadProfile()
+    loadCampaigns()
+    loadCalBadge()
+    loadNotifBadge()
+    setInterval(loadNotifBadge, 30000)
+  }
+
+  document.addEventListener('DOMContentLoaded', init)
+</script>
+</body>
+</html>

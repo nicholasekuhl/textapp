@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversations — TextApp</title>
+  <link rel="stylesheet" href="/css/shared.css">
+  <script src="/toast.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">Text<span>App</span></div>
+  <nav class="nav">
+    <a href="/leads.html" class="nav-btn">Leads</a>
+    <a href="/conversations.html" class="nav-btn active">Conversations</a>
+    <a href="/campaigns.html" class="nav-btn">Campaigns</a>
+    <a href="/stats.html" class="nav-btn">Stats</a>
+    <a href="/calendar.html" class="nav-btn" id="nav-calendar">Calendar <span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:2px;"></span></a>
+    <a href="/settings.html" class="nav-btn">Settings</a>
+    <a href="/admin.html" id="admin-nav-link" class="nav-btn" style="display:none;text-decoration:none;">Admin</a>
+  </nav>
+  <div class="header-right" style="display:flex;align-items:center;gap:8px;">
+    <div class="notif-wrap" id="notif-wrap">
+      <button class="btn btn-ghost btn-sm notif-btn" onclick="toggleNotifPanel(event)" title="Notifications">
+        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      </button>
+      <div class="notif-panel" id="notif-panel" style="display:none;">
+        <div class="notif-panel-header">
+          <span>Notifications</span>
+          <a onclick="markAllNotifRead()">Mark all read</a>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+        <div class="notif-footer">Showing last 30 notifications</div>
+      </div>
+    </div>
+    <div class="profile-menu" id="profile-menu">
+      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger">
+        <span class="profile-trigger-name" id="header-agent-name"></span>
+        <span class="profile-chevron">▼</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <div class="profile-dropdown-header">
+          <div class="profile-dropdown-name" id="profile-dropdown-name"></div>
+          <div class="profile-dropdown-email" id="profile-dropdown-email"></div>
+        </div>
+        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()">
+          <span class="profile-dropdown-icon">👤</span> Profile &amp; Settings
+        </button>
+        <button class="profile-dropdown-item" onclick="goToSettingsNotif(); closeProfileMenu()">
+          <span class="profile-dropdown-icon">🔔</span> Notification Settings
+        </button>
+        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;">
+          <span class="profile-dropdown-icon">🛡️</span> Admin Panel
+        </a>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item danger" onclick="logout()">
+          <span class="profile-dropdown-icon">→</span> Log out
+        </button>
+      </div>
+    </div>
+    <button class="hamburger-btn" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="conv3-layout" id="conv3-layout">
+    <!-- LEFT: Conversation list -->
+    <div class="conv3-left" id="conv3-left">
+      <div class="conv3-left-header">
+        <div class="conv3-left-title-row">
+          <h2>Conversations</h2>
+          <button class="conv3-filter-btn" id="conv3-filter-toggle" onclick="toggleConvFilters()" title="Filters">⚙</button>
+        </div>
+        <input type="text" class="conv3-search" id="conv3-search" placeholder="Search messages..." oninput="filterConversations(this.value)">
+        <div class="conv3-tabs">
+          <button class="conv3-tab active" id="conv3-tab-all" onclick="setConvTab('all')">All</button>
+          <button class="conv3-tab" id="conv3-tab-unread" onclick="setConvTab('unread')">Unread</button>
+          <button class="conv3-tab" id="conv3-tab-recent" onclick="setConvTab('recent')">Recent</button>
+          <button class="conv3-tab" id="conv3-tab-starred" onclick="setConvTab('starred')">Starred</button>
+        </div>
+      </div>
+      <div class="conv3-filter-bar" id="conv3-filter-bar">
+        <div class="conv3-filter-row">
+          <label class="conv3-filter-label">Show blocked</label>
+          <label class="toggle" style="margin:0;"><input type="checkbox" id="conv3-show-blocked" onchange="filterConversations(document.getElementById('conv3-search').value)"><span class="toggle-slider"></span></label>
+        </div>
+        <div>
+          <select class="conv3-filter-select" id="conv3-disp-filter" onchange="filterConversations(document.getElementById('conv3-search').value)">
+            <option value="">All dispositions</option>
+          </select>
+        </div>
+      </div>
+      <div class="conv3-list" id="conv3-list"></div>
+    </div>
+
+    <!-- CENTER: Active conversation -->
+    <div class="conv3-center" id="conv3-center">
+      <div class="conv3-empty" id="conv3-empty">
+        <div style="font-size:40px;margin-bottom:12px;">💬</div>
+        <div style="font-size:16px;font-weight:600;color:#374151;margin-bottom:6px;">Select a conversation</div>
+        <div style="font-size:13px;color:#9ca3af;">Choose a conversation from the left to get started.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Contact details (hidden by default) -->
+    <div class="conv3-right" id="conv3-right" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- DISPOSITION PICKER MODAL -->
+<div class="modal-overlay" id="disposition-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Apply Disposition</h2>
+      <button class="modal-close" onclick="document.getElementById('disposition-modal').classList.remove('open')">×</button>
+    </div>
+    <div id="disposition-lead-name" style="font-size:14px;color:#6b7280;margin-bottom:16px;"></div>
+    <div class="disp-picker-grid" id="disp-picker-grid"></div>
+    <div class="form-group" style="margin-top:16px;">
+      <label>Notes (optional)</label>
+      <textarea id="disposition-notes" placeholder="Add a note about this disposition..." rows="2"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('disposition-modal').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARK AS SOLD MODAL -->
+<div class="modal-overlay" id="sold-modal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h2 style="font-size:17px;" id="sold-modal-title">Mark as Sold</h2>
+      <button class="modal-close" onclick="document.getElementById('sold-modal').classList.remove('open')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Product Sold</label>
+      <input type="text" id="sold-plan-type" placeholder="e.g. UHC PPO $245/mo, Term Life $500k, 6kW Solar System...">
+    </div>
+    <div class="form-group">
+      <label>Expected Commission</label>
+      <div style="position:relative;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none;">$</span>
+        <input type="number" id="sold-commission" placeholder="0.00" step="0.01" min="0" style="padding-left:26px;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Monthly Premium</label>
+      <div style="position:relative;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:14px;pointer-events:none;">$</span>
+        <input type="number" id="sold-premium" placeholder="0.00" step="0.01" min="0" style="padding-left:26px;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="sold-notes" placeholder="Any additional details about the sale" rows="3" style="resize:none;width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;outline:none;transition:border-color 0.2s;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('sold-modal').classList.remove('open')">Cancel</button>
+      <button class="btn" style="background:#10b981;color:white;font-weight:600;" onclick="submitMarkSold()">Mark as Sold</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE NAV OVERLAY + DRAWER -->
+<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
+<div class="nav-drawer" id="nav-drawer">
+  <div class="nav-drawer-header">
+    <div class="nav-drawer-logo">Text<span>App</span></div>
+    <button class="nav-drawer-close" onclick="closeNavDrawer()">×</button>
+  </div>
+  <div class="nav-drawer-items">
+    <a href="/leads.html" class="nav-drawer-btn" id="drawer-btn-leads">
+      <span class="nav-drawer-icon">👥</span> Leads
+    </a>
+    <a href="/conversations.html" class="nav-drawer-btn active" id="drawer-btn-conversations">
+      <span class="nav-drawer-icon">💬</span> Conversations
+    </a>
+    <a href="/campaigns.html" class="nav-drawer-btn" id="drawer-btn-campaigns">
+      <span class="nav-drawer-icon">📋</span> Campaigns
+    </a>
+    <a href="/stats.html" class="nav-drawer-btn" id="drawer-btn-stats">
+      <span class="nav-drawer-icon">📊</span> Stats
+    </a>
+    <a href="/calendar.html" class="nav-drawer-btn" id="drawer-btn-calendar">
+      <span class="nav-drawer-icon">📅</span> Calendar
+    </a>
+    <a href="/settings.html" class="nav-drawer-btn" id="drawer-btn-settings">
+      <span class="nav-drawer-icon">⚙️</span> Settings
+    </a>
+    <a href="/admin.html" id="drawer-btn-admin" class="nav-drawer-btn" style="display:none;text-decoration:none;color:#374151;">
+      <span class="nav-drawer-icon">🛡️</span> Admin
+    </a>
+  </div>
+  <div class="nav-drawer-footer">
+    <div class="nav-drawer-agent" id="drawer-agent-name"></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="logout()">Log out</button>
+  </div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+  let allConversations = []
+  let allDispositionTags = []
+  let allTemplates = []
+  let allBuckets = []
+  let activeConvId = null
+  let lastMessageTimestamp = null
+  let lastUpdatedTime = null
+  let lastUpdatedDisplayInterval = null
+  let pollMessagesTimer = null
+  let pollSidebarTimer = null
+  let dispositionTargetLeadId = null
+  let soldTargetLeadId = null
+  let soldTargetLeadName = ''
+  let convTab = 'all'
+  let convSubTab = 'all'
+  let rightPanelOpen = false
+
+  const closeAllMenus = () => document.querySelectorAll('.actions-dropdown').forEach(d => d.classList.remove('open'))
+
+  const handoffLabels = {
+    appointment_confirmed: { text: 'Appointment confirmed', color: 'green' },
+    quote_requested: { text: 'Requesting quote', color: 'blue' },
+    qualification_complete: { text: 'Fully qualified', color: 'purple' },
+    complex_medical: { text: 'Complex medical', color: 'amber' },
+    frustration_detected: { text: 'Frustrated — urgent', color: 'red' },
+    unresponsive_after_followups: { text: 'Dormant — no response', color: 'gray' }
+  }
+
+  const handoffBannerText = {
+    appointment_confirmed: 'Appointment confirmed — agent follow-up needed',
+    quote_requested: 'Lead requesting quote — ready for advisor',
+    qualification_complete: 'Fully qualified — ready for advisor call',
+    complex_medical: 'Complex medical situation — advisor review needed',
+    frustration_detected: 'Lead frustrated — immediate agent attention',
+    unresponsive_after_followups: 'No response after 2 follow-ups — dormant'
+  }
+
+  const toggleConvFilters = () => {
+    const bar = document.getElementById('conv3-filter-bar')
+    const btn = document.getElementById('conv3-filter-toggle')
+    bar.classList.toggle('open')
+    btn.classList.toggle('active', bar.classList.contains('open'))
+  }
+
+  const toggleRightPanel = () => {
+    rightPanelOpen = !rightPanelOpen
+    const panel = document.getElementById('conv3-right')
+    const btn = document.getElementById('conv3-right-toggle')
+    if (rightPanelOpen) {
+      panel.style.display = 'flex'
+      panel.style.flexDirection = 'column'
+      if (btn) { btn.title = 'Hide details'; btn.textContent = '›' }
+      if (activeConvId) {
+        const conv = allConversations.find(c => c.id === activeConvId)
+        if (conv) renderRightPanel(conv, conv.leads, [])
+      }
+    } else {
+      panel.style.display = 'none'
+      if (btn) { btn.title = 'Show details'; btn.textContent = '‹' }
+    }
+  }
+
+  const setConvTab = (tab) => {
+    convTab = tab
+    ;['all', 'unread', 'recent', 'starred'].forEach(t => {
+      document.getElementById(`conv3-tab-${t}`)?.classList.toggle('active', t === tab)
+    })
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+  }
+
+  const setConvSubTab = (tab) => {
+    convSubTab = tab
+    document.querySelectorAll('.conv3-subtab').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab)
+    })
+    if (!activeConvId) return
+    if (tab === 'scheduled') { loadConvScheduled(activeConvId); return }
+    const conv = allConversations.find(c => c.id === activeConvId)
+    if (conv) renderMessages(conv, tab)
+  }
+
+  const loadConversations = async () => {
+    const list = document.getElementById('conv3-list')
+    if (list && !allConversations.length) {
+      list.innerHTML = Array(5).fill(0).map(() => `
+        <div class="skel-conv-item">
+          <div class="skeleton" style="width:38px;height:38px;border-radius:50%;flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div class="skeleton" style="height:13px;width:55%;margin-bottom:7px;"></div>
+            <div class="skeleton" style="height:11px;width:80%;"></div>
+          </div>
+        </div>`).join('')
+    }
+    try {
+      const showBlocked = document.getElementById('conv3-show-blocked')?.checked ? 'true' : 'false'
+      const res = await fetch(`/conversations?show_blocked=${showBlocked}`)
+      const data = await res.json()
+      allConversations = data.conversations || []
+      filterConversations(document.getElementById('conv3-search')?.value || '')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load conversations', 'Please try again')
+      if (list) list.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Could not load conversations.</div>'
+    }
+  }
+
+  const renderConversationList = (convs) => {
+    const list = document.getElementById('conv3-list')
+    if (!list) return
+    if (!convs.length) {
+      const emptyMsgs = {
+        all: ['💬', 'No conversations yet', 'Conversations appear when leads reply to your messages.'],
+        unread: ['✅', "You're all caught up!", 'No conversations waiting for a reply.'],
+        recent: ['🕐', 'No recent activity', 'No conversations in the last 7 days.'],
+        starred: ['⭐', 'No starred conversations', 'Star conversations to find them quickly.']
+      }
+      const [icon, title, sub] = emptyMsgs[convTab] || emptyMsgs.all
+      list.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:10px;">${icon}</div>
+        <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">${title}</div>
+        <div style="font-size:12px;color:#9ca3af;line-height:1.5;">${sub}</div>
+      </div>`
+      return
+    }
+    list.innerHTML = convs.map(c => {
+      const lead = c.leads
+      const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ') : 'Unknown'
+      const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
+      const msgs = c.messages || []
+      const lastMsg = msgs[msgs.length - 1]
+      const isUnread = lastMsg?.direction === 'inbound'
+      const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
+      const isBlocked = lead?.is_blocked
+      const isStarred = c.is_starred
+      const borderStyle = dispTag && !c.needs_agent_review ? `border-left-color:${dispTag.color};` : ''
+      const classes = [
+        activeConvId === c.id ? 'active' : '',
+        isUnread && !isBlocked ? 'conv3-unread-item' : '',
+        isStarred ? 'conv3-starred-item' : '',
+        isBlocked ? 'conv3-blocked-item' : ''
+      ].filter(Boolean).join(' ')
+      const dispPill = dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};font-size:10px;padding:1px 7px;">${dispTag.name}</span>` : ''
+      const blockedBadge = isBlocked ? `<span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 6px;font-weight:600;">Blocked</span>` : ''
+      return `<div class="conv3-item ${classes}" style="${borderStyle}" onclick="openConversation('${c.id}')">
+        <div class="conv3-avatar" style="${c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''}">${initials}${isUnread && !isBlocked ? '<div class="conv3-unread-dot"></div>' : ''}</div>
+        <div class="conv3-item-body">
+          <div class="conv3-item-top">
+            <div class="conv3-item-name">${name}</div>
+            <div class="conv3-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
+          </div>
+          <div class="conv3-item-phone">${lead?.phone || ''}</div>
+          <div class="conv3-item-preview">${lastMsg?.body || 'No messages yet'}</div>
+          ${dispPill || blockedBadge ? `<div class="conv3-item-tags">${dispPill}${blockedBadge}</div>` : ''}
+        </div>
+        <button class="conv3-item-star ${isStarred ? 'starred' : ''}" onclick="starConversation('${c.id}',event)" title="${isStarred ? 'Unstar' : 'Star'}">★</button>
+      </div>`
+    }).join('')
+  }
+
+  const filterConversations = (search) => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    let filtered = [...allConversations]
+    const showBlocked = document.getElementById('conv3-show-blocked')?.checked
+    if (!showBlocked) filtered = filtered.filter(c => !c.leads?.is_blocked)
+    const dispFilter = document.getElementById('conv3-disp-filter')?.value
+    if (dispFilter) filtered = filtered.filter(c => c.leads?.disposition_tag_id === dispFilter)
+    if (convTab === 'unread') {
+      filtered = filtered.filter(c => {
+        const msgs = c.messages || []
+        return msgs.length > 0 && msgs[msgs.length - 1].direction === 'inbound'
+      })
+    } else if (convTab === 'starred') {
+      filtered = filtered.filter(c => c.is_starred)
+    } else if (convTab === 'recent') {
+      filtered = filtered.filter(c => c.updated_at >= sevenDaysAgo)
+    }
+    if (search) {
+      const q = search.toLowerCase()
+      filtered = filtered.filter(c => {
+        const lead = c.leads
+        const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ').toLowerCase() : ''
+        const phone = lead?.phone || ''
+        const lastMsg = (c.messages || []).slice(-1)[0]?.body?.toLowerCase() || ''
+        return name.includes(q) || phone.includes(q) || lastMsg.includes(q)
+      })
+    }
+    renderConversationList(filtered)
+  }
+
+  const msgStatusIcon = (status, errorMsg) => {
+    if (status === 'delivered') return `<span class="msg-si delivered" title="Delivered">✓✓</span>`
+    if (status === 'failed') return `<span class="msg-si failed" title="${(errorMsg || 'Delivery failed').replace(/"/g, '&quot;')}">✗</span>`
+    if (status === 'sending' || status === 'queued') return `<span class="msg-si sending" title="Sending…">⏱</span>`
+    return `<span class="msg-si sent" title="Sent">✓</span>`
+  }
+
+  const renderMessages = (conv, subTab) => {
+    const container = document.getElementById('conv3-messages')
+    if (!container) return
+    let msgs = conv.messages || []
+    if (subTab === 'sent') msgs = msgs.filter(m => m.direction === 'outbound')
+    else if (subTab === 'rejected') msgs = msgs.filter(m => m.status === 'failed' || m.status === 'undelivered')
+    if (!msgs.length) {
+      const labels = { all: 'No messages yet', sent: 'No sent messages', rejected: 'No failed messages' }
+      container.innerHTML = `<div style="text-align:center;color:#d1d5db;font-size:13px;padding:32px;">${labels[subTab] || 'No messages'}</div>`
+      return
+    }
+    let lastDate = null
+    container.innerHTML = msgs.map(m => {
+      const msgDate = new Date(m.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const sep = msgDate !== lastDate ? `<div class="msg-date-sep">${msgDate}</div>` : ''
+      lastDate = msgDate
+      return `${sep}<div class="msg ${m.direction} ${m.is_ai ? 'ai' : ''}">
+        <div class="msg-bubble">${m.body}</div>
+        <div class="msg-time">${formatTime(m.sent_at)}${m.direction === 'outbound' ? msgStatusIcon(m.status, m.error_message) : ''}</div>
+        ${m.is_ai ? '<div class="msg-label">AI response</div>' : ''}
+      </div>`
+    }).join('')
+    container.scrollTop = container.scrollHeight
+  }
+
+  const backToConversations = () => {
+    activeConvId = null
+    document.getElementById('conv3-layout')?.classList.remove('conv3-open')
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+  }
+
+  const starConversation = async (convId, e) => {
+    e.stopPropagation()
+    try {
+      const res = await fetch(`/conversations/${convId}/star`, { method: 'PATCH' })
+      const data = await res.json()
+      const conv = allConversations.find(c => c.id === convId)
+      if (conv) conv.is_starred = data.is_starred
+      filterConversations(document.getElementById('conv3-search')?.value || '')
+      if (activeConvId === convId) {
+        const btn = document.getElementById('conv3-star-btn')
+        if (btn) { btn.textContent = data.is_starred ? '★' : '☆'; btn.style.color = data.is_starred ? '#f59e0b' : ''; btn.title = data.is_starred ? 'Unstar' : 'Star' }
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const loadConvScheduled = async (convId) => {
+    const container = document.getElementById('conv3-messages')
+    if (!container) return
+    container.innerHTML = '<div style="text-align:center;color:#d1d5db;font-size:13px;padding:32px;">Loading...</div>'
+    try {
+      const res = await fetch(`/conversations/${convId}/scheduled`)
+      const data = await res.json()
+      const items = data.scheduled_messages || []
+      if (!items.length) {
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📅</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">No scheduled messages</div>
+          <div style="font-size:12px;color:#9ca3af;">Use the Schedule button below to schedule a message.</div>
+        </div>`
+        return
+      }
+      container.innerHTML = items.map(sm => `<div class="conv3-scheduled-item" id="sched-${sm.id}">
+        <div style="font-size:20px;flex-shrink:0;">📅</div>
+        <div class="conv3-scheduled-body">
+          <div>${sm.body}</div>
+          <div class="conv3-scheduled-time">Sends ${new Date(sm.send_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+        </div>
+        <button class="conv3-scheduled-cancel" onclick="deleteScheduledMessage('${sm.id}')" title="Cancel">✕</button>
+      </div>`).join('')
+    } catch (err) {
+      container.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:13px;padding:32px;">Error loading scheduled messages</div>'
+    }
+  }
+
+  const deleteScheduledMessage = async (id) => {
+    try {
+      await fetch(`/scheduled-messages/${id}`, { method: 'DELETE' })
+      document.getElementById(`sched-${id}`)?.remove()
+      const container = document.getElementById('conv3-messages')
+      if (container && !container.querySelector('.conv3-scheduled-item')) {
+        container.innerHTML = `<div style="padding:40px 16px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:10px;">📅</div>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">No scheduled messages</div>
+          <div style="font-size:12px;color:#9ca3af;">Use the Schedule button below to schedule a message.</div>
+        </div>`
+      }
+    } catch (err) { toast.error('Error', 'Could not cancel scheduled message') }
+  }
+
+  const toggleSchedulePicker = () => {
+    const picker = document.getElementById('conv3-schedule-picker')
+    const btn = document.getElementById('conv3-schedule-btn')
+    if (!picker) return
+    const isOpen = picker.classList.contains('open')
+    picker.classList.toggle('open', !isOpen)
+    btn?.classList.toggle('active', !isOpen)
+  }
+
+  const scheduleConvMessage = async (convId, leadId) => {
+    const input = document.getElementById('conv-input')
+    const body = input?.value.trim()
+    const dateInput = document.getElementById('conv3-schedule-date')
+    const timeInput = document.getElementById('conv3-schedule-time')
+    if (!body) return toast.error('Required', 'Type a message first')
+    if (!dateInput?.value || !timeInput?.value) return toast.error('Required', 'Pick a date and time')
+    const send_at = new Date(`${dateInput.value}T${timeInput.value}`).toISOString()
+    try {
+      const res = await fetch(`/conversations/${convId}/scheduled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body, send_at, lead_id: leadId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        input.value = ''
+        document.getElementById('conv3-schedule-picker')?.classList.remove('open')
+        document.getElementById('conv3-schedule-btn')?.classList.remove('active')
+        setConvSubTab('scheduled')
+        toast.success('Scheduled', 'Message scheduled successfully')
+      } else toast.error('Schedule failed', data.error || 'Could not schedule message')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const blockConvLead = async (leadId, convId) => {
+    if (!await confirmModal('Block this lead?', 'They will no longer receive automated messages or AI responses.', 'Block lead', true)) return
+    try {
+      const res = await fetch(`/leads/${leadId}/block`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { await loadConversations(); openConversation(convId); toast.info('Lead blocked', 'Automated messages and AI responses paused') }
+    } catch (err) { toast.error('Error', 'Failed to block lead') }
+  }
+
+  const unblockConvLead = async (leadId, convId) => {
+    try {
+      const res = await fetch(`/leads/${leadId}/unblock`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { await loadConversations(); openConversation(convId); toast.success('Lead unblocked', 'Automated messages resumed') }
+    } catch (err) { toast.error('Error', 'Failed to unblock lead') }
+  }
+
+  const saveConvNotes = async (leadId, value) => {
+    try {
+      await fetch(`/leads/${leadId}/notes`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: value }) })
+    } catch (err) { console.error('Notes save failed', err) }
+  }
+
+  const callLead = (phone) => window.open(`tel:${phone}`)
+
+  const contactRow = (label, val) => `<div class="conv3-contact-row"><span class="conv3-contact-label">${label}</span><span class="conv3-contact-val">${val}</span></div>`
+
+  const renderRightPanel = (conv, lead, _campaigns) => {
+    const panel = document.getElementById('conv3-right')
+    if (!panel) return
+    const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
+    const localTime = lead?.timezone ? getLocalTime(lead.timezone) : null
+    const safeName = [lead?.first_name, lead?.last_name].filter(Boolean).join(' ').replace(/'/g, "\\'")
+    panel.innerHTML = `
+      <div class="conv3-right-header">
+        <h3>Contact Details</h3>
+        <button class="conv3-icon-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')" title="Edit disposition">🏷️</button>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Contact Info</div>
+        ${contactRow('Name', [lead?.first_name, lead?.last_name].filter(Boolean).join(' ') || '—')}
+        ${contactRow('Phone', lead?.phone || '—')}
+        ${lead?.email ? contactRow('Email', lead.email) : ''}
+        ${lead?.state ? contactRow('State', lead.state + (lead.zip ? ' ' + lead.zip : '')) : ''}
+        ${lead?.date_of_birth ? contactRow('DOB', lead.date_of_birth) : ''}
+        ${lead?.product ? contactRow('Product', lead.product) : ''}
+        ${lead?.address ? contactRow('Address', lead.address) : ''}
+        ${localTime ? contactRow('Local time', localTime) : ''}
+        ${lead?.timezone ? contactRow('Timezone', lead.timezone.replace('America/', '').replace(/_/g, ' ')) : ''}
+        ${lead?.created_at ? contactRow('Added', new Date(lead.created_at).toLocaleDateString()) : ''}
+        ${lead?.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? contactRow('Bucket', bk.name) : '' })() : (lead?.bucket ? contactRow('Source', lead.bucket) : '')}
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Tags</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};">${dispTag.name}</span>` : '<span style="font-size:12px;color:#9ca3af;">No disposition</span>'}
+          ${lead?.autopilot ? `<span class="autopilot-status on" style="margin:0;font-size:11px;">⚡ Autopilot</span>` : ''}
+          ${lead?.is_cold ? `<span class="tag" style="background:#e0f2fe;color:#0369a1;">❄️ Cold</span>` : ''}
+          ${lead?.is_blocked ? `<span class="tag" style="background:#fee2e2;color:#dc2626;font-weight:600;">🚫 Blocked</span>` : ''}
+        </div>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Quick Actions</div>
+        <div class="conv3-quick-actions">
+          <button class="conv3-quick-btn" onclick="callLead('${lead?.phone}')">📞 Call</button>
+          <button class="conv3-quick-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')">🏷️ Disposition</button>
+          ${lead?.is_blocked
+            ? `<button class="conv3-quick-btn" style="color:#059669;" onclick="unblockConvLead('${lead.id}','${conv.id}')">✅ Unblock</button>`
+            : `<button class="conv3-quick-btn" style="color:#dc2626;" onclick="blockConvLead('${lead?.id}','${conv.id}')">🚫 Block</button>`}
+          <button class="conv3-quick-btn" onclick="window.open('/lead.html?id=${lead?.id}','_blank')">👤 Full Profile</button>
+        </div>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Notes</div>
+        <textarea class="conv3-notes-ta" placeholder="Add notes..." onblur="saveConvNotes('${lead?.id}',this.value)">${lead?.notes || ''}</textarea>
+      </div>
+    `
+  }
+
+  const openConversation = async (convId) => {
+    activeConvId = convId
+    convSubTab = 'all'
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+    if (window.innerWidth < 768) {
+      document.getElementById('conv3-layout')?.classList.add('conv3-open')
+    }
+    const center = document.getElementById('conv3-center')
+    center.innerHTML = '<div class="conv3-empty"><div style="font-size:28px;margin-bottom:8px;">⏳</div><div style="color:#9ca3af;font-size:13px;">Loading...</div></div>'
+    try {
+      const res = await fetch(`/conversations/${convId}`)
+      const data = await res.json()
+      const conv = data.conversation
+      const lead = conv.leads
+      const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ') : 'Unknown'
+      const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
+      const isAutopilot = lead?.autopilot || false
+      const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
+      const bannerColor = conv.needs_agent_review && conv.handoff_reason ? (handoffLabels[conv.handoff_reason]?.color || 'gray') : null
+      const bannerText = conv.needs_agent_review && conv.handoff_reason ? handoffBannerText[conv.handoff_reason] : null
+      const localTime = lead?.timezone ? getLocalTime(lead.timezone) : null
+      const isBlocked = lead?.is_blocked
+      const safeName = name.replace(/'/g, "\\'")
+
+      const existingIdx = allConversations.findIndex(c => c.id === convId)
+      if (existingIdx >= 0) {
+        allConversations[existingIdx] = { ...allConversations[existingIdx], ...conv }
+      }
+
+      center.innerHTML = `
+        ${bannerText ? `<div class="handoff-banner ${bannerColor}">
+          <span>⚑ ${bannerText}</span>
+          <div class="handoff-banner-actions">
+            <button class="btn btn-sm" style="background:white;color:#374151;" onclick="takeOverConversation('${conv.id}','${lead?.id}')">Take Over</button>
+            <button class="btn btn-sm" style="background:rgba(0,0,0,0.1);color:inherit;" onclick="markConvResolved('${conv.id}')">Mark Resolved</button>
+          </div>
+        </div>` : ''}
+        <div class="conv3-conv-header">
+          <div class="conv3-conv-header-left">
+            <button class="btn btn-ghost btn-sm conv3-back-btn" onclick="backToConversations()" style="flex-shrink:0;min-height:36px;">← Back</button>
+            <div class="conv3-avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0;">${initials}</div>
+            <div style="min-width:0;">
+              <div class="conv3-conv-header-name">${name}${dispTag ? ` <span class="disposition-pill" style="background:${dispTag.color};font-size:10px;">${dispTag.name}</span>` : ''}${isBlocked ? ' <span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 6px;font-weight:600;">Blocked</span>' : ''}</div>
+              <div class="conv3-conv-header-meta">${lead?.phone || ''}${localTime ? ' · ' + localTime + ' local' : ''}${lead?.state ? ' · ' + lead.state : ''}</div>
+            </div>
+          </div>
+          <div class="conv3-conv-header-actions">
+            <span class="autopilot-status ${isAutopilot ? 'on' : 'off'}" style="font-size:11px;margin:0;">${isAutopilot ? '⚡ Auto' : '✋ Manual'}</span>
+            <button id="conv3-star-btn" class="conv3-icon-btn" onclick="starConversation('${conv.id}',event)" title="${conv.is_starred ? 'Unstar' : 'Star'}" style="color:${conv.is_starred ? '#f59e0b' : ''};">${conv.is_starred ? '★' : '☆'}</button>
+            <div class="actions-menu">
+              <button class="conv3-icon-btn actions-btn" onclick="toggleActionsMenu(this)" style="font-size:18px;">⋯</button>
+              <div class="actions-dropdown down">
+                <button onclick="window.open('/lead.html?id=${lead?.id}','_blank');closeAllMenus()">👤 View full profile</button>
+                ${lead?.is_sold
+                  ? `<button onclick="closeAllMenus();markUnsold('${lead?.id}','${safeName}')">↩ Remove sold status</button>`
+                  : `<button onclick="closeAllMenus();openMarkSoldModal('${lead?.id}','${safeName}')">🎉 Mark as Sold</button>`}
+                ${isBlocked
+                  ? `<button onclick="unblockConvLead('${lead?.id}','${conv.id}');closeAllMenus()">✅ Unblock lead</button>`
+                  : `<button onclick="blockConvLead('${lead?.id}','${conv.id}');closeAllMenus()">🚫 Block lead</button>`}
+                <button onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume campaigns</button>
+                <button onclick="markConvResolved('${conv.id}');closeAllMenus()">✓ Mark resolved</button>
+              </div>
+            </div>
+            <button id="conv3-right-toggle" class="conv3-icon-btn" onclick="toggleRightPanel()" title="${rightPanelOpen ? 'Hide details' : 'Show details'}" style="font-size:16px;">${rightPanelOpen ? '›' : '‹'}</button>
+          </div>
+        </div>
+        <div class="conv3-subtabs">
+          <button class="conv3-subtab active" data-tab="all" onclick="setConvSubTab('all')">All</button>
+          <button class="conv3-subtab" data-tab="scheduled" onclick="setConvSubTab('scheduled')">Scheduled</button>
+          <button class="conv3-subtab" data-tab="sent" onclick="setConvSubTab('sent')">Sent</button>
+          <button class="conv3-subtab" data-tab="rejected" onclick="setConvSubTab('rejected')">Rejected</button>
+        </div>
+        <div class="conv3-updated" id="conv3-last-updated"></div>
+        <div class="conv3-messages" id="conv3-messages"></div>
+        <div class="conv3-input-area">
+          ${isAutopilot ? `<div class="autopilot-status on" style="margin-bottom:8px;">⚡ Autopilot is handling this conversation</div>` : `<div class="ai-suggestion" id="ai-suggestion-box" style="display:none;"><div class="ai-suggestion-label">⚡ AI suggestion</div><div id="ai-suggestion-text"></div></div>`}
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;" id="template-pills"></div>
+          <div class="conv3-schedule-picker" id="conv3-schedule-picker">
+            <input type="date" id="conv3-schedule-date" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
+            <input type="time" id="conv3-schedule-time" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
+            <button class="btn btn-primary btn-sm" onclick="scheduleConvMessage('${conv.id}','${lead?.id}')">Schedule</button>
+          </div>
+          <div class="conv3-toolbar">
+            <button class="conv3-toolbar-btn" id="conv3-schedule-btn" onclick="toggleSchedulePicker()">📅 Schedule</button>
+            <button class="conv3-toolbar-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')">🏷️ Disposition</button>
+            <button class="conv3-toolbar-btn" onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume Campaign</button>
+            <button class="conv3-toolbar-btn" onclick="callLead('${lead?.phone}')">📞 Call</button>
+          </div>
+          <div class="conv3-input-bottom">
+            <textarea class="conv3-textarea" id="conv-input" placeholder="${isAutopilot ? 'Autopilot active — type to override' : 'Type a message...'}" oninput="updateConvCharCount(this)" ${!isAutopilot ? `onfocus="loadAISuggestion('${conv.id}','${conv.lead_id}')"` : ''}></textarea>
+            <div class="conv3-send-area">
+              <button class="btn btn-primary" onclick="sendConvMessage('${conv.id}','${conv.lead_id}')">Send</button>
+              <div class="conv3-char-count" id="conv3-char-count">0</div>
+            </div>
+          </div>
+        </div>
+      `
+
+      renderMessages(conv, 'all')
+      renderTemplatePills(conv.lead_id)
+      if (rightPanelOpen) renderRightPanel(conv, lead, [])
+
+      // Populate disposition filter dropdown (once)
+      const dispSelect = document.getElementById('conv3-disp-filter')
+      if (dispSelect && allDispositionTags.length && dispSelect.options.length === 1) {
+        allDispositionTags.forEach(t => {
+          const opt = document.createElement('option')
+          opt.value = t.id; opt.textContent = t.name
+          dispSelect.appendChild(opt)
+        })
+      }
+
+      const allMsgs = conv.messages || []
+      lastMessageTimestamp = allMsgs.length ? allMsgs[allMsgs.length - 1].sent_at : null
+      lastUpdatedTime = Date.now()
+      clearInterval(lastUpdatedDisplayInterval)
+      lastUpdatedDisplayInterval = setInterval(updateLastUpdatedLabel, 5000)
+      updateLastUpdatedLabel()
+    } catch (err) { console.error(err) }
+  }
+
+  const updateConvCharCount = (ta) => {
+    const el = document.getElementById('conv3-char-count')
+    if (el) el.textContent = ta.value.length
+  }
+
+  const updateLastUpdatedLabel = () => {
+    const el = document.getElementById('conv3-last-updated')
+    if (!el || !lastUpdatedTime) return
+    const secs = Math.round((Date.now() - lastUpdatedTime) / 1000)
+    el.textContent = secs < 5 ? 'Updated just now' : `Updated ${secs}s ago`
+  }
+
+  const pollMessages = async () => {
+    if (!activeConvId || document.hidden || convSubTab === 'scheduled') return
+    try {
+      const res = await fetch(`/conversations/${activeConvId}`)
+      const data = await res.json()
+      const incoming = (data.conversation.messages || []).filter(m =>
+        lastMessageTimestamp ? new Date(m.sent_at) > new Date(lastMessageTimestamp) : true
+      )
+      if (incoming.length > 0) {
+        const container = document.getElementById('conv3-messages')
+        if (container && convSubTab === 'all') {
+          const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60
+          incoming.forEach(m => {
+            const div = document.createElement('div')
+            div.className = `msg ${m.direction}${m.is_ai ? ' ai' : ''}`
+            div.innerHTML = `<div class="msg-bubble">${m.body}</div><div class="msg-time">${formatTime(m.sent_at)}${m.direction === 'outbound' ? msgStatusIcon(m.status, m.error_message) : ''}</div>${m.is_ai ? '<div class="msg-label">AI response</div>' : ''}`
+            container.appendChild(div)
+          })
+          if (wasAtBottom) container.scrollTop = container.scrollHeight
+          lastMessageTimestamp = incoming[incoming.length - 1].sent_at
+        }
+        const existingConv = allConversations.find(c => c.id === activeConvId)
+        if (existingConv) {
+          existingConv.messages = data.conversation.messages
+          existingConv.updated_at = data.conversation.updated_at
+          filterConversations(document.getElementById('conv3-search')?.value || '')
+        }
+      }
+      lastUpdatedTime = Date.now()
+      updateLastUpdatedLabel()
+    } catch (err) { console.error('Poll messages error:', err) }
+  }
+
+  const pollSidebar = async () => {
+    if (document.hidden) return
+    await loadConversations()
+  }
+
+  const startPolling = () => {
+    stopPolling()
+    pollMessagesTimer = setInterval(pollMessages, 10000)
+    pollSidebarTimer = setInterval(pollSidebar, 15000)
+  }
+
+  const stopPolling = () => {
+    clearInterval(pollMessagesTimer)
+    clearInterval(pollSidebarTimer)
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopPolling()
+    else startPolling()
+  })
+
+  const takeOverConversation = async (convId, leadId) => {
+    await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null }) })
+    if (leadId) await fetch(`/leads/${leadId}/autopilot`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autopilot: false }) })
+    await loadConversations()
+    openConversation(convId)
+  }
+
+  const resumeLeadCampaigns = async (leadId, btn) => {
+    const orig = btn.textContent
+    btn.disabled = true
+    btn.textContent = 'Resuming...'
+    try {
+      const res = await fetch(`/leads/${leadId}/resume-campaigns`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        btn.textContent = data.resumed > 0 ? `✓ Resumed ${data.resumed}` : 'Nothing paused'
+        btn.style.color = data.resumed > 0 ? '#059669' : '#9ca3af'
+      } else { btn.textContent = 'Error' }
+    } catch { btn.textContent = 'Error' }
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; btn.disabled = false }, 3000)
+  }
+
+  const markConvResolved = async (convId) => {
+    await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null }) })
+    await loadConversations()
+    openConversation(convId)
+  }
+
+  const loadAISuggestion = async (convId, leadId) => {
+    const box = document.getElementById('ai-suggestion-box')
+    const text = document.getElementById('ai-suggestion-text')
+    if (!box || !text) return
+    box.style.display = 'block'
+    text.textContent = 'Generating suggestion...'
+    try {
+      const res = await fetch('/messages/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: convId, lead_id: leadId }) })
+      const data = await res.json()
+      if (data.suggestion) { text.textContent = data.suggestion; const input = document.getElementById('conv-input'); if (input && !input.value) input.value = data.suggestion }
+    } catch (err) { if (text) text.textContent = 'Could not generate suggestion' }
+  }
+
+  const sendConvMessage = async (convId, leadId) => {
+    const input = document.getElementById('conv-input')
+    const body = input?.value.trim()
+    if (!body) return
+    try {
+      const res = await fetch('/messages/send-manual', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: convId, lead_id: leadId, body }) })
+      const data = await res.json()
+      if (data.success) { input.value = ''; updateConvCharCount(input); const box = document.getElementById('ai-suggestion-box'); if (box) box.style.display = 'none'; openConversation(convId) }
+      else toast.error('Send failed', data.error || 'Could not send message')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const toggleActionsMenu = (btn) => {
+    const dropdown = btn.nextElementSibling
+    document.querySelectorAll('.actions-dropdown').forEach(d => { if (d !== dropdown) d.classList.remove('open') })
+    if (dropdown) dropdown.classList.toggle('open')
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.actions-menu')) closeAllMenus()
+  })
+
+  // DISPOSITION MODAL
+  const openDispositionModal = (leadId, name) => {
+    dispositionTargetLeadId = leadId
+    document.getElementById('disposition-lead-name').textContent = `Applying disposition to: ${name}`
+    document.getElementById('disposition-notes').value = ''
+    const grid = document.getElementById('disp-picker-grid')
+    if (!allDispositionTags.length) {
+      grid.innerHTML = `<div style="color:#9ca3af;font-size:13px;">No disposition tags yet. Create some in Settings → Disposition Tags.</div>`
+    } else {
+      grid.innerHTML = allDispositionTags.map(tag => `
+        <button class="disp-pick-btn" style="background:${tag.color}" onclick="applyDisposition('${tag.id}')">${tag.name}</button>
+      `).join('')
+    }
+    document.getElementById('disposition-modal').classList.add('open')
+  }
+
+  const applyDisposition = async (tagId) => {
+    const notes = document.getElementById('disposition-notes').value
+    try {
+      const res = await fetch('/dispositions/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: dispositionTargetLeadId, disposition_tag_id: tagId, notes })
+      })
+      const data = await res.json()
+      if (data.success) {
+        const tag = allDispositionTags.find(t => t.id === tagId)
+        document.getElementById('disposition-modal').classList.remove('open')
+        toast.success('Disposition applied', tag ? `${tag.name} applied to lead` : 'Disposition updated')
+        if (activeConvId) openConversation(activeConvId)
+      } else { toast.error('Error', data.error || 'Failed to apply disposition') }
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  // MARK AS SOLD (on conversations page)
+  const openMarkSoldModal = (leadId, leadName) => {
+    soldTargetLeadId = leadId
+    soldTargetLeadName = leadName
+    document.getElementById('sold-modal-title').textContent = `Mark ${leadName} as Sold 🎉`
+    document.getElementById('sold-plan-type').value = ''
+    document.getElementById('sold-commission').value = ''
+    document.getElementById('sold-premium').value = ''
+    document.getElementById('sold-notes').value = ''
+    document.getElementById('sold-modal').classList.add('open')
+    setTimeout(() => document.getElementById('sold-plan-type').focus(), 100)
+  }
+
+  const submitMarkSold = async () => {
+    const planType = document.getElementById('sold-plan-type').value.trim()
+    const commission = parseFloat(document.getElementById('sold-commission').value) || null
+    const premium = parseFloat(document.getElementById('sold-premium').value) || null
+    const notes = document.getElementById('sold-notes').value.trim()
+    try {
+      const res = await fetch(`/leads/${soldTargetLeadId}/sold`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sold_plan_type: planType || null, sold_premium: premium, sold_notes: notes || null, commission: commission || null })
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      document.getElementById('sold-modal').classList.remove('open')
+      toast.success(`${soldTargetLeadName} marked as sold!`, planType ? `${planType}${premium ? ` — $${premium}/mo` : ''}` : 'Sale recorded')
+      if (activeConvId) openConversation(activeConvId)
+    } catch (err) { toast.error('Error', err.message || 'Could not mark as sold') }
+  }
+
+  const markUnsold = async (leadId, leadName) => {
+    const ok = await confirmModal(`Remove sold status from ${leadName}?`, 'This will restore their previous status.', 'Remove', true)
+    if (!ok) return
+    try {
+      const res = await fetch(`/leads/${leadId}/unsold`, { method: 'PATCH' })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      toast.info('Sold status removed', `${leadName} moved back to ${data.lead.status}`)
+      if (activeConvId) openConversation(activeConvId)
+    } catch (err) { toast.error('Error', err.message || 'Could not remove sold status') }
+  }
+
+  // TEMPLATES (for template pills in conversation)
+  const renderTemplatePills = (leadId) => {
+    const container = document.getElementById('template-pills')
+    if (!container) return
+    if (!allTemplates.length) { container.innerHTML = ''; return }
+    container.innerHTML = allTemplates.map(t => `
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="useTemplate('${t.id}')">📝 ${t.name}</button>
+    `).join('')
+  }
+
+  const useTemplate = (templateId) => {
+    const template = allTemplates.find(t => t.id === templateId)
+    if (!template) return
+    const input = document.getElementById('conv-input')
+    if (!input) return
+    input.value = template.body
+    input.focus()
+    input.style.height = '84px'
+  }
+
+  const init = async () => {
+    const authed = await checkAuth()
+    if (!authed) return
+    // Load disposition tags and templates
+    try {
+      const [dtRes, tRes, bRes] = await Promise.all([fetch('/dispositions'), fetch('/templates'), fetch('/buckets')])
+      const dtData = await dtRes.json()
+      const tData = await tRes.json()
+      const bData = await bRes.json()
+      allDispositionTags = dtData.tags || []
+      allTemplates = tData.templates || []
+      allBuckets = bData.buckets || []
+    } catch (e) {}
+    await loadProfile()
+    await loadConversations()
+    startPolling()
+    loadCalBadge()
+    loadNotifBadge()
+    setInterval(loadNotifBadge, 30000)
+
+    // Handle URL params
+    const params = new URLSearchParams(window.location.search)
+    const leadId = params.get('lead')
+    const convId = params.get('conv')
+    if (convId) {
+      openConversation(convId)
+    } else if (leadId) {
+      const conv = allConversations.find(c => c.lead_id === leadId)
+      if (conv) openConversation(conv.id)
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init)
+</script>
+</body>
+</html>

@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — TextApp</title>
+  <link rel="stylesheet" href="/css/shared.css">
+  <script src="/toast.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">Text<span>App</span></div>
+  <nav class="nav">
+    <a href="/leads.html" class="nav-btn">Leads</a>
+    <a href="/conversations.html" class="nav-btn">Conversations</a>
+    <a href="/campaigns.html" class="nav-btn">Campaigns</a>
+    <a href="/stats.html" class="nav-btn">Stats</a>
+    <a href="/calendar.html" class="nav-btn" id="nav-calendar">Calendar <span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:2px;"></span></a>
+    <a href="/settings.html" class="nav-btn active">Settings</a>
+    <a href="/admin.html" id="admin-nav-link" class="nav-btn" style="display:none;text-decoration:none;">Admin</a>
+  </nav>
+  <div class="header-right" style="display:flex;align-items:center;gap:8px;">
+    <div class="notif-wrap" id="notif-wrap">
+      <button class="btn btn-ghost btn-sm notif-btn" onclick="toggleNotifPanel(event)" title="Notifications">
+        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      </button>
+      <div class="notif-panel" id="notif-panel" style="display:none;">
+        <div class="notif-panel-header">
+          <span>Notifications</span>
+          <a onclick="markAllNotifRead()">Mark all read</a>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+        <div class="notif-footer">Showing last 30 notifications</div>
+      </div>
+    </div>
+    <div class="profile-menu" id="profile-menu">
+      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger">
+        <span class="profile-trigger-name" id="header-agent-name"></span>
+        <span class="profile-chevron">▼</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <div class="profile-dropdown-header">
+          <div class="profile-dropdown-name" id="profile-dropdown-name"></div>
+          <div class="profile-dropdown-email" id="profile-dropdown-email"></div>
+        </div>
+        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()">
+          <span class="profile-dropdown-icon">👤</span> Profile &amp; Settings
+        </button>
+        <button class="profile-dropdown-item" onclick="goToSettingsNotif(); closeProfileMenu()">
+          <span class="profile-dropdown-icon">🔔</span> Notification Settings
+        </button>
+        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;">
+          <span class="profile-dropdown-icon">🛡️</span> Admin Panel
+        </a>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item danger" onclick="logout()">
+          <span class="profile-dropdown-icon">→</span> Log out
+        </button>
+      </div>
+    </div>
+    <button class="hamburger-btn" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="settings-layout">
+    <div class="settings-nav">
+      <div class="settings-nav-item active" onclick="showSettingsPanel('dispositions', this)">Disposition Tags</div>
+      <div class="settings-nav-item" onclick="showSettingsPanel('templates', this)">Preset Templates</div>
+      <div class="settings-nav-item" onclick="showSettingsPanel('phone-numbers', this)">Phone Numbers</div>
+      <div class="settings-nav-item" onclick="showSettingsPanel('team', this)">Team &amp; Invites</div>
+      <div class="settings-nav-item" onclick="showSettingsPanel('account', this)">Account</div>
+    </div>
+    <div>
+      <div class="settings-nav-mobile">
+        <select id="settings-nav-select" onchange="showSettingsPanelMobile(this.value)">
+          <option value="dispositions">Disposition Tags</option>
+          <option value="templates">Preset Templates</option>
+          <option value="phone-numbers">Phone Numbers</option>
+          <option value="team">Team &amp; Invites</option>
+          <option value="account">Account</option>
+        </select>
+      </div>
+      <!-- DISPOSITION TAGS PANEL -->
+      <div class="settings-panel active" id="panel-dispositions">
+        <div class="settings-card">
+          <h2>Disposition Tags</h2>
+          <p>Create tags to categorize leads after conversations. Each tag can optionally trigger a drip sequence.</p>
+          <button class="btn btn-primary" onclick="openCreateDispositionModal()">+ New Disposition Tag</button>
+          <div class="settings-section-title" style="margin-top:24px;">Current Tags</div>
+          <div id="disposition-tags-list">
+            <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No disposition tags yet</div>
+          </div>
+        </div>
+      </div>
+      <!-- TEMPLATES PANEL -->
+      <div class="settings-panel" id="panel-templates">
+        <div class="settings-card">
+          <h2>Preset Templates</h2>
+          <p>Save your best messages and fire them with one click from any conversation.</p>
+          <button class="btn btn-primary" onclick="openCreateTemplateModal()">+ New Template</button>
+          <div class="settings-section-title" style="margin-top:24px;">Current Templates</div>
+          <div id="templates-list">
+            <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No templates yet</div>
+          </div>
+        </div>
+      </div>
+      <!-- PHONE NUMBERS PANEL -->
+      <div class="settings-panel" id="panel-phone-numbers">
+        <div class="settings-card">
+          <h2>Phone Numbers</h2>
+          <p>Search and purchase Twilio numbers. Incoming messages route to you based on which number was texted.</p>
+
+          <div class="settings-section-title">Search Available Numbers</div>
+          <div class="form-row" style="align-items:flex-end;gap:12px;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;position:relative;">
+              <label>State</label>
+              <input type="text" id="pn-search-state-input" placeholder="Type state name..." autocomplete="off" oninput="filterStateDropdown()" onfocus="filterStateDropdown()" style="width:100%;">
+              <div id="pn-state-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:100;margin-top:2px;"></div>
+            </div>
+            <div style="font-size:13px;color:#9ca3af;padding-bottom:8px;">or</div>
+            <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0;">
+              <label>Area Code</label>
+              <input type="text" id="pn-search-areacode" placeholder="555" maxlength="3" style="width:100%;">
+            </div>
+            <button class="btn btn-primary" onclick="searchNumbers()" id="pn-search-btn" style="margin-bottom:0;white-space:nowrap;">Search</button>
+          </div>
+          <div id="pn-search-results" style="margin-top:16px;"></div>
+
+          <div class="settings-section-title" style="margin-top:28px;">My Numbers</div>
+          <div id="phone-numbers-list">
+            <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No phone numbers yet</div>
+          </div>
+        </div>
+      </div>
+      <!-- TEAM & INVITES PANEL -->
+      <div class="settings-panel" id="panel-team">
+        <div class="settings-card">
+          <h2>Team &amp; Invites</h2>
+          <p>Invite agents to join TextApp. Each agent gets their own isolated workspace.</p>
+          <button class="btn btn-primary" onclick="openInviteModal()" style="width:auto;">+ Invite Agent</button>
+          <div class="settings-section-title" style="margin-top:24px;">Pending Invites</div>
+          <div id="invites-list">
+            <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No pending invites</div>
+          </div>
+        </div>
+      </div>
+      <!-- ACCOUNT PANEL -->
+      <div class="settings-panel" id="panel-account">
+        <div id="account-earnings-banner" style="display:none;background:linear-gradient(135deg,#064e3b,#065f46);border-radius:14px;padding:18px 22px;margin-bottom:20px;color:white;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">This Month</div>
+          <div style="font-size:24px;font-weight:800;" id="account-earnings-amount">—</div>
+          <div style="font-size:13px;opacity:0.8;margin-top:3px;" id="account-earnings-sub">in commissions</div>
+        </div>
+        <div class="settings-card">
+          <h2>Profile Settings</h2>
+          <p>Your identity and Twilio credentials used for all outbound messages.</p>
+          <div class="settings-section-title">Identity</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Agent Name</label>
+              <input type="text" id="profile-agent-name" placeholder="Your name">
+            </div>
+            <div class="form-group">
+              <label>Agency Name</label>
+              <input type="text" id="profile-agency-name" placeholder="Your agency">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Calendly URL</label>
+            <input type="text" id="profile-calendly-url" placeholder="https://calendly.com/your-link">
+          </div>
+          <div class="form-group">
+            <label>Timezone</label>
+            <select id="profile-timezone">
+              <option value="America/New_York">Eastern</option>
+              <option value="America/Chicago">Central</option>
+              <option value="America/Denver">Mountain</option>
+              <option value="America/Los_Angeles">Pacific</option>
+              <option value="America/Phoenix">Arizona</option>
+              <option value="America/Anchorage">Alaska</option>
+              <option value="Pacific/Honolulu">Hawaii</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="text" id="profile-email" readonly style="background:#f9fafb;">
+          </div>
+          <div id="profile-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+          <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+        </div>
+        <div class="settings-card">
+          <h2>Compliance Footer</h2>
+          <p>Automatically appended to the first message sent to each lead. Required for TCPA compliance.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <label class="toggle">
+              <input type="checkbox" id="compliance-enabled" onchange="updateCompliancePreview()">
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size:13px;color:#374151;">Enable compliance footer</span>
+          </div>
+          <div id="compliance-fields">
+            <div class="form-group">
+              <label>Footer Text <span style="font-weight:400;color:#9ca3af;">(leave blank to use default)</span></label>
+              <textarea id="compliance-footer" rows="2" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;" placeholder="Reply STOP to opt out. [Agency Name]" oninput="updateCompliancePreview()"></textarea>
+              <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Use <strong>[Agency Name]</strong> as a placeholder — it will be replaced with your agency name.</div>
+            </div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Preview</div>
+              <div id="compliance-preview" style="font-size:13px;color:#374151;white-space:pre-line;"></div>
+            </div>
+          </div>
+          <div id="compliance-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+          <button class="btn btn-primary" onclick="saveCompliance()">Save Compliance Settings</button>
+        </div>
+        <div class="settings-card">
+          <h2>Notifications</h2>
+          <p>How you want to be alerted when leads reply to your messages.</p>
+          <div class="form-group">
+            <label>Your personal cell for SMS alerts</label>
+            <input type="text" id="profile-personal-phone" placeholder="+1 (555) 000-0000">
+            <div style="font-size:12px;color:#9ca3af;margin-top:4px;">We'll forward lead replies to this number as a text so you never miss a message. This is your personal phone, not a TextApp number.</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
+            <label class="toggle" style="margin-top:2px;">
+              <input type="checkbox" id="sms-notif-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#374151;">Text me when a lead replies</div>
+              <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Lead replies will be forwarded to your personal cell from your TextApp number.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;">
+            <label class="toggle" style="margin-top:2px;">
+              <input type="checkbox" id="inapp-notif-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#374151;">Show notification bell in the app</div>
+              <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Red badge on the bell icon when leads reply.</div>
+            </div>
+          </div>
+          <div id="notif-settings-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+          <button class="btn btn-primary" onclick="saveNotifSettings()">Save Notification Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT DISPOSITION TAG MODAL -->
+<div class="modal-overlay" id="disp-tag-modal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <h2 id="disp-tag-modal-title">Create Disposition Tag</h2>
+      <button class="modal-close" onclick="closeDispTagModal()">×</button>
+    </div>
+
+    <div class="form-group">
+      <label>Tag Name</label>
+      <input type="text" id="disp-tag-name" placeholder="e.g. Positive Reply, Appointment Scheduled">
+    </div>
+
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker-row" id="color-picker-row"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <input type="text" id="disp-tag-description" placeholder="Internal note">
+    </div>
+
+    <div style="border-top:1px solid #f3f4f6;margin:20px 0;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#374151;">Automated Actions</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Actions execute in order when this tag is applied to a lead</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="addActionRow()">+ Add Action</button>
+    </div>
+
+    <div id="action-rows"></div>
+
+    <div style="border-top:1px solid #f3f4f6;margin:20px 0;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#374151;">Drip Sequence</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Messages fire X days after this tag is applied</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="addDispMessageStep()">+ Add Message</button>
+    </div>
+
+    <div class="tip">Use <strong>[First Name]</strong> for personalization. Use <strong>{Hi|Hey|Hello}</strong> to randomize phrasing — the scheduler picks one variation per send.</div>
+    <div id="disp-message-steps"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDispTagModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDispositionTag()">Save Tag</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVITE MODAL -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Invite Agent</h2>
+      <button class="modal-close" onclick="closeInviteModal()">×</button>
+    </div>
+    <div id="invite-form-body">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="invite-email-input" placeholder="agent@example.com">
+      </div>
+      <div id="invite-error" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+      <button class="btn btn-primary" id="invite-submit-btn" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUY NUMBER MODAL -->
+<div class="modal-overlay" id="buy-number-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Purchase Number</h2>
+      <button class="modal-close" onclick="closeBuyNumberModal()">×</button>
+    </div>
+    <p id="buy-number-display" style="font-size:18px;font-weight:700;color:#1e293b;margin:0 0 16px;"></p>
+    <div class="form-group">
+      <label>Friendly Name</label>
+      <input type="text" id="buy-number-name" placeholder="e.g. Florida Line">
+    </div>
+    <div id="buy-number-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBuyNumberModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmPurchaseNumber()" id="buy-number-confirm-btn">Buy Number</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE MODAL -->
+<div class="modal-overlay" id="template-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="template-modal-title">Create Template</h2>
+      <button class="modal-close" onclick="closeTemplateModal()">×</button>
+    </div>
+    <div class="tip">Use <strong>[First Name]</strong> for personalization. Use <strong>{Hi|Hey|Hello}</strong> to randomize phrasing on each send.</div>
+    <div class="form-group">
+      <label>Template Name</label>
+      <input type="text" id="template-modal-name" placeholder="e.g. Initial Follow Up, Booking Nudge, Re-engagement">
+    </div>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea id="template-modal-body" rows="4" placeholder="Hi [First Name], just following up..." oninput="document.getElementById('template-modal-char').textContent = this.value.length + ' / 160'"></textarea>
+      <div class="char-count" id="template-modal-char">0 / 160</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTemplateModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<div class="nav-drawer" id="nav-drawer">
+  <div class="nav-drawer-header">
+    <div class="nav-drawer-logo">Text<span>App</span></div>
+    <button class="nav-drawer-close" onclick="closeNavDrawer()">×</button>
+  </div>
+  <div class="nav-drawer-items">
+    <a href="/leads.html" class="nav-drawer-btn" id="drawer-btn-leads">
+      <span class="nav-drawer-icon">👥</span> Leads
+    </a>
+    <a href="/conversations.html" class="nav-drawer-btn" id="drawer-btn-conversations">
+      <span class="nav-drawer-icon">💬</span> Conversations
+    </a>
+    <a href="/campaigns.html" class="nav-drawer-btn" id="drawer-btn-campaigns">
+      <span class="nav-drawer-icon">📋</span> Campaigns
+    </a>
+    <a href="/stats.html" class="nav-drawer-btn" id="drawer-btn-stats">
+      <span class="nav-drawer-icon">📊</span> Stats
+    </a>
+    <a href="/calendar.html" class="nav-drawer-btn" id="drawer-btn-calendar">
+      <span class="nav-drawer-icon">📅</span> Calendar
+    </a>
+    <a href="/settings.html" class="nav-drawer-btn active" id="drawer-btn-settings">
+      <span class="nav-drawer-icon">⚙️</span> Settings
+    </a>
+    <a href="/admin.html" id="drawer-btn-admin" class="nav-drawer-btn" style="display:none;text-decoration:none;color:#374151;">
+      <span class="nav-drawer-icon">🛡️</span> Admin
+    </a>
+  </div>
+  <div class="nav-drawer-footer">
+    <div class="nav-drawer-agent" id="drawer-agent-name"></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="logout()">Log out</button>
+  </div>
+</div>
+<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
+
+<script src="/js/shared.js"></script>
+<script>
+  let allDispositionTags = []
+  let allCampaigns = []
+  let allTemplates = []
+  let allPhoneNumbers = []
+  let editingDispositionId = null
+  let editingTemplateId = null
+  let dispMessageStepCount = 0
+  let actionRowCount = 0
+  let editingActions = []
+  let selectedDispColor = '#6366f1'
+  let selectedStateAbbr = ''
+  let pendingPurchase = null
+  let complianceFooterEnabled = true
+
+  const COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#64748b','#1a1a2e','#059669']
+
+  const ACTION_TYPES = [
+    { value: 'pause_campaigns', label: 'Pause all active campaigns' },
+    { value: 'remove_from_campaigns', label: 'Remove from all campaigns' },
+    { value: 'add_to_campaign', label: 'Add to campaign' },
+    { value: 'remove_disposition_tags', label: 'Remove current disposition tag' },
+    { value: 'add_disposition_tag', label: 'Add another disposition tag' },
+    { value: 'send_immediate_text', label: 'Send immediate text' },
+    { value: 'update_status', label: 'Update lead status' },
+    { value: 'mark_as_sold', label: 'Mark as sold' },
+    { value: 'flag_as_cold', label: 'Flag as cold' },
+    { value: 'add_note', label: 'Add internal note' }
+  ]
+
+  // ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
+
+  const showSettingsPanel = (panel, el) => {
+    document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'))
+    document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'))
+    document.getElementById(`panel-${panel}`).classList.add('active')
+    if (el) el.classList.add('active')
+    const mobileSelect = document.getElementById('settings-nav-select')
+    if (mobileSelect) mobileSelect.value = panel
+    if (panel === 'team') loadInvites()
+    if (panel === 'phone-numbers') loadPhoneNumbers()
+    if (panel === 'account') loadAccountEarnings()
+  }
+
+  const showSettingsPanelMobile = (panel) => {
+    const item = document.querySelector(`.settings-nav-item[onclick*="'${panel}'"]`)
+    showSettingsPanel(panel, item)
+  }
+
+  const loadAccountEarnings = async () => {
+    try {
+      const res = await fetch('/stats/sold')
+      const data = await res.json()
+      const banner = document.getElementById('account-earnings-banner')
+      if (!banner) return
+      const amount = data.commission_month || 0
+      const sales = data.sold_this_month || 0
+      if (amount > 0 || sales > 0) {
+        document.getElementById('account-earnings-amount').textContent = fmtComm(amount)
+        document.getElementById('account-earnings-sub').textContent = `in commissions across ${sales} sale${sales !== 1 ? 's' : ''}`
+        banner.style.display = 'block'
+      }
+    } catch (e) {}
+  }
+
+  // ─── DISPOSITION TAGS ────────────────────────────────────────────────────────
+
+  const loadDispositionTags = async () => {
+    try {
+      const res = await fetch('/dispositions')
+      const data = await res.json()
+      allDispositionTags = data.tags || []
+      renderDispositionTags()
+    } catch (err) { console.error(err) }
+  }
+
+  const renderDispositionTags = () => {
+    const container = document.getElementById('disposition-tags-list')
+    if (!allDispositionTags.length) {
+      container.innerHTML = `<div style="color:#d1d5db;font-size:13px;padding:20px 0;">No disposition tags yet</div>`
+      return
+    }
+    container.innerHTML = allDispositionTags.map(tag => `
+      <div class="disp-tag-row">
+        <div class="disp-tag-color" style="background:${tag.color}"></div>
+        <div class="disp-tag-name">${tag.name}</div>
+        <div class="disp-tag-drip">${tag.disposition_messages?.length ? `${tag.disposition_messages.length} message drip` : 'No drip'}</div>
+        <div class="disp-tag-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editDispositionTag('${tag.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDispositionTag('${tag.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  const openCreateDispositionModal = () => {
+    editingDispositionId = null
+    selectedDispColor = '#6366f1'
+    actionRowCount = 0
+    document.getElementById('disp-tag-name').value = ''
+    document.getElementById('disp-tag-description').value = ''
+    document.getElementById('disp-message-steps').innerHTML = ''
+    document.getElementById('action-rows').innerHTML = ''
+    dispMessageStepCount = 0
+    document.getElementById('disp-tag-modal-title').textContent = 'Create Disposition Tag'
+    renderColorPicker()
+    document.getElementById('disp-tag-modal').classList.add('open')
+  }
+
+  const closeDispTagModal = () => document.getElementById('disp-tag-modal').classList.remove('open')
+
+  const renderColorPicker = () => {
+    const row = document.getElementById('color-picker-row')
+    row.innerHTML = COLORS.map(c => `
+      <div class="color-swatch ${c === selectedDispColor ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${c}')"></div>
+    `).join('')
+  }
+
+  const selectColor = (color) => {
+    selectedDispColor = color
+    renderColorPicker()
+  }
+
+  const editDispositionTag = async (id) => {
+    const tag = allDispositionTags.find(t => t.id === id)
+    if (!tag) return
+    editingDispositionId = id
+    selectedDispColor = tag.color || '#6366f1'
+    actionRowCount = 0
+    document.getElementById('disp-tag-name').value = tag.name
+    document.getElementById('disp-tag-description').value = tag.description || ''
+    document.getElementById('disp-message-steps').innerHTML = ''
+    document.getElementById('action-rows').innerHTML = ''
+    dispMessageStepCount = 0
+    document.getElementById('disp-tag-modal-title').textContent = 'Edit Disposition Tag'
+    renderColorPicker()
+    if (tag.disposition_actions) {
+      tag.disposition_actions.sort((a, b) => (a.action_order || 0) - (b.action_order || 0)).forEach(action => {
+        addActionRow(action)
+      })
+    }
+    if (tag.disposition_messages) {
+      tag.disposition_messages.sort((a, b) => a.day_number - b.day_number).forEach(msg => {
+        dispMessageStepCount++
+        const container = document.getElementById('disp-message-steps')
+        const step = document.createElement('div')
+        step.className = 'message-step'
+        step.id = `dstep-${dispMessageStepCount}`
+        step.innerHTML = `
+          <div class="message-step-header"><span>Message ${dispMessageStepCount}</span><button class="btn btn-danger btn-sm" onclick="removeDispStep('dstep-${dispMessageStepCount}')">Remove</button></div>
+          <div class="day-input">
+            <label>Send on day</label><input type="number" class="dstep-day" min="1" value="${msg.day_number}">
+            <label>at</label><input type="time" class="dstep-time" value="${msg.send_time || '10:00'}">
+            <span style="font-size:11px;color:#9ca3af;">after disposition applied</span>
+          </div>
+          <textarea class="dstep-body" rows="3" oninput="updateCharCount(this)">${msg.message_body}</textarea>
+          <div class="char-count">${msg.message_body.length} / 160</div>
+        `
+        container.appendChild(step)
+      })
+    }
+    document.getElementById('disp-tag-modal').classList.add('open')
+  }
+
+  const addDispMessageStep = () => {
+    dispMessageStepCount++
+    const container = document.getElementById('disp-message-steps')
+    const step = document.createElement('div')
+    step.className = 'message-step'
+    step.id = `dstep-${dispMessageStepCount}`
+    step.innerHTML = `
+      <div class="message-step-header"><span>Message ${dispMessageStepCount}</span><button class="btn btn-danger btn-sm" onclick="removeDispStep('dstep-${dispMessageStepCount}')">Remove</button></div>
+      <div class="day-input">
+        <label>Send on day</label><input type="number" class="dstep-day" min="1" value="${dispMessageStepCount}">
+        <label>at</label><input type="time" class="dstep-time" value="10:00">
+        <span style="font-size:11px;color:#9ca3af;">after disposition applied</span>
+      </div>
+      <textarea class="dstep-body" placeholder="Hi [First Name], just checking in..." rows="3" oninput="updateCharCount(this)"></textarea>
+      <div class="char-count">0 / 160</div>
+    `
+    container.appendChild(step)
+  }
+
+  const removeDispStep = (id) => document.getElementById(id)?.remove()
+
+  const updateCharCount = (textarea) => {
+    const count = textarea.value.length
+    const countEl = textarea.nextElementSibling
+    if (countEl && countEl.classList.contains('char-count')) countEl.textContent = `${count} / 160`
+  }
+
+  const saveDispositionTag = async () => {
+    const name = document.getElementById('disp-tag-name').value.trim()
+    if (!name) return toast.error('Required', 'Please enter a tag name')
+    const description = document.getElementById('disp-tag-description').value.trim()
+    const actions = collectActions()
+    const steps = document.querySelectorAll('.message-step')
+    const messages = []
+    steps.forEach(step => {
+      const dayEl = step.querySelector('.dstep-day')
+      const timeEl = step.querySelector('.dstep-time')
+      const bodyEl = step.querySelector('.dstep-body')
+      if (!dayEl || !bodyEl) return
+      const body = bodyEl.value.trim()
+      if (!body) return
+      messages.push({ day_number: parseInt(dayEl.value), send_time: timeEl?.value || '10:00', message_body: body })
+    })
+    try {
+      const url = editingDispositionId ? `/dispositions/${editingDispositionId}` : '/dispositions'
+      const method = editingDispositionId ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color: selectedDispColor, description, messages, actions })
+      })
+      const data = await res.json()
+      if (data.success) { closeDispTagModal(); loadDispositionTags() }
+      else toast.error('Save failed', data.error || 'Could not save disposition tag')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const deleteDispositionTag = async (id) => {
+    if (!await confirmModal('Delete disposition tag?', 'This will remove the tag from all leads. This cannot be undone.', 'Delete', true)) return
+    await fetch(`/dispositions/${id}`, { method: 'DELETE' })
+    loadDispositionTags()
+  }
+
+  // ─── ACTION ROWS ─────────────────────────────────────────────────────────────
+
+  const addActionRow = (existingAction) => {
+    actionRowCount++
+    const id = `action-${actionRowCount}`
+    const container = document.getElementById('action-rows')
+    const div = document.createElement('div')
+    div.className = 'action-row'
+    div.id = id
+    const selectedType = existingAction?.action_type || ''
+    div.innerHTML = `
+      <div class="action-row-header">
+        <select class="action-type-select" onchange="updateActionValueUI('${id}', this.value)">
+          <option value="">Select action...</option>
+          ${ACTION_TYPES.map(t => `<option value="${t.value}" ${t.value === selectedType ? 'selected' : ''}>${t.label}</option>`).join('')}
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="document.getElementById('${id}').remove()">Remove</button>
+      </div>
+      <div class="action-value-area" id="${id}-value"></div>
+    `
+    container.appendChild(div)
+    if (selectedType) {
+      updateActionValueUI(id, selectedType, existingAction?.action_value)
+    }
+  }
+
+  const updateActionValueUI = (rowId, actionType, existingValue) => {
+    const container = document.getElementById(`${rowId}-value`)
+    if (!container) return
+    container.innerHTML = ''
+    switch (actionType) {
+      case 'add_to_campaign': {
+        container.innerHTML = `
+          <label>Select Campaign</label>
+          <select id="${rowId}-campaign">
+            <option value="">Choose campaign...</option>
+            ${allCampaigns.map(c => `<option value="${c.id}" ${existingValue?.campaign_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        `
+        break
+      }
+      case 'add_disposition_tag': {
+        container.innerHTML = `
+          <label>Select Tag to Add</label>
+          <select id="${rowId}-tag">
+            <option value="">Choose tag...</option>
+            ${allDispositionTags.map(t => `<option value="${t.id}" ${existingValue?.tag_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+          </select>
+        `
+        break
+      }
+      case 'remove_disposition_tags': {
+        container.innerHTML = `
+          <label>Select Tag to Remove</label>
+          <select id="${rowId}-remove-tag">
+            <option value="">Any current tag (removes all)</option>
+            ${allDispositionTags.map(t => `<option value="${t.id}" ${existingValue?.tag_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+          </select>
+        `
+        break
+      }
+      case 'send_immediate_text': {
+        container.innerHTML = `
+          <label>Message Body</label>
+          <textarea id="${rowId}-message" placeholder="Hi [First Name], just wanted to follow up...">${existingValue?.message || ''}</textarea>
+        `
+        break
+      }
+      case 'update_status': {
+        container.innerHTML = `
+          <label>New Status</label>
+          <select id="${rowId}-status">
+            <option value="new" ${existingValue?.status === 'new' ? 'selected' : ''}>New</option>
+            <option value="contacted" ${existingValue?.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+            <option value="booked" ${existingValue?.status === 'booked' ? 'selected' : ''}>Booked</option>
+          </select>
+        `
+        break
+      }
+      case 'add_note': {
+        container.innerHTML = `
+          <label>Note Text</label>
+          <input type="text" id="${rowId}-note" placeholder="e.g. Appointment scheduled by agent" value="${existingValue?.note || ''}">
+        `
+        break
+      }
+      default:
+        break
+    }
+  }
+
+  const collectActions = () => {
+    const rows = document.querySelectorAll('.action-row')
+    const actions = []
+    rows.forEach((row, i) => {
+      const typeSelect = row.querySelector('.action-type-select')
+      if (!typeSelect || !typeSelect.value) return
+      const actionType = typeSelect.value
+      const rowId = row.id
+      let actionValue = {}
+      switch (actionType) {
+        case 'add_to_campaign': {
+          const el = document.getElementById(`${rowId}-campaign`)
+          if (el?.value) actionValue = { campaign_id: el.value }
+          break
+        }
+        case 'add_disposition_tag': {
+          const el = document.getElementById(`${rowId}-tag`)
+          if (el?.value) actionValue = { tag_id: el.value }
+          break
+        }
+        case 'send_immediate_text': {
+          const el = document.getElementById(`${rowId}-message`)
+          if (el?.value) actionValue = { message: el.value }
+          break
+        }
+        case 'update_status': {
+          const el = document.getElementById(`${rowId}-status`)
+          if (el?.value) actionValue = { status: el.value }
+          break
+        }
+        case 'add_note': {
+          const el = document.getElementById(`${rowId}-note`)
+          if (el?.value) actionValue = { note: el.value }
+          break
+        }
+        case 'remove_disposition_tags': {
+          const el = document.getElementById(`${rowId}-remove-tag`)
+          actionValue = el?.value ? { tag_ids: [el.value] } : { tag_ids: [] }
+          break
+        }
+        default:
+          break
+      }
+      actions.push({ action_type: actionType, action_value: actionValue, action_order: i })
+    })
+    return actions
+  }
+
+  // ─── PHONE NUMBERS ────────────────────────────────────────────────────────────
+
+  const loadPhoneNumbers = async () => {
+    try {
+      const res = await fetch('/phone-numbers')
+      const data = await res.json()
+      allPhoneNumbers = data.phone_numbers || []
+      renderPhoneNumbers()
+    } catch (err) { console.error(err) }
+  }
+
+  const renderPhoneNumbers = () => {
+    const container = document.getElementById('phone-numbers-list')
+    if (!container) return
+    if (!allPhoneNumbers.length) {
+      container.innerHTML = `<div style="text-align:center;padding:48px 20px;">
+        <div style="font-size:36px;margin-bottom:12px;">📱</div>
+        <div style="font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">No phone numbers yet</div>
+        <div style="font-size:13px;color:#9ca3af;margin-bottom:16px;">Search for and purchase a number to start sending texts.</div>
+        <button class="btn btn-primary" style="width:auto;padding:8px 20px;" onclick="document.getElementById('pn-search-areacode').focus()">Search Numbers</button>
+      </div>`
+      return
+    }
+    const stateColors = { FL:'#3b82f6', TX:'#ef4444', CA:'#f97316', NY:'#8b5cf6', GA:'#22c55e', OH:'#eab308', PA:'#14b8a6', NC:'#ec4899', MI:'#6366f1', AZ:'#64748b' }
+    container.innerHTML = allPhoneNumbers.map(pn => {
+      const color = stateColors[pn.state] || '#6366f1'
+      const purchased = pn.created_at ? new Date(pn.created_at).toLocaleDateString() : ''
+      return `
+        <div class="disp-tag-row">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;">${pn.friendly_name || pn.phone_number}</div>
+            <div style="font-size:12px;color:#9ca3af;">${pn.phone_number}${purchased ? ' · Purchased ' + purchased : ''}</div>
+          </div>
+          ${pn.state ? `<span style="background:${color}22;color:${color};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${pn.state}</span>` : ''}
+          <div class="disp-tag-actions">
+            <button class="btn btn-danger btn-sm" onclick="releasePhoneNumber('${pn.id}', '${pn.phone_number}')">Release</button>
+          </div>
+        </div>`
+    }).join('')
+  }
+
+  const searchNumbers = async () => {
+    const state = selectedStateAbbr
+    const areaCode = document.getElementById('pn-search-areacode').value.trim()
+    if (!state && !areaCode) return toast.error('Required', 'Choose a state or enter an area code')
+    const resultsEl = document.getElementById('pn-search-results')
+    const btn = document.getElementById('pn-search-btn')
+    resultsEl.innerHTML = `<div style="color:#9ca3af;font-size:13px;">Searching...</div>`
+    btn.disabled = true
+    try {
+      if (areaCode) { selectedStateAbbr = ''; document.getElementById('pn-search-state-input').value = '' }
+      const params = areaCode ? `area_code=${encodeURIComponent(areaCode)}` : `state=${encodeURIComponent(state)}`
+      const res = await fetch(`/phone-numbers/search?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Search failed')
+      if (!data.numbers || !data.numbers.length) {
+        resultsEl.innerHTML = `<div style="color:#9ca3af;font-size:13px;">No numbers found. Try a different state or area code.</div>`
+        return
+      }
+      resultsEl.innerHTML = data.numbers.map(n => `
+        <div class="disp-tag-row" style="padding:10px 0;">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;">${n.phone_number}</div>
+            <div style="font-size:12px;color:#9ca3af;">${[n.locality, n.region].filter(Boolean).join(', ')}</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openBuyNumberModal('${n.phone_number}', '${n.region}')">Buy</button>
+        </div>`).join('')
+    } catch (err) {
+      resultsEl.innerHTML = `<div style="color:#ef4444;font-size:13px;">${err.message}</div>`
+    } finally {
+      btn.disabled = false
+    }
+  }
+
+  const openBuyNumberModal = (phoneNumber, region) => {
+    pendingPurchase = { phone_number: phoneNumber, state: region }
+    document.getElementById('buy-number-display').textContent = phoneNumber
+    document.getElementById('buy-number-name').value = region ? `${region} Line` : ''
+    const status = document.getElementById('buy-number-status')
+    status.style.display = 'none'
+    document.getElementById('buy-number-confirm-btn').disabled = false
+    document.getElementById('buy-number-modal').classList.add('open')
+  }
+
+  const closeBuyNumberModal = () => {
+    document.getElementById('buy-number-modal').classList.remove('open')
+    pendingPurchase = null
+  }
+
+  const confirmPurchaseNumber = async () => {
+    if (!pendingPurchase) return
+    const friendly_name = document.getElementById('buy-number-name').value.trim()
+    const btn = document.getElementById('buy-number-confirm-btn')
+    const status = document.getElementById('buy-number-status')
+    btn.disabled = true
+    btn.textContent = 'Purchasing...'
+    status.style.display = 'none'
+    try {
+      const res = await fetch('/phone-numbers/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: pendingPurchase.phone_number, friendly_name, state: pendingPurchase.state })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Purchase failed')
+      closeBuyNumberModal()
+      document.getElementById('pn-search-results').innerHTML = ''
+      await loadPhoneNumbers()
+      toast.success('Number purchased', `${pendingPurchase?.phone_number || 'Phone number'} is now active`)
+    } catch (err) {
+      status.textContent = err.message
+      status.style.color = '#ef4444'
+      status.style.display = 'block'
+      btn.disabled = false
+      btn.textContent = 'Buy Number'
+    }
+  }
+
+  const releasePhoneNumber = async (id, phoneNumber) => {
+    if (!await confirmModal(`Release ${phoneNumber}?`, 'This will permanently remove this number from your Twilio account. This cannot be undone.', 'Release number', true)) return
+    try {
+      const res = await fetch(`/phone-numbers/${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Release failed')
+      loadPhoneNumbers()
+      toast.warning('Number released', `${phoneNumber} has been removed from your account`)
+    } catch (err) { toast.error('Release failed', err.message) }
+  }
+
+  // STATE TYPEAHEAD
+  const US_STATES = [
+    {n:'Alabama',a:'AL'},{n:'Alaska',a:'AK'},{n:'Arizona',a:'AZ'},{n:'Arkansas',a:'AR'},
+    {n:'California',a:'CA'},{n:'Colorado',a:'CO'},{n:'Connecticut',a:'CT'},{n:'Delaware',a:'DE'},
+    {n:'Florida',a:'FL'},{n:'Georgia',a:'GA'},{n:'Hawaii',a:'HI'},{n:'Idaho',a:'ID'},
+    {n:'Illinois',a:'IL'},{n:'Indiana',a:'IN'},{n:'Iowa',a:'IA'},{n:'Kansas',a:'KS'},
+    {n:'Kentucky',a:'KY'},{n:'Louisiana',a:'LA'},{n:'Maine',a:'ME'},{n:'Maryland',a:'MD'},
+    {n:'Massachusetts',a:'MA'},{n:'Michigan',a:'MI'},{n:'Minnesota',a:'MN'},{n:'Mississippi',a:'MS'},
+    {n:'Missouri',a:'MO'},{n:'Montana',a:'MT'},{n:'Nebraska',a:'NE'},{n:'Nevada',a:'NV'},
+    {n:'New Hampshire',a:'NH'},{n:'New Jersey',a:'NJ'},{n:'New Mexico',a:'NM'},{n:'New York',a:'NY'},
+    {n:'North Carolina',a:'NC'},{n:'North Dakota',a:'ND'},{n:'Ohio',a:'OH'},{n:'Oklahoma',a:'OK'},
+    {n:'Oregon',a:'OR'},{n:'Pennsylvania',a:'PA'},{n:'Rhode Island',a:'RI'},{n:'South Carolina',a:'SC'},
+    {n:'South Dakota',a:'SD'},{n:'Tennessee',a:'TN'},{n:'Texas',a:'TX'},{n:'Utah',a:'UT'},
+    {n:'Vermont',a:'VT'},{n:'Virginia',a:'VA'},{n:'Washington',a:'WA'},{n:'West Virginia',a:'WV'},
+    {n:'Wisconsin',a:'WI'},{n:'Wyoming',a:'WY'}
+  ]
+
+  const filterStateDropdown = () => {
+    const query = (document.getElementById('pn-search-state-input')?.value || '').toLowerCase()
+    const dropdown = document.getElementById('pn-state-dropdown')
+    if (!dropdown) return
+    const matches = query
+      ? US_STATES.filter(s => s.n.toLowerCase().includes(query) || s.a.toLowerCase().startsWith(query))
+      : US_STATES
+    if (!matches.length) { dropdown.style.display = 'none'; return }
+    dropdown.innerHTML = matches.map(s =>
+      `<div onclick="selectState('${s.a}','${s.n}')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:#374151;" onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background=''">${s.n} <span style="color:#9ca3af;">${s.a}</span></div>`
+    ).join('')
+    dropdown.style.display = 'block'
+  }
+
+  const selectState = (abbr, name) => {
+    selectedStateAbbr = abbr
+    document.getElementById('pn-search-state-input').value = `${name} (${abbr})`
+    document.getElementById('pn-search-areacode').value = ''
+    document.getElementById('pn-state-dropdown').style.display = 'none'
+    searchNumbers()
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#pn-search-state-input') && !e.target.closest('#pn-state-dropdown')) {
+      const dd = document.getElementById('pn-state-dropdown')
+      if (dd) dd.style.display = 'none'
+    }
+  })
+
+  // ─── TEAM & INVITES ───────────────────────────────────────────────────────────
+
+  const loadInvites = async () => {
+    try {
+      const res = await fetch('/auth/invites')
+      const data = await res.json()
+      const container = document.getElementById('invites-list')
+      if (!container) return
+      const pending = (data.invites || []).filter(i => !i.used && new Date(i.expires_at) > new Date())
+      if (!pending.length) {
+        container.innerHTML = `<div style="color:#d1d5db;font-size:13px;padding:20px 0;">No pending invites</div>`
+        return
+      }
+      const appUrl = window.location.origin
+      container.innerHTML = pending.map(inv => {
+        const link = `${appUrl}/signup.html?token=${inv.token}`
+        const expires = new Date(inv.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return `<div class="disp-tag-row">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;">${inv.email}</div>
+            <div style="font-size:12px;color:#9ca3af;">Expires ${expires}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="copyInviteLink('${link}')">Copy Link</button>
+          <button class="btn btn-secondary btn-sm" onclick="resendInvite('${inv.id}', '${inv.email}')">Resend</button>
+          <button class="btn btn-danger btn-sm" onclick="cancelInvite('${inv.id}')">Cancel</button>
+        </div>`
+      }).join('')
+    } catch (err) { console.error(err) }
+  }
+
+  const openInviteModal = () => {
+    document.getElementById('invite-form-body').innerHTML = `
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="invite-email-input" placeholder="agent@example.com">
+      </div>
+      <div id="invite-error" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none;"></div>`
+    document.getElementById('invite-submit-btn').style.display = ''
+    document.getElementById('invite-modal').classList.add('open')
+  }
+
+  const closeInviteModal = () => document.getElementById('invite-modal').classList.remove('open')
+
+  const sendInvite = async () => {
+    const email = document.getElementById('invite-email-input')?.value.trim()
+    const errEl = document.getElementById('invite-error')
+    const btn = document.getElementById('invite-submit-btn')
+    if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return }
+    btn.disabled = true
+    btn.textContent = 'Sending...'
+    errEl.style.display = 'none'
+    try {
+      const res = await fetch('/auth/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+      const data = await res.json()
+      if (data.success) {
+        const link = data.invite_link
+        document.getElementById('invite-form-body').innerHTML = `
+          <div style="text-align:center;padding:12px 0;">
+            <div style="font-size:28px;margin-bottom:8px;">✅</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Invite sent to ${email}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">Share this link if email delivery isn't configured:</div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:#374151;">${link}</div>
+            <button class="btn btn-secondary" style="margin-top:10px;width:auto;padding:8px 16px;" onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='Copied!')">Copy Link</button>
+          </div>`
+        document.getElementById('invite-submit-btn').style.display = 'none'
+        loadInvites()
+      } else {
+        errEl.textContent = data.error || 'Failed to send invite.'
+        errEl.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'Send Invite'
+      }
+    } catch {
+      errEl.textContent = 'Something went wrong.'
+      errEl.style.display = 'block'
+      btn.disabled = false
+      btn.textContent = 'Send Invite'
+    }
+  }
+
+  const copyInviteLink = (link) => {
+    navigator.clipboard.writeText(link).then(() => toast.success('Copied', 'Invite link copied to clipboard'))
+  }
+
+  const resendInvite = async (id, email) => {
+    await fetch(`/auth/invites/${id}`, { method: 'DELETE' })
+    const res = await fetch('/auth/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+    const data = await res.json()
+    if (data.success) { toast.success('Invite resent', `Invite sent to ${email}`); loadInvites() }
+    else toast.error('Error', data.error || 'Failed to resend invite')
+  }
+
+  const cancelInvite = async (id) => {
+    if (!await confirmModal('Cancel invite?', 'The invite link will be deactivated and the recipient will not be able to use it.', 'Cancel invite', true)) return
+    await fetch(`/auth/invites/${id}`, { method: 'DELETE' })
+    loadInvites()
+    toast.info('Invite cancelled', 'The invite link has been deactivated')
+  }
+
+  // ─── PROFILE & COMPLIANCE ─────────────────────────────────────────────────────
+
+  const updateCompliancePreview = () => {
+    const enabled = document.getElementById('compliance-enabled').checked
+    complianceFooterEnabled = enabled
+    const previewEl = document.getElementById('compliance-preview')
+    const customFooter = document.getElementById('compliance-footer').value.trim()
+    const agencyName = document.getElementById('profile-agency-name').value.trim()
+    const footer = customFooter || (agencyName ? `Reply STOP to opt out. ${agencyName}` : 'Reply STOP to opt out.')
+    const sampleMsg = `Hi there! This is [Your Name] with [Your Agency]. I saw you were looking for coverage and I'd love to help find the right option for you. Do you have a few minutes to connect?`
+    previewEl.textContent = enabled ? `${sampleMsg}\n${footer}` : sampleMsg
+  }
+
+  const saveCompliance = async () => {
+    const statusEl = document.getElementById('compliance-save-status')
+    statusEl.style.display = 'block'
+    statusEl.style.color = '#6366f1'
+    statusEl.textContent = 'Saving...'
+    try {
+      const body = {
+        compliance_footer_enabled: document.getElementById('compliance-enabled').checked,
+        compliance_footer: document.getElementById('compliance-footer').value.trim() || null
+      }
+      const res = await fetch('/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      if (data.success) {
+        statusEl.style.color = '#059669'
+        statusEl.textContent = 'Saved!'
+      } else {
+        statusEl.style.color = '#dc2626'
+        statusEl.textContent = data.error || 'Save failed'
+      }
+    } catch {
+      statusEl.style.color = '#dc2626'
+      statusEl.textContent = 'Save failed'
+    }
+    setTimeout(() => { statusEl.style.display = 'none' }, 3000)
+  }
+
+  const saveProfile = async () => {
+    try {
+      const body = {
+        agent_name: document.getElementById('profile-agent-name').value.trim(),
+        agency_name: document.getElementById('profile-agency-name').value.trim(),
+        calendly_url: document.getElementById('profile-calendly-url').value.trim(),
+        timezone: document.getElementById('profile-timezone').value
+      }
+      const res = await fetch('/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      if (data.success) {
+        document.getElementById('header-agent-name').textContent = body.agent_name || body.agency_name || ''
+        toast.success('Profile saved', 'Your profile has been updated')
+      } else {
+        toast.error('Save failed', data.error || 'Could not save profile')
+      }
+    } catch (err) {
+      toast.error('Error', 'Could not save profile')
+    }
+  }
+
+  const saveNotifSettings = async () => {
+    try {
+      const body = {
+        personal_phone: document.getElementById('profile-personal-phone').value.trim() || null,
+        sms_notifications_enabled: document.getElementById('sms-notif-enabled').checked,
+        inapp_notifications_enabled: document.getElementById('inapp-notif-enabled').checked
+      }
+      const res = await fetch('/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      if (data.success) toast.success('Settings saved', 'Notification preferences updated')
+      else toast.error('Save failed', data.error || 'Could not save settings')
+    } catch { toast.error('Error', 'Could not save settings') }
+  }
+
+  // ─── TEMPLATES ────────────────────────────────────────────────────────────────
+
+  const loadTemplates = async () => {
+    try {
+      const res = await fetch('/templates')
+      const data = await res.json()
+      allTemplates = data.templates || []
+      renderTemplatesList()
+    } catch (err) { console.error(err) }
+  }
+
+  const renderTemplatesList = () => {
+    const container = document.getElementById('templates-list')
+    if (!container) return
+    if (!allTemplates.length) {
+      container.innerHTML = `<div style="color:#d1d5db;font-size:13px;padding:20px 0;">No templates yet</div>`
+      return
+    }
+    container.innerHTML = allTemplates.map(t => `
+      <div class="disp-tag-row">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px;">${t.name}</div>
+          <div style="font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px;">${t.body}</div>
+        </div>
+        <div class="disp-tag-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editTemplate('${t.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  const openCreateTemplateModal = () => {
+    editingTemplateId = null
+    document.getElementById('template-modal-name').value = ''
+    document.getElementById('template-modal-body').value = ''
+    document.getElementById('template-modal-char').textContent = '0 / 160'
+    document.getElementById('template-modal-title').textContent = 'Create Template'
+    document.getElementById('template-modal').classList.add('open')
+  }
+
+  const closeTemplateModal = () => document.getElementById('template-modal').classList.remove('open')
+
+  const editTemplate = (id) => {
+    const t = allTemplates.find(t => t.id === id)
+    if (!t) return
+    editingTemplateId = id
+    document.getElementById('template-modal-name').value = t.name
+    document.getElementById('template-modal-body').value = t.body
+    document.getElementById('template-modal-char').textContent = `${t.body.length} / 160`
+    document.getElementById('template-modal-title').textContent = 'Edit Template'
+    document.getElementById('template-modal').classList.add('open')
+  }
+
+  const saveTemplate = async () => {
+    const name = document.getElementById('template-modal-name').value.trim()
+    const body = document.getElementById('template-modal-body').value.trim()
+    if (!name) return toast.error('Required', 'Please enter a template name')
+    if (!body) return toast.error('Required', 'Please enter a message body')
+    try {
+      const url = editingTemplateId ? `/templates/${editingTemplateId}` : '/templates'
+      const method = editingTemplateId ? 'PUT' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, body }) })
+      const data = await res.json()
+      if (data.success) { closeTemplateModal(); loadTemplates(); toast.success('Template saved', editingTemplateId ? 'Template updated' : 'New template created') }
+      else toast.error('Save failed', data.error || 'Could not save template')
+    } catch (err) { toast.error('Error', 'Something went wrong') }
+  }
+
+  const deleteTemplate = async (id) => {
+    if (!await confirmModal('Delete template?', 'This template will be permanently removed.', 'Delete', true)) return
+    await fetch(`/templates/${id}`, { method: 'DELETE' })
+    loadTemplates()
+    toast.info('Template deleted', 'Template removed')
+  }
+
+  // ─── ONBOARDING CHECKLIST ─────────────────────────────────────────────────────
+
+  const CHECKLIST_KEY = 'checklist_dismissed'
+
+  const loadChecklist = async (profile) => {
+    if (localStorage.getItem(CHECKLIST_KEY)) return
+    // On settings page all steps are accessible, no need to show checklist
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────────────────────────
+
+  const init = async () => {
+    const authed = await checkAuth()
+    if (!authed) return
+
+    try {
+      const res = await fetch('/campaigns')
+      const data = await res.json()
+      allCampaigns = data.campaigns || []
+    } catch (e) {}
+
+    await Promise.all([loadDispositionTags(), loadTemplates(), loadProfile()])
+    loadCalBadge()
+    loadNotifBadge()
+    setInterval(loadNotifBadge, 30000)
+
+    // Handle URL ?panel= param
+    const params = new URLSearchParams(window.location.search)
+    const panel = params.get('panel')
+    if (panel) {
+      const item = document.querySelector(`.settings-nav-item[onclick*="'${panel}'"]`)
+      if (item) showSettingsPanel(panel, item)
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init)
+</script>
+</body>
+</html>
