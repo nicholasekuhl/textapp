@@ -567,6 +567,27 @@ input, select, textarea { font-size: 16px; }
 /* Conv back button */
 .conv3-back-btn { display: none; }
 
+/* ---- Desktop (≥769px) — sidebar always visible ---- */
+@media (min-width: 769px) {
+  .sidebar, #nav-drawer {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 220px;
+    transform: translateX(0) !important;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-right: 1px solid #f0f0f0;
+    z-index: 100;
+    overflow-y: auto;
+  }
+  .mobile-hamburger { display: none !important; }
+  .nav-overlay { display: none !important; }
+  .container { margin-left: 220px; }
+}
+
 /* ---- Tablet (768–1023px) ---- */
 @media (min-width: 768px) and (max-width: 1023px) {
   .container { padding: 20px 20px 20px 240px; }
