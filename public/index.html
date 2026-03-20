@@ -658,7 +658,6 @@
       /* Leads toolbar */
       .toolbar { flex-direction: column; align-items: stretch; }
       .toolbar-left { flex-direction: column; }
-      #bucket-search { width: 100% !important; }
       #campaign-quick-input { width: 100% !important; }
 
       /* Lead card actions */
@@ -806,12 +805,14 @@
       <div class="stat-card"><div class="num" id="stat-booked">0</div><div class="lbl">Booked</div></div>
       <div class="stat-card"><div class="num" id="stat-autopilot">0</div><div class="lbl">On Autopilot</div></div>
     </div>
-    <div style="font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;padding-left:2px;">Buckets</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;padding-left:2px;">
+      <div style="font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;">BUCKETS</div>
+      <button onclick="openNewBucketModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:13px;padding:2px 6px;border-radius:6px;font-weight:500;" title="Create new bucket">+ New</button>
+    </div>
     <div class="bucket-tabs" id="bucket-tabs">
       <div class="bucket-tab active" onclick="selectBucket('', this)">All Leads</div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
-      <input type="text" id="bucket-search" placeholder="Search buckets..." oninput="filterBucketTabs()" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;font-size:13px;outline:none;width:160px;">
       <div style="position:relative;">
         <input type="text" id="campaign-quick-input" placeholder="⚡ Filter by campaign..." oninput="showCampaignDropdown()" autocomplete="off" title="Filter by active drip campaign" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;font-size:13px;outline:none;width:190px;">
         <button id="campaign-clear-btn" onclick="clearCampaignQuickFilter()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;">×</button>
@@ -1831,21 +1832,26 @@
   }
   const getLocalTime = (tz) => { try { return new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }) } catch { return '' } }
 
-  const selectBucket = (bucket, el) => {
-    activeBucket = bucket
-    document.querySelectorAll('.bucket-tab').forEach(t => t.classList.remove('active'))
-    el.classList.add('active')
+  const selectBucket = (bucketId) => {
+    activeBucket = bucketId
+    renderBucketPills()
     filterLeads()
   }
 
-  const renderBucketTabs = () => {
+  const renderBucketPills = () => {
     const container = document.getElementById('bucket-tabs')
-    const allTab = `<div class="bucket-tab active" onclick="selectBucket('', this)">All Leads <span class="count">${allLeads.length}</span></div>`
-    const bucketTabs = allBuckets.map(b => {
-      const count = allLeads.filter(l => l.bucket === b.bucket).length
-      return `<div class="bucket-tab" onclick="selectBucket('${b.bucket}', this)" title="Leads imported in this batch">📁 ${b.bucket} <span class="count">${count}</span></div>`
-    }).join('')
-    container.innerHTML = allTab + bucketTabs
+    if (!container) return
+    let html = `<div class="bucket-tab${activeBucket === '' ? ' active' : ''}" onclick="selectBucket('')">All Leads <span class="count">${allLeads.length}</span></div>`
+    for (const b of allBuckets) {
+      const count = allLeads.filter(l => l.bucket_id === b.id).length
+      const isActive = activeBucket === b.id
+      const bg = isActive ? b.color : b.color + '18'
+      const color = isActive ? 'white' : b.color
+      const border = isActive ? b.color : b.color + '40'
+      const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')
+      html += `<div class="bucket-tab" data-bucket-id="${b.id}" style="background:${bg};color:${color};border-color:${border};" onclick="selectBucket('${b.id}')" oncontextmenu="showBucketContextMenu(event,'${b.id}','${safeName}','${b.color}')" title="Right-click to rename or delete">📁 ${b.name} <span class="count" style="opacity:0.8">${count}</span></div>`
+    }
+    container.innerHTML = html
   }
 
   let activeFilters = {}
@@ -1855,7 +1861,7 @@
     const status = document.getElementById('sf-status')?.value || ''
     const state = document.getElementById('sf-state')?.value || ''
     const campaign = document.getElementById('sf-campaign')?.value || ''
-    const bucket = document.getElementById('sf-bucket')?.value || activeBucket || ''
+    const sfBucket = document.getElementById('sf-bucket')?.value || ''
     const timezone = document.getElementById('sf-timezone')?.value || ''
     const autopilot = document.getElementById('sf-autopilot')?.value || ''
     const sold = document.getElementById('sf-sold')?.value || ''
@@ -1864,8 +1870,8 @@
 
     let filtered = allLeads
 
-    if (activeBucket) filtered = filtered.filter(l => l.bucket === activeBucket)
-    if (bucket && !activeBucket) filtered = filtered.filter(l => l.bucket === bucket)
+    if (activeBucket) filtered = filtered.filter(l => l.bucket_id === activeBucket)
+    else if (sfBucket) filtered = filtered.filter(l => l.bucket_id === sfBucket)
     if (search) filtered = filtered.filter(l => [l.first_name, l.last_name, l.phone, l.email, l.state, l.zip_code].some(v => v?.toLowerCase().includes(search)))
     if (status) filtered = filtered.filter(l => l.status === status)
     if (state) filtered = filtered.filter(l => l.state === state)
@@ -1903,8 +1909,7 @@
     activeCampaignQuickFilter = ''
     document.getElementById('campaign-quick-input').value = ''
     document.getElementById('campaign-clear-btn').style.display = 'none'
-    document.querySelectorAll('.bucket-tab').forEach(t => t.classList.remove('active'))
-    document.querySelector('.bucket-tab')?.classList.add('active')
+    renderBucketPills()
     filterLeads()
   }
 
@@ -1932,7 +1937,7 @@
     msState['exclude-disposition'].selected.forEach(s => pills.push(`<div class="filter-pill">Excl: ${s.name} <button onclick="removeMsOption('exclude-disposition','${s.id}')">×</button></div>`))
     const campEl = document.getElementById('sf-campaign')
     if (campEl?.value) pills.push(`<div class="filter-pill">Campaign: ${campEl.value} <button onclick="clearFilter('sf-campaign')">×</button></div>`)
-    if (activeBucket) pills.push(`<div class="filter-pill">Bucket: ${activeBucket} <button onclick="clearBucketFilter()">×</button></div>`)
+    if (activeBucket) { const bkt = allBuckets.find(b => b.id === activeBucket); pills.push(`<div class="filter-pill">Bucket: ${bkt ? bkt.name : activeBucket} <button onclick="clearBucketFilter()">×</button></div>`) }
     container.innerHTML = pills.join('')
   }
 
@@ -1944,8 +1949,7 @@
 
   const clearBucketFilter = () => {
     activeBucket = ''
-    document.querySelectorAll('.bucket-tab').forEach(t => t.classList.remove('active'))
-    document.querySelector('.bucket-tab')?.classList.add('active')
+    renderBucketPills()
     filterLeads()
   }
 
@@ -2075,7 +2079,7 @@
                 </div>
                 <div class="lead-tags">
                   <span class="tag tag-${lead.status}">${lead.status}</span>
-                  ${lead.bucket ? `<span class="tag tag-bucket" style="font-size:10px;" title="Leads imported in this batch">📁 ${lead.bucket}</span>` : ''}
+                  ${lead.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? `<span class="tag" style="font-size:10px;background:${bk.color}18;color:${bk.color};border:1px solid ${bk.color}30;" title="Bucket: ${bk.name}">📁 ${bk.name}</span>` : '' })() : ''}
                   ${lead.product ? `<span class="tag tag-plan" style="cursor:pointer;" onclick="editLeadProduct('${lead.id}', this)" title="Click to edit">${lead.product}</span>` : ''}
                   ${campProgress}
                 </div>
@@ -2115,6 +2119,16 @@
             <button class="lead-qa-btn qa-note" onclick="event.stopPropagation();quickNote('${lead.id}')">
               <span class="qa-icon">✏️</span><span class="qa-label">Quick Note</span>
             </button>
+            <div class="qa-sep"></div>
+            <div style="position:relative;display:inline-block;">
+              <button class="lead-qa-btn" onclick="event.stopPropagation();toggleBucketDropdown('${lead.id}')">
+                <span class="qa-icon">📁</span><span class="qa-label">Bucket</span>
+              </button>
+              <div id="bucket-dd-${lead.id}" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:200;min-width:160px;max-height:200px;overflow-y:auto;padding:4px 0;">
+                <div onclick="event.stopPropagation();moveToBucket('${lead.id}',null)" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#6b7280;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">— No bucket</div>
+                ${allBuckets.map(bk => `<div onclick="event.stopPropagation();moveToBucket('${lead.id}','${bk.id}')" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#374151;display:flex;align-items:center;gap:8px;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bk.color};flex-shrink:0;"></span>${bk.name}</div>`).join('')}
+              </div>
+            </div>
             <div class="qa-sep"></div>
             ${lead.is_sold
               ? `<button class="lead-qa-btn qa-unsold" onclick="event.stopPropagation();markUnsold('${lead.id}','${safeName}')">
@@ -2172,7 +2186,7 @@
         </div>`).join('')
     }
     try {
-      const [leadsRes, bucketsRes] = await Promise.all([fetch('/leads'), fetch('/leads/buckets')])
+      const [leadsRes, bucketsRes] = await Promise.all([fetch('/leads'), fetch('/buckets')])
       const leadsData = await leadsRes.json()
       const bucketsData = await bucketsRes.json()
       if (leadsData.leads) {
@@ -2181,7 +2195,7 @@
         updateCampaignFilter()
       }
       if (bucketsData.buckets) allBuckets = bucketsData.buckets
-      renderBucketTabs()
+      renderBucketPills()
       filterLeads()
     } catch (err) {
       console.error(err)
@@ -2205,7 +2219,7 @@
 
     const bucketEl = document.getElementById('sf-bucket')
     if (bucketEl) {
-      bucketEl.innerHTML = '<option value="">All buckets</option>' + allBuckets.map(b => `<option value="${b.bucket}">${b.bucket}</option>`).join('')
+      bucketEl.innerHTML = '<option value="">All buckets</option>' + allBuckets.map(b => `<option value="${b.id}">${b.name}</option>`).join('')
     }
 
     renderMsOptions('disposition')
@@ -3196,7 +3210,7 @@ const collectActions = () => {
         ${localTime ? contactRow('Local time', localTime) : ''}
         ${lead?.timezone ? contactRow('Timezone', lead.timezone.replace('America/', '').replace(/_/g, ' ')) : ''}
         ${lead?.created_at ? contactRow('Added', new Date(lead.created_at).toLocaleDateString()) : ''}
-        ${lead?.bucket ? contactRow('Source', lead.bucket) : ''}
+        ${lead?.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? contactRow('Bucket', bk.name) : '' })() : (lead?.bucket ? contactRow('Source', lead.bucket) : '')}
       </div>
       <div class="conv3-right-section">
         <div class="conv3-section-title">Tags</div>
@@ -4458,16 +4472,137 @@ const collectActions = () => {
     }
   })
 
-  // BUCKET & CAMPAIGN QUICK FILTERS
-  const filterBucketTabs = () => {
-    const query = (document.getElementById('bucket-search')?.value || '').toLowerCase()
-    document.querySelectorAll('.bucket-tab').forEach(tab => {
-      const text = tab.textContent.toLowerCase()
-      if (text.includes('all leads')) { tab.style.display = ''; return }
-      tab.style.display = query && !text.includes(query) ? 'none' : ''
+  // BUCKET CRUD
+  const BUCKET_COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6','#64748b','#1a1a2e']
+  let editingBucketId = null
+  let contextMenuBucketId = null
+  let contextMenuBucketName = null
+  let contextMenuBucketColor = null
+
+  const openNewBucketModal = (id, name, color) => {
+    editingBucketId = id || null
+    const titleEl = document.getElementById('new-bucket-modal-title')
+    const nameEl = document.getElementById('new-bucket-name')
+    const saveBtn = document.getElementById('save-bucket-btn')
+    if (titleEl) titleEl.textContent = id ? 'Rename Bucket' : 'New Bucket'
+    if (nameEl) nameEl.value = name || ''
+    if (saveBtn) saveBtn.textContent = id ? 'Save' : 'Create Bucket'
+    const swatchContainer = document.getElementById('bucket-color-swatches')
+    const selectedColor = color || '#6366f1'
+    if (swatchContainer) {
+      swatchContainer.innerHTML = BUCKET_COLORS.map(c =>
+        `<div class="color-swatch${c === selectedColor ? ' selected' : ''}" style="background:${c};" data-color="${c}" onclick="selectBucketColor('${c}')"></div>`
+      ).join('')
+    }
+    document.getElementById('new-bucket-modal').classList.add('open')
+    setTimeout(() => document.getElementById('new-bucket-name')?.focus(), 50)
+  }
+
+  const closeNewBucketModal = () => {
+    document.getElementById('new-bucket-modal').classList.remove('open')
+    editingBucketId = null
+  }
+
+  const selectBucketColor = (color) => {
+    document.querySelectorAll('#bucket-color-swatches .color-swatch').forEach(s => {
+      s.classList.toggle('selected', s.dataset.color === color)
     })
   }
 
+  const getSelectedBucketColor = () => {
+    return document.querySelector('#bucket-color-swatches .color-swatch.selected')?.dataset.color || '#6366f1'
+  }
+
+  const saveBucket = async () => {
+    const name = document.getElementById('new-bucket-name')?.value.trim()
+    if (!name) { toast.error('Name required', 'Please enter a bucket name'); return }
+    const color = getSelectedBucketColor()
+    const btn = document.getElementById('save-bucket-btn')
+    btn.disabled = true
+    try {
+      if (editingBucketId) {
+        const res = await fetch(`/buckets/${editingBucketId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) })
+        const data = await res.json()
+        if (!data.success) throw new Error(data.error)
+        const idx = allBuckets.findIndex(b => b.id === editingBucketId)
+        if (idx !== -1) allBuckets[idx] = data.bucket
+        toast.success('Bucket renamed', name)
+      } else {
+        const res = await fetch('/buckets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) })
+        const data = await res.json()
+        if (!data.success) throw new Error(data.error)
+        allBuckets.push(data.bucket)
+        toast.success('Bucket created', name)
+      }
+      renderBucketPills()
+      updateCampaignFilter()
+      closeNewBucketModal()
+    } catch (err) { toast.error('Error', err.message) }
+    finally { btn.disabled = false }
+  }
+
+  const showBucketContextMenu = (e, id, name, color) => {
+    e.preventDefault()
+    contextMenuBucketId = id
+    contextMenuBucketName = name
+    contextMenuBucketColor = color
+    const menu = document.getElementById('bucket-context-menu')
+    menu.style.display = 'block'
+    menu.style.left = e.clientX + 'px'
+    menu.style.top = e.clientY + 'px'
+  }
+
+  const editBucketFromMenu = () => {
+    document.getElementById('bucket-context-menu').style.display = 'none'
+    openNewBucketModal(contextMenuBucketId, contextMenuBucketName, contextMenuBucketColor)
+  }
+
+  const deleteBucketFromMenu = async () => {
+    document.getElementById('bucket-context-menu').style.display = 'none'
+    if (!confirm(`Delete bucket "${contextMenuBucketName}"? Leads will be removed from this bucket.`)) return
+    try {
+      const res = await fetch(`/buckets/${contextMenuBucketId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      allBuckets = allBuckets.filter(b => b.id !== contextMenuBucketId)
+      allLeads.forEach(l => { if (l.bucket_id === contextMenuBucketId) l.bucket_id = null })
+      if (activeBucket === contextMenuBucketId) activeBucket = ''
+      renderBucketPills()
+      updateCampaignFilter()
+      filterLeads()
+      toast.success('Bucket deleted')
+    } catch (err) { toast.error('Error', err.message) }
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('bucket-context-menu').style.display = 'none'
+    document.querySelectorAll('[id^="bucket-dd-"]').forEach(el => el.style.display = 'none')
+  })
+
+  const toggleBucketDropdown = (leadId) => {
+    const dd = document.getElementById(`bucket-dd-${leadId}`)
+    if (!dd) return
+    const isOpen = dd.style.display !== 'none'
+    document.querySelectorAll('[id^="bucket-dd-"]').forEach(el => el.style.display = 'none')
+    if (!isOpen) dd.style.display = 'block'
+  }
+
+  const moveToBucket = async (leadId, bucketId) => {
+    document.querySelectorAll('[id^="bucket-dd-"]').forEach(el => el.style.display = 'none')
+    try {
+      const res = await fetch(`/leads/${leadId}/bucket`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bucket_id: bucketId }) })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      const lead = allLeads.find(l => l.id === leadId)
+      if (lead) lead.bucket_id = bucketId
+      const bkt = allBuckets.find(b => b.id === bucketId)
+      toast.success('Bucket updated', bkt ? bkt.name : 'Removed from bucket')
+      renderBucketPills()
+      filterLeads()
+    } catch (err) { toast.error('Error', err.message) }
+  }
+
+  // CAMPAIGN QUICK FILTERS
   const showCampaignDropdown = () => {
     const query = (document.getElementById('campaign-quick-input')?.value || '').toLowerCase()
     const dropdown = document.getElementById('campaign-quick-dropdown')
@@ -4541,7 +4676,7 @@ const collectActions = () => {
       closeCreateLeadModal()
       allLeads.unshift(data.lead)
       updateStats(allLeads)
-      renderBucketTabs()
+      renderBucketPills()
       filterLeads()
     } catch (err) {
       document.getElementById('cl-error').textContent = err.message
@@ -5056,7 +5191,7 @@ const collectActions = () => {
       ${lead.email ? `<span>✉️ ${lead.email}</span>` : ''}
       ${lead.state ? `<span>📍 ${lead.state}${lead.zip_code ? ' ' + lead.zip_code : ''}</span>` : ''}
       ${lead.timezone ? `<span>🕐 ${getLocalTime(lead.timezone)} local</span>` : ''}
-      ${lead.bucket ? `<span>📁 ${lead.bucket}</span>` : ''}
+      ${lead.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? `<span>📁 ${bk.name}</span>` : '' })() : (lead.bucket ? `<span>📁 ${lead.bucket}</span>` : '')}
     `
 
     const tags = lead.campaign_tags || []
@@ -5577,6 +5712,34 @@ const collectActions = () => {
     <div class="nav-drawer-agent" id="drawer-agent-name"></div>
     <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="logout()">Log out</button>
   </div>
+</div>
+
+<!-- NEW BUCKET MODAL -->
+<div class="modal-overlay" id="new-bucket-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h2 id="new-bucket-modal-title">New Bucket</h2>
+      <button class="modal-close" onclick="closeNewBucketModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Bucket Name</label>
+      <input type="text" id="new-bucket-name" placeholder="e.g. Hot Leads, March Import..." onkeydown="if(event.key==='Enter')saveBucket()">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker-row" id="bucket-color-swatches"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeNewBucketModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-bucket-btn" onclick="saveBucket()">Create Bucket</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUCKET CONTEXT MENU -->
+<div id="bucket-context-menu" style="display:none;position:fixed;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:500;min-width:140px;overflow:hidden;">
+  <button onclick="editBucketFromMenu()" style="display:block;width:100%;padding:9px 16px;text-align:left;border:none;background:none;font-size:13px;cursor:pointer;color:#374151;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">✏️ Rename</button>
+  <button onclick="deleteBucketFromMenu()" style="display:block;width:100%;padding:9px 16px;text-align:left;border:none;background:none;font-size:13px;cursor:pointer;color:#dc2626;" onmouseenter="this.style.background='#fee2e2'" onmouseleave="this.style.background=''">🗑️ Delete</button>
 </div>
 
 </body>

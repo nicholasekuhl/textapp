@@ -683,4 +683,19 @@ const updateProduct = async (req, res) => {
   }
 }
 
-module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold }
+const updateLeadBucket = async (req, res) => {
+  try {
+    const { bucket_id } = req.body
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ bucket_id: bucket_id || null, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id).eq('user_id', req.user.id)
+      .select().single()
+    if (error) throw error
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold }

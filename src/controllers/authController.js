@@ -96,6 +96,7 @@ const signup = async (req, res) => {
         email: data.user.email,
         agent_name: agent_name || email.split('@')[0]
       })
+      await supabase.from('buckets').insert({ user_id: data.user.id, name: 'Sold', color: '#22c55e' })
     }
 
     res.json({ success: true, needsVerification: true })
@@ -214,6 +215,7 @@ const signupWithToken = async (req, res) => {
       tos_agreed: true,
       tos_agreed_at: new Date().toISOString()
     })
+    await supabase.from('buckets').insert({ user_id: data.user.id, name: 'Sold', color: '#22c55e' })
 
     await supabase.from('invites').update({ used: true }).eq('id', invite.id)
 
