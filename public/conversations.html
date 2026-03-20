@@ -9,34 +9,34 @@
 </head>
 <body>
 
-<header>
-  <div class="logo">Text<span>App</span></div>
-  <nav class="nav">
-    <a href="/leads.html" class="nav-btn">Leads</a>
-    <a href="/conversations.html" class="nav-btn active">Conversations</a>
-    <a href="/campaigns.html" class="nav-btn">Campaigns</a>
-    <a href="/stats.html" class="nav-btn">Stats</a>
-    <a href="/calendar.html" class="nav-btn" id="nav-calendar">Calendar <span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:2px;"></span></a>
-    <a href="/settings.html" class="nav-btn">Settings</a>
-    <a href="/admin.html" id="admin-nav-link" class="nav-btn" style="display:none;text-decoration:none;">Admin</a>
+<button class="mobile-hamburger" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
+<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
+<div class="sidebar" id="nav-drawer">
+  <div class="sidebar-logo">Text<span>App</span></div>
+  <nav class="sidebar-nav">
+    <a href="/leads.html" class="sidebar-nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Leads</a>
+    <a href="/conversations.html" class="sidebar-nav-item active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Conversations</a>
+    <a href="/campaigns.html" class="sidebar-nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Campaigns</a>
+    <a href="/stats.html" class="sidebar-nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Stats</a>
+    <a href="/calendar.html" class="sidebar-nav-item" id="nav-calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar<span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 5px;margin-left:4px;"></span></a>
+    <a href="/settings.html" class="sidebar-nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+    <a href="/admin.html" id="admin-nav-link" class="sidebar-nav-item" style="display:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</a>
   </nav>
-  <div class="header-right" style="display:flex;align-items:center;gap:8px;">
+  <div class="sidebar-bottom">
     <div class="notif-wrap" id="notif-wrap">
-      <button class="btn btn-ghost btn-sm notif-btn" onclick="toggleNotifPanel(event)" title="Notifications">
-        🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      <button class="notif-btn" onclick="toggleNotifPanel(event)" title="Notifications" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:#6b7280;display:flex;align-items:center;position:relative;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge" id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:white;border-radius:20px;font-size:9px;font-weight:700;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 3px;"></span>
       </button>
       <div class="notif-panel" id="notif-panel" style="display:none;">
-        <div class="notif-panel-header">
-          <span>Notifications</span>
-          <a onclick="markAllNotifRead()">Mark all read</a>
-        </div>
+        <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
         <div class="notif-list" id="notif-list"></div>
         <div class="notif-footer">Showing last 30 notifications</div>
       </div>
     </div>
-    <div class="profile-menu" id="profile-menu">
-      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger">
-        <span class="profile-trigger-name" id="header-agent-name"></span>
+    <div class="profile-menu" id="profile-menu" style="flex:1;min-width:0;">
+      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger" style="width:100%;padding:4px 6px;">
+        <span class="profile-trigger-name" id="header-agent-name" style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;"></span>
         <span class="profile-chevron">▼</span>
       </button>
       <div class="profile-dropdown" id="profile-dropdown">
@@ -44,24 +44,14 @@
           <div class="profile-dropdown-name" id="profile-dropdown-name"></div>
           <div class="profile-dropdown-email" id="profile-dropdown-email"></div>
         </div>
-        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()">
-          <span class="profile-dropdown-icon">👤</span> Profile &amp; Settings
-        </button>
-        <button class="profile-dropdown-item" onclick="goToSettingsNotif(); closeProfileMenu()">
-          <span class="profile-dropdown-icon">🔔</span> Notification Settings
-        </button>
-        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;">
-          <span class="profile-dropdown-icon">🛡️</span> Admin Panel
-        </a>
+        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()"><span class="profile-dropdown-icon">👤</span> Profile &amp; Settings</button>
+        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;"><span class="profile-dropdown-icon">🛡️</span> Admin Panel</a>
         <div class="profile-dropdown-divider"></div>
-        <button class="profile-dropdown-item danger" onclick="logout()">
-          <span class="profile-dropdown-icon">→</span> Log out
-        </button>
+        <button class="profile-dropdown-item danger" onclick="logout()"><span class="profile-dropdown-icon">→</span> Log out</button>
       </div>
     </div>
-    <button class="hamburger-btn" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
   </div>
-</header>
+</div>
 
 <div class="container">
   <div class="conv3-layout" id="conv3-layout">
@@ -160,42 +150,6 @@
       <button class="btn btn-secondary" onclick="document.getElementById('sold-modal').classList.remove('open')">Cancel</button>
       <button class="btn" style="background:#10b981;color:white;font-weight:600;" onclick="submitMarkSold()">Mark as Sold</button>
     </div>
-  </div>
-</div>
-
-<!-- MOBILE NAV OVERLAY + DRAWER -->
-<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
-<div class="nav-drawer" id="nav-drawer">
-  <div class="nav-drawer-header">
-    <div class="nav-drawer-logo">Text<span>App</span></div>
-    <button class="nav-drawer-close" onclick="closeNavDrawer()">×</button>
-  </div>
-  <div class="nav-drawer-items">
-    <a href="/leads.html" class="nav-drawer-btn" id="drawer-btn-leads">
-      <span class="nav-drawer-icon">👥</span> Leads
-    </a>
-    <a href="/conversations.html" class="nav-drawer-btn active" id="drawer-btn-conversations">
-      <span class="nav-drawer-icon">💬</span> Conversations
-    </a>
-    <a href="/campaigns.html" class="nav-drawer-btn" id="drawer-btn-campaigns">
-      <span class="nav-drawer-icon">📋</span> Campaigns
-    </a>
-    <a href="/stats.html" class="nav-drawer-btn" id="drawer-btn-stats">
-      <span class="nav-drawer-icon">📊</span> Stats
-    </a>
-    <a href="/calendar.html" class="nav-drawer-btn" id="drawer-btn-calendar">
-      <span class="nav-drawer-icon">📅</span> Calendar
-    </a>
-    <a href="/settings.html" class="nav-drawer-btn" id="drawer-btn-settings">
-      <span class="nav-drawer-icon">⚙️</span> Settings
-    </a>
-    <a href="/admin.html" id="drawer-btn-admin" class="nav-drawer-btn" style="display:none;text-decoration:none;color:#374151;">
-      <span class="nav-drawer-icon">🛡️</span> Admin
-    </a>
-  </div>
-  <div class="nav-drawer-footer">
-    <div class="nav-drawer-agent" id="drawer-agent-name"></div>
-    <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="logout()">Log out</button>
   </div>
 </div>
 
@@ -554,10 +508,22 @@
     const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
     const localTime = lead?.timezone ? getLocalTime(lead.timezone) : null
     const safeName = [lead?.first_name, lead?.last_name].filter(Boolean).join(' ').replace(/'/g, "\\'")
+    const statusChips = () => {
+      const chips = []
+      if (lead?.opted_out) chips.push(`<span class="conv3-status-chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;"><span style="width:6px;height:6px;border-radius:50%;background:#b91c1c;flex-shrink:0;"></span>Opted out</span>`)
+      else chips.push(`<span class="conv3-status-chip" style="background:#dcfce7;color:#15803d;border-color:#86efac;"><span style="width:6px;height:6px;border-radius:50%;background:#15803d;flex-shrink:0;"></span>Opted in</span>`)
+      if (lead?.is_blocked) chips.push(`<span class="conv3-status-chip" style="background:#f3f4f6;color:#4b5563;border-color:#d1d5db;"><span style="width:6px;height:6px;border-radius:50%;background:#4b5563;flex-shrink:0;"></span>Blocked</span>`)
+      if (lead?.autopilot) chips.push(`<span class="conv3-status-chip" style="background:#dbeafe;color:#1d4ed8;border-color:#93c5fd;"><span style="width:6px;height:6px;border-radius:50%;background:#1d4ed8;flex-shrink:0;"></span>AI active</span>`)
+      return chips.join('')
+    }
     panel.innerHTML = `
       <div class="conv3-right-header">
         <h3>Contact Details</h3>
         <button class="conv3-icon-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')" title="Edit disposition">🏷️</button>
+      </div>
+      <div style="padding:0 14px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
+        ${statusChips()}
+        ${!lead?.opted_out ? `<button onclick="confirmOptOut('${lead?.id}','${conv.id}')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#dc2626;padding:0 4px;font-weight:500;">Opt out</button>` : ''}
       </div>
       <div class="conv3-right-section">
         <div class="conv3-section-title">Contact Info</div>
@@ -676,23 +642,22 @@
         <div class="conv3-messages" id="conv3-messages"></div>
         <div class="conv3-input-area">
           ${isAutopilot ? `<div class="autopilot-status on" style="margin-bottom:8px;">⚡ Autopilot is handling this conversation</div>` : `<div class="ai-suggestion" id="ai-suggestion-box" style="display:none;"><div class="ai-suggestion-label">⚡ AI suggestion</div><div id="ai-suggestion-text"></div></div>`}
-          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;" id="template-pills"></div>
           <div class="conv3-schedule-picker" id="conv3-schedule-picker">
             <input type="date" id="conv3-schedule-date" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
             <input type="time" id="conv3-schedule-time" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;min-height:34px;">
             <button class="btn btn-primary btn-sm" onclick="scheduleConvMessage('${conv.id}','${lead?.id}')">Schedule</button>
           </div>
-          <div class="conv3-toolbar">
-            <button class="conv3-toolbar-btn" id="conv3-schedule-btn" onclick="toggleSchedulePicker()">📅 Schedule</button>
-            <button class="conv3-toolbar-btn" onclick="openDispositionModal('${lead?.id}','${safeName}')">🏷️ Disposition</button>
-            <button class="conv3-toolbar-btn" onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume Campaign</button>
-            <button class="conv3-toolbar-btn" onclick="callLead('${lead?.phone}')">📞 Call</button>
-          </div>
-          <div class="conv3-input-bottom">
-            <textarea class="conv3-textarea" id="conv-input" placeholder="${isAutopilot ? 'Autopilot active — type to override' : 'Type a message...'}" oninput="updateConvCharCount(this)" ${!isAutopilot ? `onfocus="loadAISuggestion('${conv.id}','${conv.lead_id}')"` : ''}></textarea>
-            <div class="conv3-send-area">
-              <button class="btn btn-primary" onclick="sendConvMessage('${conv.id}','${conv.lead_id}')">Send</button>
-              <div class="conv3-char-count" id="conv3-char-count">0</div>
+          <div class="conv3-template-picker" id="conv3-template-picker" style="display:none;position:absolute;bottom:calc(100% + 4px);left:8px;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:260px;max-height:220px;overflow-y:auto;z-index:200;" id="template-pills"></div>
+          <textarea class="conv3-textarea" id="conv-input" placeholder="${isAutopilot ? 'Autopilot active — type to override' : 'Type a message...'}" oninput="updateConvCharCount(this)" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();sendConvMessage('${conv.id}','${conv.lead_id}')}" ${!isAutopilot ? `onfocus="loadAISuggestion('${conv.id}','${conv.lead_id}')"` : ''}></textarea>
+          <div class="conv3-input-toolbar">
+            <div style="position:relative;">
+              <button class="conv3-itb" id="conv3-template-btn" onclick="toggleConvTemplatePicker()" title="Templates"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
+            </div>
+            <button class="conv3-itb${isAutopilot ? ' active' : ''}" id="conv3-schedule-btn" onclick="toggleSchedulePicker()" title="Schedule"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+            <button class="conv3-itb conv3-itb-ai ${isAutopilot ? 'active' : ''}" onclick="toggleConvAutopilot('${lead?.id}','${conv.id}')" title="${isAutopilot ? 'AI active — click to disable' : 'AI off — click to enable'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span style="font-size:11px;font-weight:600;margin-left:2px;">AI</span></button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+              <span class="conv3-char-count" id="conv3-char-count" style="font-size:11px;color:#9ca3af;white-space:nowrap;">0 chars</span>
+              <button class="conv3-send-btn" id="conv3-send-btn" onclick="sendConvMessage('${conv.id}','${conv.lead_id}')" title="Send (Cmd+Enter)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
             </div>
           </div>
         </div>
@@ -723,7 +688,33 @@
 
   const updateConvCharCount = (ta) => {
     const el = document.getElementById('conv3-char-count')
-    if (el) el.textContent = ta.value.length
+    const sendBtn = document.getElementById('conv3-send-btn')
+    if (el) {
+      const len = ta.value.length
+      const segs = Math.ceil(len / 160) || 1
+      el.textContent = len > 0 ? `${len} chars · ${segs} seg${segs > 1 ? 's' : ''}` : ''
+    }
+    if (sendBtn) sendBtn.classList.toggle('has-text', ta.value.trim().length > 0)
+  }
+
+  const toggleConvTemplatePicker = () => {
+    const picker = document.getElementById('conv3-template-picker')
+    const btn = document.getElementById('conv3-template-btn')
+    if (!picker) return
+    const isOpen = picker.style.display !== 'none'
+    picker.style.display = isOpen ? 'none' : 'block'
+    btn?.classList.toggle('active', !isOpen)
+    if (!isOpen) renderTemplatePills(activeConvId)
+  }
+
+  const toggleConvAutopilot = async (leadId, convId) => {
+    const conv = allConversations.find(c => c.id === convId)
+    const current = conv?.leads?.autopilot || false
+    try {
+      await fetch(`/leads/${leadId}/autopilot`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autopilot: !current }) })
+      await loadConversations()
+      openConversation(convId)
+    } catch (err) { console.error(err) }
   }
 
   const updateLastUpdatedLabel = () => {
@@ -928,13 +919,22 @@
     } catch (err) { toast.error('Error', err.message || 'Could not remove sold status') }
   }
 
-  // TEMPLATES (for template pills in conversation)
+  const confirmOptOut = async (leadId, convId) => {
+    if (!await confirmModal('Opt out this lead?', 'They will be marked as opted out and will no longer receive messages.', 'Opt out', true)) return
+    try {
+      await fetch(`/leads/${leadId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ opted_out: true }) })
+      await loadConversations()
+      openConversation(convId)
+    } catch (err) { toast.error('Error', 'Could not opt out lead') }
+  }
+
+  // TEMPLATES (for template picker in conversation)
   const renderTemplatePills = (leadId) => {
-    const container = document.getElementById('template-pills')
+    const container = document.getElementById('conv3-template-picker')
     if (!container) return
-    if (!allTemplates.length) { container.innerHTML = ''; return }
+    if (!allTemplates.length) { container.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:#9ca3af;">No templates yet.</div>'; return }
     container.innerHTML = allTemplates.map(t => `
-      <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="useTemplate('${t.id}')">📝 ${t.name}</button>
+      <button style="display:block;width:100%;text-align:left;padding:9px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''" onclick="useTemplate('${t.id}');document.getElementById('conv3-template-picker').style.display='none';">📝 ${t.name}</button>
     `).join('')
   }
 
