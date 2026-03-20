@@ -118,6 +118,13 @@
       transition: background 0.1s;
     }
     .bulk-dd-item:hover { background: #f9fafb; }
+    .map-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .map-table th { padding: 8px 10px; text-align: left; font-weight: 600; color: #374151; background: #f9fafb; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+    .map-table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .map-table tr:last-child td { border-bottom: none; }
+    .map-select { width: 100%; padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; outline: none; background: white; }
+    .map-select:focus { border-color: #6366f1; }
+    .map-preview-cell { color: #6b7280; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
   </style>
   <script src="/toast.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -355,49 +362,65 @@
 
 <!-- UPLOAD MODAL -->
 <div class="modal-overlay" id="upload-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:600px;">
     <div class="modal-header">
-      <h2>Import Lead Sheet</h2>
+      <h2 id="upload-modal-title">Import Lead Sheet</h2>
       <button class="modal-close" onclick="closeUploadModal()">×</button>
     </div>
-    <div class="file-drop-area" id="modal-drop-zone" onclick="document.getElementById('modal-file-input').click()">
-      <div class="file-icon">📄</div>
-      <p>Drop your CSV or Excel file here, or click to browse</p>
-      <div class="file-name" id="modal-file-name"></div>
+    <div style="display:flex;margin-bottom:20px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <div id="step-ind-1" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:600;background:#EEF2FF;color:#4338ca;border-right:1px solid #e5e7eb;">1 · File &amp; Settings</div>
+      <div id="step-ind-2" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;">2 · Map Columns</div>
     </div>
-    <input type="file" id="modal-file-input" accept=".csv,.xlsx,.xls">
-    <div class="form-group">
-      <label>Bucket Name (required)</label>
-      <input type="text" id="import-bucket" placeholder="e.g. Lead Vendor - March 16">
-    </div>
-    <div class="form-row">
+    <!-- STEP 1 -->
+    <div id="upload-step-1">
+      <div class="file-drop-area" id="modal-drop-zone" onclick="document.getElementById('modal-file-input').click()">
+        <div class="file-icon">📄</div>
+        <p>Drop your CSV or Excel file here, or click to browse</p>
+        <div class="file-name" id="modal-file-name"></div>
+      </div>
+      <input type="file" id="modal-file-input" accept=".csv,.xlsx,.xls">
       <div class="form-group">
-        <label>Assign to Campaign (optional)</label>
-        <select id="import-campaign"><option value="">No campaign</option></select>
+        <label>Bucket Name (required)</label>
+        <input type="text" id="import-bucket" placeholder="e.g. Lead Vendor - March 2026">
       </div>
-      <div class="form-group" id="import-start-wrap" style="display:none;">
-        <label>Campaign Start Date</label>
-        <input type="datetime-local" id="import-campaign-start">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Assign to Campaign (optional)</label>
+          <select id="import-campaign"><option value="">No campaign</option></select>
+        </div>
+        <div class="form-group" id="import-start-wrap" style="display:none;">
+          <label>Campaign Start Date</label>
+          <input type="datetime-local" id="import-campaign-start">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Apply Disposition Tag (optional)</label>
+        <select id="import-disposition">
+          <option value="">No disposition tag</option>
+        </select>
+        <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Tag will be applied to every lead in this import and trigger any attached drip sequence.</p>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row-label">⚡ Autopilot for all leads</div>
+          <div class="toggle-row-sub">AI will automatically respond to replies from this import</div>
+        </div>
+        <label class="toggle-lg"><input type="checkbox" id="import-autopilot"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="status-bar" id="step1-status-bar"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeUploadModal()">Cancel</button>
+        <button class="btn btn-primary" id="upload-next-btn" onclick="advanceToMapping()">Next: Map Columns →</button>
       </div>
     </div>
-    <div class="form-group">
-      <label>Apply Disposition Tag (optional)</label>
-      <select id="import-disposition">
-        <option value="">No disposition tag</option>
-      </select>
-      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Tag will be applied to every lead in this import and trigger any attached drip sequence.</p>
-    </div>
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-row-label">⚡ Autopilot for all leads</div>
-        <div class="toggle-row-sub">AI will automatically respond to replies from this import</div>
+    <!-- STEP 2 -->
+    <div id="upload-step-2" style="display:none;">
+      <div id="mapping-table-container" style="max-height:420px;overflow-y:auto;margin-bottom:12px;border:1px solid #e5e7eb;border-radius:8px;"></div>
+      <div class="status-bar" id="import-status-bar"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="goBackToStep1()">← Back</button>
+        <button class="btn btn-primary" id="upload-submit-btn" onclick="submitImport()">Import Leads</button>
       </div>
-      <label class="toggle-lg"><input type="checkbox" id="import-autopilot"><span class="toggle-slider"></span></label>
-    </div>
-    <div class="status-bar" id="import-status-bar"></div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeUploadModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitImport()">Import Leads</button>
     </div>
   </div>
 </div>

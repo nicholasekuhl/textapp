@@ -6,6 +6,8 @@ let allDispositionTags = []
 let allTemplates = []
 let selectedLeads = new Set()
 let importFile = null
+let importHeaders = []
+let importPreview = []
 let campaignSortKey = 'created_at'
 let campaignSortDir = -1
 let selectedDispColor = '#6366f1'
@@ -25,6 +27,17 @@ let deleteTargetLeadId = null
 let deleteTargetLeadName = null
 let scheduleFollowupLeadId = null
 
+const IMPORT_FIELDS = [
+  { key: 'phone', label: 'Phone', required: true },
+  { key: 'first_name', label: 'First Name' },
+  { key: 'last_name', label: 'Last Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'state', label: 'State' },
+  { key: 'zip_code', label: 'ZIP Code' },
+  { key: 'date_of_birth', label: 'Date of Birth' },
+  { key: 'address', label: 'Address' },
+  { key: 'product', label: 'Product' },
+]
 const COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#64748b','#1a1a2e','#059669']
 const BUCKET_COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6','#64748b','#1a1a2e']
 const msState = { 'disposition': { selected: [] }, 'exclude-disposition': { selected: [] } }
@@ -936,11 +949,110 @@ const saveQuickNote = async (leadId) => {
 }
 
 // ===== UPLOAD MODAL =====
+const autoMatchHeaders = (headers) => {
+  const map = {}
+  const patterns = {
+    phone: /phone|mobile|cell|tel/i,
+    first_name: /first.?name|firstname/i,
+    last_name: /last.?name|lastname|surname/i,
+    email: /email/i,
+    state: /^state$|^st$/i,
+    zip_code: /zip|postal/i,
+    date_of_birth: /dob|birth|born/i,
+    address: /address|street/i,
+    product: /product|plan/i,
+  }
+  for (const [key, regex] of Object.entries(patterns)) {
+    const match = headers.find(h => regex.test(h.trim()))
+    if (match) map[key] = match
+  }
+  return map
+}
+
+const showStep1Status = (msg, type) => {
+  const bar = document.getElementById('step1-status-bar')
+  bar.textContent = msg; bar.className = `status-bar ${type}`
+}
+const showImportStatus = (msg, type, html) => {
+  const bar = document.getElementById('import-status-bar')
+  if (html) bar.innerHTML = msg; else bar.textContent = msg
+  bar.className = `status-bar ${type}`
+}
+
+const updateMappingPreview = (fieldKey, selectedHeader) => {
+  const colIdx = selectedHeader ? importHeaders.indexOf(selectedHeader) : -1
+  document.querySelectorAll(`.map-preview-cell[data-field="${fieldKey}"]`).forEach((cell, i) => {
+    cell.textContent = colIdx >= 0 ? (importPreview[i]?.[colIdx] || '') : ''
+  })
+}
+
+const renderMappingUI = () => {
+  const autoMap = autoMatchHeaders(importHeaders)
+  let html = `<table class="map-table"><thead><tr>`
+  html += `<th style="width:130px;">App Field</th><th style="width:190px;">Your Column</th>`
+  for (let i = 0; i < Math.min(importPreview.length, 3); i++) {
+    html += `<th>Sample ${i + 1}</th>`
+  }
+  html += `</tr></thead><tbody>`
+  for (const field of IMPORT_FIELDS) {
+    const sel = autoMap[field.key] || ''
+    const colIdx = sel ? importHeaders.indexOf(sel) : -1
+    html += `<tr><td style="font-weight:${field.required ? 600 : 500};color:${field.required ? '#1a1a2e' : '#374151'};">${field.label}${field.required ? ' <span style="color:#ef4444;font-weight:700;">*</span>' : ''}</td>`
+    html += `<td><select class="map-select" data-field="${field.key}" onchange="updateMappingPreview('${field.key}', this.value)"><option value="">— Skip —</option>`
+    for (const h of importHeaders) {
+      html += `<option value="${h.replace(/"/g, '&quot;')}"${h === sel ? ' selected' : ''}>${h}</option>`
+    }
+    html += `</select></td>`
+    for (let i = 0; i < Math.min(importPreview.length, 3); i++) {
+      html += `<td class="map-preview-cell" data-field="${field.key}" data-sample="${i}">${colIdx >= 0 ? (importPreview[i]?.[colIdx] || '') : ''}</td>`
+    }
+    html += `</tr>`
+  }
+  html += `</tbody></table>`
+  document.getElementById('mapping-table-container').innerHTML = html
+}
+
+const advanceToMapping = async () => {
+  if (!importFile) return showStep1Status('Please select a file first', 'error')
+  if (!document.getElementById('import-bucket').value.trim()) return showStep1Status('Please enter a bucket name', 'error')
+  showStep1Status('Parsing file headers...', 'loading')
+  document.getElementById('upload-next-btn').disabled = true
+  try {
+    const fd = new FormData(); fd.append('file', importFile)
+    const res = await fetch('/leads/parse-headers', { method: 'POST', body: fd })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to parse file')
+    importHeaders = data.headers; importPreview = data.preview
+    showStep1Status('', '')
+    renderMappingUI()
+    document.getElementById('upload-step-1').style.display = 'none'
+    document.getElementById('upload-step-2').style.display = ''
+    document.getElementById('step-ind-1').style.cssText += ';background:white;color:#9ca3af;'
+    document.getElementById('step-ind-2').style.cssText += ';background:#EEF2FF;color:#4338ca;font-weight:600;'
+    document.getElementById('upload-modal-title').textContent = 'Map Columns'
+  } catch (err) {
+    showStep1Status(err.message || 'Failed to read file headers', 'error')
+  } finally {
+    document.getElementById('upload-next-btn').disabled = false
+  }
+}
+
+const goBackToStep1 = () => {
+  document.getElementById('upload-step-2').style.display = 'none'
+  document.getElementById('upload-step-1').style.display = ''
+  document.getElementById('step-ind-1').style.cssText += ';background:#EEF2FF;color:#4338ca;font-weight:600;'
+  document.getElementById('step-ind-2').style.cssText += ';background:white;color:#9ca3af;font-weight:500;'
+  document.getElementById('upload-modal-title').textContent = 'Import Lead Sheet'
+  showImportStatus('', '')
+}
+
 const openUploadModal = () => {
-  importFile = null
+  importFile = null; importHeaders = []; importPreview = []
   document.getElementById('modal-file-name').textContent = ''
   document.getElementById('import-bucket').value = ''
   document.getElementById('import-autopilot').checked = false
+  document.getElementById('step1-status-bar').className = 'status-bar'
+  document.getElementById('step1-status-bar').textContent = ''
   document.getElementById('import-status-bar').className = 'status-bar'
   document.getElementById('import-status-bar').textContent = ''
   const select = document.getElementById('import-campaign')
@@ -951,6 +1063,11 @@ const openUploadModal = () => {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(10, 0, 0, 0)
   const pad = n => String(n).padStart(2, '0')
   document.getElementById('import-campaign-start').value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`
+  document.getElementById('upload-step-1').style.display = ''
+  document.getElementById('upload-step-2').style.display = 'none'
+  document.getElementById('step-ind-1').style.cssText = 'flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:600;background:#EEF2FF;color:#4338ca;border-right:1px solid #e5e7eb;'
+  document.getElementById('step-ind-2').style.cssText = 'flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;'
+  document.getElementById('upload-modal-title').textContent = 'Import Lead Sheet'
   document.getElementById('upload-modal').classList.add('open')
 }
 const closeUploadModal = () => document.getElementById('upload-modal').classList.remove('open')
@@ -966,16 +1083,14 @@ modalDropZone.addEventListener('dragover', (e) => { e.preventDefault(); modalDro
 modalDropZone.addEventListener('dragleave', () => modalDropZone.classList.remove('dragover'))
 modalDropZone.addEventListener('drop', (e) => { e.preventDefault(); modalDropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) { importFile = e.dataTransfer.files[0]; document.getElementById('modal-file-name').textContent = importFile.name } })
 
-const showImportStatus = (msg, type, html) => { const bar = document.getElementById('import-status-bar'); if (html) bar.innerHTML = msg; else bar.textContent = msg; bar.className = `status-bar ${type}` }
-
 const submitImport = async () => {
-  if (!importFile) return showImportStatus('Please select a file first', 'error')
+  const columnMap = {}
+  document.querySelectorAll('.map-select').forEach(sel => { if (sel.value) columnMap[sel.dataset.field] = sel.value })
+  if (!columnMap.phone) return showImportStatus('Please map the Phone column — it is required', 'error')
   const bucket = document.getElementById('import-bucket').value.trim()
-  if (!bucket) return showImportStatus('Please enter a bucket name', 'error')
   const autopilot = document.getElementById('import-autopilot').checked
   const campaignId = document.getElementById('import-campaign').value
   const campaignStartDate = document.getElementById('import-campaign-start').value
-  if (campaignId && !campaignStartDate) return showImportStatus('Please set a campaign start date', 'error')
   const formData = new FormData()
   formData.append('file', importFile)
   formData.append('bucket', bucket)
@@ -984,8 +1099,9 @@ const submitImport = async () => {
   if (campaignStartDate) formData.append('campaign_start_date', new Date(campaignStartDate).toISOString())
   const dispositionTagId = document.getElementById('import-disposition').value
   if (dispositionTagId) formData.append('disposition_tag_id', dispositionTagId)
+  formData.append('column_map', JSON.stringify(columnMap))
   showImportStatus('Importing leads...', 'loading')
-  document.querySelector('#upload-modal .btn-primary').disabled = true
+  document.getElementById('upload-submit-btn').disabled = true
   try {
     const res = await fetch('/leads/upload', { method: 'POST', body: formData })
     const data = await res.json()
@@ -994,10 +1110,9 @@ const submitImport = async () => {
       if (data.skipped > 0) html += `<span style="color:#6b7280;"> &nbsp;·&nbsp; </span><span style="color:#d97706;">${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped</span>`
       showImportStatus(html, 'success', true)
       setTimeout(() => { closeUploadModal(); loadLeads() }, 2000)
-    }
-    else showImportStatus(data.error || 'Import failed', 'error')
+    } else showImportStatus(data.error || 'Import failed', 'error')
   } catch (err) { showImportStatus('Something went wrong', 'error') }
-  finally { document.querySelector('#upload-modal .btn-primary').disabled = false }
+  finally { document.getElementById('upload-submit-btn').disabled = false }
 }
 
 const dropZone = document.getElementById('drop-zone')

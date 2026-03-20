@@ -115,6 +115,68 @@ const calculateSendTime = (dayNumber, sendTime, startDate, timezone) => {
   }
 }
 
+const parseHeaders = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    const fileType = req.file.mimetype
+    const fileBuffer = req.file.buffer
+    let headers = []
+    let preview = []
+
+    if (fileType === 'text/csv') {
+      await new Promise((resolve, reject) => {
+        let rowCount = 0
+        const stream = Readable.from(fileBuffer.toString())
+        stream.pipe(csv()).on('headers', (h) => { headers = h }).on('data', (row) => {
+          if (rowCount < 3) { preview.push(headers.map(h => row[h] ?? '')); rowCount++ }
+        }).on('end', resolve).on('error', reject)
+      })
+    } else {
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 })
+      if (rows.length > 0) {
+        headers = rows[0].map(h => String(h ?? ''))
+        preview = rows.slice(1, 4).map(row => headers.map((_, i) => String(row[i] ?? '')))
+      }
+    }
+
+    res.json({ headers, preview })
+  } catch (err) {
+    console.error('Parse headers error:', err)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const parseRowWithMap = (row, columnMap, bucket, autopilot, importedAt, userId) => {
+  // columnMap: { app_field: 'CSV Header Name', ... }
+  const get = (field) => {
+    const header = columnMap[field]
+    if (!header) return null
+    return row[header] ?? null
+  }
+  const phone = normalizePhone(get('phone'))
+  if (!phone) return null
+  const state = normalizeState(get('state'))
+  return {
+    first_name: get('first_name') || null,
+    last_name: get('last_name') || null,
+    phone,
+    email: get('email') || null,
+    state,
+    zip_code: get('zip_code') || null,
+    date_of_birth: normalizeDOB(get('date_of_birth')) || null,
+    address: get('address') || null,
+    product: get('product') || null,
+    timezone: getTimezone(state),
+    status: 'new',
+    bucket: bucket || null,
+    bucket_imported_at: importedAt || null,
+    autopilot: autopilot || false,
+    user_id: userId || null
+  }
+}
+
 const parseRow = (row, bucket, autopilot, importedAt, userId) => {
   const keys = Object.keys(row).reduce((acc, key) => {
     acc[key.toLowerCase().trim()] = row[key]
@@ -144,14 +206,16 @@ const parseRow = (row, bucket, autopilot, importedAt, userId) => {
   }
 }
 
-const processCSV = (buffer, bucket, autopilot, importedAt, userId) => {
+const processCSV = (buffer, bucket, autopilot, importedAt, userId, columnMap) => {
   return new Promise((resolve, reject) => {
     const leads = []
     const stream = Readable.from(buffer.toString())
     stream
       .pipe(csv())
       .on('data', (row) => {
-        const lead = parseRow(row, bucket, autopilot, importedAt, userId)
+        const lead = columnMap
+          ? parseRowWithMap(row, columnMap, bucket, autopilot, importedAt, userId)
+          : parseRow(row, bucket, autopilot, importedAt, userId)
         if (lead) leads.push(lead)
       })
       .on('end', () => resolve(leads))
@@ -159,11 +223,14 @@ const processCSV = (buffer, bucket, autopilot, importedAt, userId) => {
   })
 }
 
-const processXLSX = (buffer, bucket, autopilot, importedAt, userId) => {
+const processXLSX = (buffer, bucket, autopilot, importedAt, userId, columnMap) => {
   const workbook = xlsx.read(buffer, { type: 'buffer' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const rows = xlsx.utils.sheet_to_json(sheet)
-  return rows.map(row => parseRow(row, bucket, autopilot, importedAt, userId)).filter(Boolean)
+  return rows.map(row => columnMap
+    ? parseRowWithMap(row, columnMap, bucket, autopilot, importedAt, userId)
+    : parseRow(row, bucket, autopilot, importedAt, userId)
+  ).filter(Boolean)
 }
 
 const uploadLeads = async (req, res) => {
@@ -179,12 +246,13 @@ const uploadLeads = async (req, res) => {
     const campaignStartDate = req.body.campaign_start_date || null
     const dispositionTagId = req.body.disposition_tag_id || null
     const importedAt = new Date().toISOString()
+    const columnMap = req.body.column_map ? JSON.parse(req.body.column_map) : null
 
     let leads = []
     if (fileType === 'text/csv') {
-      leads = await processCSV(fileBuffer, bucket, autopilot, importedAt, userId)
+      leads = await processCSV(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
     } else {
-      leads = processXLSX(fileBuffer, bucket, autopilot, importedAt, userId)
+      leads = processXLSX(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
     }
 
     if (leads.length === 0) {
@@ -894,4 +962,4 @@ const markCalled = async (req, res) => {
   }
 }
 
-module.exports = { uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction }
+module.exports = { parseHeaders, uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction }
