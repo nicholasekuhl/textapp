@@ -204,6 +204,11 @@ const handleIncomingMessage = async (req, res) => {
       return res.send('<Response></Response>')
     }
 
+    console.log('Inbound message received for lead:', lead.id)
+    console.log('Lead autopilot status:', lead.autopilot)
+    console.log('ANTHROPIC_API_KEY exists:', !!process.env.ANTHROPIC_API_KEY)
+    console.log('User profile agent_name:', profile?.agent_name)
+
     // Blocked leads: log message but never respond
     if (lead.is_blocked) {
       let { data: blockedConv } = await supabase
@@ -621,7 +626,7 @@ Lead info: Name: ${lead.first_name || ''} ${lead.last_name || ''}, State: ${lead
 
     return response.content[0]?.text || null
   } catch (err) {
-    console.error('AI generation error:', err.message)
+    console.error('AI response error:', err.message)
     return null
   }
 }
