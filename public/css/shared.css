@@ -527,6 +527,10 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0)  scale(1); }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(15, 15, 25, 0.45); backdrop-filter: blur(4px);

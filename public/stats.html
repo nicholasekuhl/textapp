@@ -190,6 +190,17 @@
         </table>
       </div>
     </div>
+
+    <!-- PHONE HEALTH SECTION -->
+    <div class="table-card" style="margin-bottom:20px;">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--color-border-light);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:15px;font-weight:600;color:var(--color-text);">Phone Number Health</div>
+        <a href="/settings.html#phone-numbers" style="font-size:12px;color:var(--color-primary);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Manage numbers →</a>
+      </div>
+      <div id="stats-phone-health-list" style="padding:0;">
+        <div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Loading...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -539,11 +550,56 @@
     } catch { /* ignore */ }
   }
 
+  const loadPhoneHealth = async () => {
+    const container = document.getElementById('stats-phone-health-list')
+    if (!container) return
+    try {
+      const res = await fetch('/phone-numbers/health')
+      const data = await res.json()
+      const health = data.health || []
+      if (!health.length) {
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">No phone numbers found. <a href="/settings.html" style="color:var(--color-primary);">Add one in Settings.</a></div>`
+        return
+      }
+      const badgeMap = {
+        good:     { label: 'Good',     bg: '#dcfce7', color: '#166534' },
+        warning:  { label: 'Warning',  bg: '#fef9c3', color: '#854d0e' },
+        critical: { label: 'Critical', bg: '#fee2e2', color: '#991b1b' }
+      }
+      container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--color-border-light);">
+          <th style="text-align:left;padding:8px 18px;font-weight:600;color:var(--color-text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Phone</th>
+          <th style="text-align:right;padding:8px 14px;font-weight:600;color:var(--color-text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Violations</th>
+          <th style="text-align:right;padding:8px 14px;font-weight:600;color:var(--color-text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Opt-Outs</th>
+          <th style="text-align:right;padding:8px 14px;font-weight:600;color:var(--color-text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Delivery</th>
+          <th style="text-align:center;padding:8px 18px;font-weight:600;color:var(--color-text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Health</th>
+        </tr></thead>
+        <tbody>
+          ${health.map(h => {
+            const b = badgeMap[h.health_status] || badgeMap.good
+            const violColor = h.violation_count > 50 ? '#dc2626' : h.violation_count >= 20 ? '#d97706' : 'inherit'
+            const delivColor = h.delivery_rate < 75 ? '#dc2626' : h.delivery_rate < 90 ? '#d97706' : 'inherit'
+            return `<tr style="border-bottom:1px solid var(--color-border-light);">
+              <td style="padding:12px 18px;font-weight:500;color:var(--color-text);">${h.phone_number}</td>
+              <td style="padding:12px 14px;text-align:right;color:${violColor};font-weight:${h.violation_count >= 20 ? 600 : 400};">${h.violation_count}</td>
+              <td style="padding:12px 14px;text-align:right;color:var(--color-text-secondary);">${h.opt_out_count}</td>
+              <td style="padding:12px 14px;text-align:right;color:${delivColor};font-weight:${h.delivery_rate < 90 ? 600 : 400};">${h.delivery_rate}%</td>
+              <td style="padding:12px 18px;text-align:center;"><span style="background:${b.bg};color:${b.color};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;">${b.label}</span></td>
+            </tr>`
+          }).join('')}
+        </tbody>
+      </table>`
+    } catch (err) {
+      container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Could not load health data.</div>`
+    }
+  }
+
   const init = async () => {
     const authed = await checkAuth()
     if (!authed) return
     await loadProfile()
     loadAnalytics()
+    loadPhoneHealth()
     loadCalBadge()
     loadNotifBadge()
     setInterval(loadNotifBadge, 30000)

@@ -163,4 +163,64 @@ const deletePhoneNumber = async (req, res) => {
   }
 }
 
-module.exports = { getPhoneNumbers, searchPhoneNumbers, purchasePhoneNumber, updatePhoneNumber, deletePhoneNumber, setDefaultPhoneNumber }
+const getPhoneNumberHealth = async (req, res) => {
+  try {
+    const force = req.query.force === 'true'
+    const userId = req.user.id
+
+    const { data: phoneNumbers, error: pnError } = await supabase
+      .from('phone_numbers').select('phone_number').eq('user_id', userId)
+    if (pnError) throw pnError
+    if (!phoneNumbers || !phoneNumbers.length) return res.json({ health: [] })
+
+    if (!force) {
+      const { data: cached } = await supabase
+        .from('phone_number_health').select('*').eq('user_id', userId)
+      if (cached && cached.length >= phoneNumbers.length) {
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000
+        if (cached.every(c => new Date(c.last_checked).getTime() > cutoff))
+          return res.json({ health: cached })
+      }
+    }
+
+    const client = getMasterClient()
+    const VIOLATION_CODES = new Set([30007, 30008, 21610, 30034])
+    const OPT_OUT_TERMS = ['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
+    const now = new Date().toISOString()
+    const results = []
+
+    for (const { phone_number } of phoneNumbers) {
+      let violation_count = 0, delivery_rate = 100, opt_out_count = 0
+      try {
+        const [outbound, inbound] = await Promise.all([
+          client.messages.list({ from: phone_number, limit: 1000 }),
+          client.messages.list({ to: phone_number, limit: 1000 })
+        ])
+        const total = outbound.length
+        const delivered = outbound.filter(m => m.status === 'delivered').length
+        violation_count = outbound.filter(m => m.errorCode && VIOLATION_CODES.has(parseInt(m.errorCode))).length
+        delivery_rate = total > 0 ? parseFloat(((delivered / total) * 100).toFixed(2)) : 100
+        opt_out_count = inbound.filter(m =>
+          OPT_OUT_TERMS.some(t => (m.body || '').toUpperCase().trim().startsWith(t))
+        ).length
+      } catch (e) {
+        console.error(`Health fetch error for ${phone_number}:`, e.message)
+      }
+
+      let health_status = 'good'
+      if (violation_count > 50 || delivery_rate < 75) health_status = 'critical'
+      else if (violation_count >= 20 || delivery_rate < 90) health_status = 'warning'
+
+      const record = { phone_number, violation_count, opt_out_count, delivery_rate, health_status, last_checked: now }
+      results.push(record)
+      await supabase.from('phone_number_health')
+        .upsert({ user_id: userId, ...record }, { onConflict: 'user_id,phone_number' })
+    }
+
+    res.json({ health: results })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { getPhoneNumbers, searchPhoneNumbers, purchasePhoneNumber, updatePhoneNumber, deletePhoneNumber, setDefaultPhoneNumber, getPhoneNumberHealth }
