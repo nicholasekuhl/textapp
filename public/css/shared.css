@@ -60,6 +60,28 @@
 
   /* Transitions */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── SEMANTIC ALIASES (use these in all new components) ── */
+  --color-primary: var(--indigo-500);
+  --color-primary-hover: var(--indigo-600);
+  --color-primary-bg: var(--indigo-50);
+  --color-border: var(--border-default);
+  --color-border-light: var(--border-light);
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-500);
+  --color-text-muted: var(--gray-400);
+  --color-surface: var(--bg-card);
+  --color-surface-subtle: var(--bg-subtle);
+  --color-surface-app: var(--bg-app);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 }
 
 /* =============================================
