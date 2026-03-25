@@ -1257,9 +1257,20 @@ const deleteBucketFromMenu = async () => {
   } catch (err) { toast.error('Error', err.message) }
 }
 
-document.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
   document.getElementById('bucket-context-menu').style.display = 'none'
   document.querySelectorAll('[id^="bucket-dd-"]').forEach(el => el.style.display = 'none')
+
+  // Close disposition/exclude-disposition multi-select dropdowns when clicking outside
+  if (!e.target.closest('.ms-widget')) {
+    document.querySelectorAll('.ms-dropdown').forEach(el => el.style.display = 'none')
+  }
+
+  // Close campaign quick-filter dropdown when clicking outside
+  if (!e.target.closest('#campaign-quick-input') && !e.target.closest('#campaign-quick-dropdown')) {
+    const dd = document.getElementById('campaign-quick-dropdown')
+    if (dd) dd.style.display = 'none'
+  }
 })
 
 const toggleBucketDropdown = (leadId) => {
