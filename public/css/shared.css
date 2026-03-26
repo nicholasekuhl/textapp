@@ -964,3 +964,22 @@ input, select, textarea { font-size: 16px; }
   /* Search panel grid */
   .search-panel-grid .form-group[style*="span 2"] { grid-column: span 2; }
 }
+
+/* ── APPOINTMENT BADGE ──────────────────────────────────────────────────── */
+.appt-badge {
+  background: #22c55e;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+}
+
+@keyframes calPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}

@@ -556,43 +556,65 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
     }
 
     // Parse natural language day/time into a schedulable datetime
-    const tz = profile?.timezone || 'America/New_York'
-    const today = new Date()
+    // Use lead timezone first, then agent profile timezone, then EST
+    const tz = lead.timezone || profile?.timezone || 'America/New_York'
+
+    // Get today's date string in the target timezone
+    const now = new Date()
+    const todayInTz = now.toLocaleDateString('en-CA', { timeZone: tz }) // "2026-03-27"
+    let [tzYear, tzMonth, tzDay] = todayInTz.split('-').map(Number)
+
     const dayMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
     const dayLower = day.toLowerCase()
-    let targetDate = new Date(today.toLocaleString('en-US', { timeZone: tz }))
+    const currentDayOfWeek = new Date(todayInTz + 'T12:00:00Z').getDay()
 
     if (dayLower === 'today' || dayLower === 'tonight') {
-      // keep today
+      // keep tzYear/tzMonth/tzDay as-is
     } else if (dayLower === 'tomorrow') {
-      targetDate.setDate(targetDate.getDate() + 1)
+      const d = new Date(Date.UTC(tzYear, tzMonth - 1, tzDay + 1))
+      tzYear = d.getUTCFullYear(); tzMonth = d.getUTCMonth() + 1; tzDay = d.getUTCDate()
     } else if (dayLower === 'next week') {
-      targetDate.setDate(targetDate.getDate() + 7)
+      const d = new Date(Date.UTC(tzYear, tzMonth - 1, tzDay + 7))
+      tzYear = d.getUTCFullYear(); tzMonth = d.getUTCMonth() + 1; tzDay = d.getUTCDate()
     } else {
-      const targetDay = dayMap[dayLower]
-      if (targetDay !== undefined) {
-        const currentDay = targetDate.getDay()
-        let diff = targetDay - currentDay
+      const targetDayNum = dayMap[dayLower]
+      if (targetDayNum !== undefined) {
+        let diff = targetDayNum - currentDayOfWeek
         if (diff <= 0) diff += 7
-        targetDate.setDate(targetDate.getDate() + diff)
+        const d = new Date(Date.UTC(tzYear, tzMonth - 1, tzDay + diff))
+        tzYear = d.getUTCFullYear(); tzMonth = d.getUTCMonth() + 1; tzDay = d.getUTCDate()
       }
     }
 
-    // Parse time string like "2pm", "2:30pm", "14:00"
-    const timeMatch = time.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+    // Parse time string like "2pm", "2:30pm", "14:00", "noon"
     let hours = 12, minutes = 0
-    if (timeMatch) {
-      hours = parseInt(timeMatch[1], 10)
-      minutes = parseInt(timeMatch[2] || '0', 10)
-      const meridiem = (timeMatch[3] || '').toLowerCase()
-      if (meridiem === 'pm' && hours < 12) hours += 12
-      if (meridiem === 'am' && hours === 12) hours = 0
+    const timeLower = time.toLowerCase().trim()
+    if (timeLower === 'noon') {
+      hours = 12; minutes = 0
+    } else {
+      const timeMatch = timeLower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/)
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10)
+        minutes = parseInt(timeMatch[2] || '0', 10)
+        const meridiem = timeMatch[3] || ''
+        if (meridiem === 'pm' && hours < 12) hours += 12
+        if (meridiem === 'am' && hours === 12) hours = 0
+      }
     }
-    targetDate.setHours(hours, minutes, 0, 0)
 
-    const scheduledAt = targetDate.toISOString()
-    if (!scheduledAt || scheduledAt === 'Invalid Date') {
-      console.error('bookAppointment: could not build scheduledAt from day:', day, 'time:', time)
+    // Build a naive UTC string treating local time as UTC, then apply timezone offset
+    // This correctly converts "noon in EST" → 17:00 UTC (UTC-5) or 16:00 UTC (UTC-4 EDT)
+    const dateStr = `${tzYear}-${String(tzMonth).padStart(2,'0')}-${String(tzDay).padStart(2,'0')}`
+    const timeStr = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`
+    const naiveUtc = new Date(`${dateStr}T${timeStr}Z`)
+    // What does that UTC moment look like in the target timezone?
+    const tzRendered = new Date(naiveUtc.toLocaleString('en-US', { timeZone: tz }))
+    // Difference = the UTC offset for that timezone at that moment
+    const tzOffset = naiveUtc - tzRendered
+    const scheduledAt = new Date(naiveUtc.getTime() + tzOffset).toISOString()
+
+    if (!scheduledAt || scheduledAt.includes('NaN')) {
+      console.error('bookAppointment: could not build scheduledAt from day:', day, 'time:', time, 'tz:', tz)
       return
     }
 
@@ -616,6 +638,20 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       return
     }
     console.log('Appointment created:', appointment?.id, 'at', appointment?.scheduled_at)
+
+    const apptTime = new Date(scheduledAt).toLocaleString('en-US', {
+      month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+      hour12: true, timeZone: tz
+    })
+    createNotification(
+      lead.user_id,
+      'appointment_booked',
+      'Appointment booked',
+      `${lead.first_name} scheduled for ${apptTime}`,
+      lead.id,
+      conversationId
+    ).catch(err => console.error('bookAppointment: createNotification error:', err.message))
 
     if (appointment) {
       await supabase.from('conversations').update({

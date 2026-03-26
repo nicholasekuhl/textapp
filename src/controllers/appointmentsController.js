@@ -2,6 +2,20 @@ const supabase = require('../db')
 
 const getAppointments = async (req, res) => {
   try {
+    if (req.query.upcoming === 'true') {
+      const now = new Date().toISOString()
+      const next24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      const { count, error } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', req.user.id)
+        .eq('status', 'scheduled')
+        .gte('scheduled_at', now)
+        .lte('scheduled_at', next24h)
+      if (error) throw error
+      return res.json({ count: count || 0 })
+    }
+
     const { data, error } = await supabase
       .from('appointments')
       .select('*, leads(first_name, last_name, phone, state)')

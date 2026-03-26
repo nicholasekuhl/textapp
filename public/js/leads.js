@@ -312,6 +312,15 @@ const renderLeads = (leads) => {
           ? `<span style="background:#d1fae5;color:#065f46;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;">Replied</span>`
           : `<span style="background:#f3f4f6;color:#9ca3af;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;">No reply</span>`)
       : ''
+    const apptBadge = lead.next_appointment ? (() => {
+      const apptDate = new Date(lead.next_appointment)
+      const apptLabel = apptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ' ' + apptDate.toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: '2-digit', hour12: true,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+      return `<span class="appt-badge">&#128197; ${apptLabel}</span>`
+    })() : ''
     const hasActiveEnrollment = hasActiveCampaign
     const campProgress = tags.length
       ? hasActiveEnrollment && lead.campaign_day != null
@@ -336,6 +345,7 @@ const renderLeads = (leads) => {
                 ${lead.is_sold ? '<span class="sold-badge">✓ SOLD</span>' : ''}
                 ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color}">${dispTag.name}</span>` : ''}
                 ${replyBadge}
+                ${apptBadge}
               </div>
               ${lead.is_sold ? `<div class="sold-info">${lead.sold_at ? 'Sold ' + new Date(lead.sold_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Sold'}${lead.sold_plan_type ? ' · ' + lead.sold_plan_type : ''}${lead.sold_premium ? ' · $' + parseFloat(lead.sold_premium).toFixed(0) + '/mo' : ''}</div>` : ''}
               <div class="lead-meta">

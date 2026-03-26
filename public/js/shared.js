@@ -113,10 +113,12 @@ const renderNotifications = (notifs) => {
   }
   list.innerHTML = notifs.map(n => {
     const preview = (n.body || '').slice(0, 60) + ((n.body || '').length > 60 ? '…' : '')
+    const icon = n.type === 'appointment_booked' ? '&#128197;' :
+      n.type === 'hot_lead' ? '&#128293;' : '&#128172;'
     return `<div class="notif-item ${n.is_read ? 'read' : 'unread'}" onclick="handleNotifClick('${n.id}','${n.lead_id || ''}','${n.conversation_id || ''}')">
       <div class="notif-avatar">?</div>
       <div class="notif-content">
-        <div class="notif-name">${n.title}</div>
+        <div class="notif-name">${icon} ${n.title}</div>
         <div class="notif-preview">${preview}</div>
         <div class="notif-time">${timeAgo(n.created_at)}</div>
       </div>
@@ -191,17 +193,11 @@ document.addEventListener('click', (e) => {
 
 const loadCalBadge = async () => {
   try {
-    const res = await fetch('/appointments')
+    const res = await fetch('/appointments?upcoming=true')
     const data = await res.json()
-    const appts = data.appointments || []
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz })
-    const todayCount = appts.filter(a => {
-      return a.scheduled_at?.slice(0, 10) === todayStr && a.status === 'scheduled'
-    }).length
     const badge = document.getElementById('today-appt-badge')
     if (!badge) return
-    if (todayCount > 0) { badge.textContent = todayCount; badge.style.display = 'inline' }
+    if (data.count > 0) { badge.style.display = 'inline-block' }
     else badge.style.display = 'none'
   } catch {}
 }
@@ -360,7 +356,7 @@ const renderSidebar = () => {
     <a href="/conversations.html" class="sidebar-nav-item${a('/conversations.html')}">${SVG_CONV}Conversations</a>
     <a href="/campaigns.html" class="sidebar-nav-item${a('/campaigns.html')}">${SVG_CAMP}Campaigns</a>
     <a href="/stats.html" class="sidebar-nav-item${a('/stats.html')}">${SVG_STATS}Stats</a>
-    <a href="/calendar.html" class="sidebar-nav-item${a('/calendar.html')}" id="nav-calendar">${SVG_CAL}Calendar<span id="today-appt-badge" style="display:none;background:#ef4444;color:white;border-radius:20px;font-size:10px;font-weight:700;padding:1px 5px;margin-left:4px;"></span></a>
+    <a href="/calendar.html" class="sidebar-nav-item${a('/calendar.html')}" id="nav-calendar" style="position:relative;">${SVG_CAL}Calendar<span id="today-appt-badge" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:#ef4444;border-radius:50%;animation:calPulse 2s infinite;"></span></a>
     <a href="/settings.html" class="sidebar-nav-item${a('/settings.html')}">${SVG_SETTINGS}Settings</a>
     <a href="/admin.html" id="admin-nav-link" class="sidebar-nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}Admin</a>
   </nav>

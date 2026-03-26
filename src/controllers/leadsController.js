@@ -403,7 +403,23 @@ const getLeads = async (req, res) => {
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
     if (error) throw error
-    res.json({ leads: data })
+
+    // Fetch next upcoming scheduled appointment per lead
+    const { data: upcomingAppts } = await supabase
+      .from('appointments')
+      .select('lead_id, scheduled_at')
+      .eq('user_id', req.user.id)
+      .eq('status', 'scheduled')
+      .gt('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true })
+
+    const nextApptMap = {}
+    for (const a of upcomingAppts || []) {
+      if (!nextApptMap[a.lead_id]) nextApptMap[a.lead_id] = a.scheduled_at
+    }
+
+    const leads = data.map(l => ({ ...l, next_appointment: nextApptMap[l.id] || null }))
+    res.json({ leads })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
