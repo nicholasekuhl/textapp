@@ -2,6 +2,8 @@
 let allLeads = []
 let allCampaigns = []
 let unreadConvMap = {}
+let hotLeadMap = {}
+let ghostedMap = {}
 let allBuckets = []
 let allDispositionTags = []
 let allTemplates = []
@@ -353,6 +355,8 @@ const renderLeads = (leads) => {
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;">
+              ${hotLeadMap[lead.id] ? `<span title="Hot lead — requesting quote" style="font-size:14px;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')">🔥</span>` : ''}
+              ${ghostedMap[lead.id] === 'positive_ghosted' ? `<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:20px;padding:1px 6px;font-weight:600;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Went quiet after engaging">Went Quiet</span>` : ghostedMap[lead.id] === 'ghosted_mid' ? `<span style="font-size:10px;background:#f3f4f6;color:#6b7280;border-radius:20px;padding:1px 6px;font-weight:600;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')" title="No response to follow-ups">No Response</span>` : ''}
               ${unreadConvMap[lead.id] ? `<button onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Unread messages" style="background:#ef4444;color:white;border:none;border-radius:9px;padding:2px 6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;">💬 ${unreadConvMap[lead.id]}</button>` : ''}
               <button class="lead-3dot-btn" onclick="event.stopPropagation();openLeadActionsMenu('${lead.id}','${safeName}',this)" title="More actions">⋯</button>
             </div>
@@ -1930,11 +1934,16 @@ const init = async () => {
     allCampaigns = data.campaigns || []
   } catch (e) {}
   await Promise.all([loadDispositionTags(), loadTemplates(), loadProfile()])
-  // Load unread conversation map for lead card badges
+  // Load conversation maps for lead card badges
   fetch('/conversations').then(r => r.json()).then(d => {
     unreadConvMap = {}
+    hotLeadMap = {}
+    ghostedMap = {}
     ;(d.conversations || []).forEach(c => {
       if ((c.unread_count || 0) > 0 && c.lead_id) unreadConvMap[c.lead_id] = c.unread_count
+      if (c.handoff_reason === 'quote_requested' && c.lead_id) hotLeadMap[c.lead_id] = true
+      if (c.engagement_status === 'positive_ghosted' && c.lead_id) ghostedMap[c.lead_id] = 'positive_ghosted'
+      else if (c.engagement_status === 'ghosted_mid' && c.lead_id && !ghostedMap[c.lead_id]) ghostedMap[c.lead_id] = 'ghosted_mid'
     })
   }).catch(() => {})
   loadLeads()

@@ -3,6 +3,45 @@ const { sendSMS, buildMessageBody, getMasterClient, getNumberForLead } = require
 const { createNotification } = require('../notifications')
 const { spintext } = require('../spintext')
 
+const isPositiveEngagement = (history) => {
+  const recentInbound = history.filter(m => m.role === 'user').slice(-5)
+  const buyingSignals = [
+    'how much', 'what does it cost', 'what would i pay', 'sounds good', 'interested',
+    'tell me more', 'what are my options', 'i want', 'sign me up', "let's do it",
+    'when can we', 'book', 'schedule', 'call me', 'yes', 'yeah', 'sure', 'okay',
+    'ok', "i'd like", 'i would like', 'that works', 'works for me', 'can you',
+    'send me', "what's included", 'what is included', 'deductible', 'premium',
+    'coverage', 'plan', 'quote', 'how does', 'what about'
+  ]
+  return recentInbound.some(m =>
+    buyingSignals.some(signal => m.content.toLowerCase().includes(signal))
+  )
+}
+
+const autoExtractLeadData = async (lead, message) => {
+  try {
+    const updates = {}
+    const zipMatch = message.match(/\b(\d{5})\b/)
+    if (zipMatch && !lead.zip_code) updates.zip_code = zipMatch[1]
+    const stateMatch = message.match(/\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/)
+    if (stateMatch && !lead.state) updates.state = stateMatch[1]
+    const incomeMatch = message.match(/\$?([\d,]+)\s*(?:k|thousand|a year|\/year|per year|annually|annual income)/i) ||
+                        message.match(/(?:make|earn|income|salary)\s+(?:about|around|roughly)?\s*\$?([\d,]+)/i)
+    if (incomeMatch && !lead.income) {
+      let inc = incomeMatch[1].replace(/,/g, '')
+      if (/k\b/i.test(message) || parseInt(inc) < 1000) inc = String(parseInt(inc) * 1000)
+      updates.income = parseInt(inc)
+    }
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString()
+      await supabase.from('leads').update(updates).eq('id', lead.id)
+      console.log('Auto-extracted lead data:', updates)
+    }
+  } catch (err) {
+    console.error('autoExtractLeadData error:', err.message)
+  }
+}
+
 const getInitialMessage = (lead) => {
   const firstName = lead.first_name || 'there'
   return `Hi ${firstName}! I saw you were exploring your options and I'd love to help find the right fit for your needs and budget. Do you have a few minutes to connect?`
@@ -70,14 +109,17 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
     }
   }
 
-  // TRIGGER 2: Quote requested
+  // TRIGGER 2: Quote requested — only hand off after 2 pushbacks
   const quotePhrases = ['how much', "what's the price", 'give me a quote', 'what would it cost', 'send me options', 'what are my options', 'can you send', 'email me', 'just send it']
   if (quotePhrases.some(p => msg.includes(p))) {
-    return {
-      triggered: true,
-      reason: 'quote_requested',
-      message: `Absolutely — ${agentFirstName} can put that together on a quick call so the numbers actually make sense for your specific situation. When works best for you?`
+    if ((conversation.quote_push_count || 0) >= 2) {
+      return {
+        triggered: true,
+        reason: 'quote_requested',
+        message: `Absolutely — ${agentFirstName} can put that together on a quick call so the numbers actually make sense for your specific situation. When works best for you?`
+      }
     }
+    return { triggered: false, quoteDetected: true }
   }
 
   // TRIGGER 3: Complex medical
@@ -276,9 +318,21 @@ const handleIncomingMessage = async (req, res) => {
       sent_at: new Date().toISOString()
     })
 
+    const nowIso = new Date().toISOString()
     await supabase.from('conversations')
-      .update({ updated_at: new Date().toISOString(), unread_count: (conversation.unread_count || 0) + 1 })
+      .update({
+        updated_at: nowIso,
+        unread_count: (conversation.unread_count || 0) + 1,
+        last_inbound_at: nowIso,
+        followup_count: 0,
+        followup_stage: 'none',
+        engagement_status: 'active'
+      })
       .eq('id', conversation.id)
+    conversation = { ...conversation, followup_count: 0, followup_stage: 'none', engagement_status: 'active' }
+
+    // Auto-extract structured data from inbound message
+    autoExtractLeadData(lead, Body)
 
     // Upgrade lead status to 'replied' if new or contacted
     const STATUS_PRIORITY = { new: 0, contacted: 1, replied: 2, booked: 3, sold: 4 }
@@ -333,6 +387,14 @@ const handleIncomingMessage = async (req, res) => {
       // Check handoff triggers before generating AI response
       const handoff = checkHandoffTriggers(conversation, Body, history, profile)
 
+      if (handoff.quoteDetected) {
+        const newCount = (conversation.quote_push_count || 0) + 1
+        await supabase.from('conversations')
+          .update({ quote_push_count: newCount })
+          .eq('id', conversation.id)
+        conversation = { ...conversation, quote_push_count: newCount }
+      }
+
       if (handoff.triggered) {
         await executeHandoff(lead, conversation, handoff, fromNumber)
       } else {
@@ -360,7 +422,7 @@ const handleIncomingMessage = async (req, res) => {
               lead = { ...lead, first_message_sent: true }
             }
             await supabase.from('conversations')
-              .update({ updated_at: new Date().toISOString() })
+              .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
               .eq('id', conversation.id)
 
             // Check if conversation just confirmed an appointment
@@ -412,7 +474,7 @@ const sendManualMessage = async (req, res) => {
     })
 
     await supabase.from('conversations')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
       .eq('id', conversation_id)
 
     // Only upgrade status, never downgrade
@@ -636,7 +698,36 @@ RESPONSE STYLE RULES:
 - Vary your language naturally — do not repeat the same phrases across messages
 - After a lead confirms a time, do not ask for their phone number if you already have it — check the conversation context first
 
-Lead info: Name: ${lead.first_name || ''} ${lead.last_name || ''}, State: ${lead.state || 'unknown'}, Product interest: ${lead.product || 'unknown'}`
+---
+
+KNOWN LEAD INFORMATION — DO NOT ASK AGAIN FOR ANYTHING LISTED HERE:
+${[
+  lead.first_name ? `- First name: ${lead.first_name}` : null,
+  lead.last_name ? `- Last name: ${lead.last_name}` : null,
+  lead.state ? `- State: ${lead.state}` : null,
+  lead.zip_code ? `- ZIP code: ${lead.zip_code}` : null,
+  lead.income ? `- Income: $${Number(lead.income).toLocaleString()}` : null,
+  lead.product ? `- Product interest: ${lead.product}` : null
+].filter(Boolean).join('\n') || '- No pre-loaded data'}
+Use this information naturally in conversation — do not announce that you already have it.
+
+---
+
+FOLLOW-UP BEHAVIOR:
+If this conversation has gone quiet and you are sending a follow-up:
+- Reference exactly where the conversation left off
+- Be brief and non-pressuring — no guilt, no urgency
+- First follow-up: remind them what you were discussing and ask the next logical question
+- Second follow-up: lighter touch only — "No worries, just here whenever you're ready"
+- Never follow up more than twice without a response
+
+---
+
+MEMORY RULES — NEVER VIOLATE:
+- If an appointment is already confirmed in this conversation, never ask for availability again
+- If you have asked for a phone number already, never ask again
+- If the lead has shared their ZIP, state, income, or medications, never ask for those again
+- Read the full conversation history before every reply and track what has been answered`
 
     const messagesToSend = history.length > 0
       ? history.slice(-10)
@@ -713,4 +804,4 @@ const handleStatusCallback = async (req, res) => {
   }
 }
 
-module.exports = { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, handleStatusCallback }
+module.exports = { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, handleStatusCallback, isPositiveEngagement }

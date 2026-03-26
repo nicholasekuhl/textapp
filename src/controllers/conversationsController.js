@@ -71,7 +71,7 @@ const getConversation = async (req, res) => {
 
 const updateConversation = async (req, res) => {
   try {
-    const allowed = ['needs_agent_review', 'handoff_reason', 'status', 'is_starred']
+    const allowed = ['needs_agent_review', 'handoff_reason', 'status', 'is_starred', 'engagement_status', 'followup_stage', 'followup_count']
     const updates = { updated_at: new Date().toISOString() }
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k] })
 

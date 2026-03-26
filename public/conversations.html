@@ -133,20 +133,24 @@
 
   const handoffLabels = {
     appointment_confirmed: { text: 'Appointment confirmed', color: 'green' },
-    quote_requested: { text: 'Requesting quote', color: 'blue' },
+    quote_requested: { text: 'Requesting quote', color: 'orange' },
     qualification_complete: { text: 'Fully qualified', color: 'purple' },
     complex_medical: { text: 'Complex medical', color: 'amber' },
     frustration_detected: { text: 'Frustrated — urgent', color: 'red' },
-    unresponsive_after_followups: { text: 'Dormant — no response', color: 'gray' }
+    unresponsive_after_followups: { text: 'Dormant — no response', color: 'gray' },
+    positive_ghosted: { text: 'Went quiet after engaging', color: 'amber' },
+    ghosted_mid: { text: 'No response to follow-ups', color: 'gray' }
   }
 
   const handoffBannerText = {
     appointment_confirmed: 'Appointment confirmed — agent follow-up needed',
-    quote_requested: 'Lead requesting quote — ready for advisor',
+    quote_requested: 'Lead is requesting a quote — ready for advisor',
     qualification_complete: 'Fully qualified — ready for advisor call',
     complex_medical: 'Complex medical situation — advisor review needed',
     frustration_detected: 'Lead frustrated — immediate agent attention',
-    unresponsive_after_followups: 'No response after 2 follow-ups — dormant'
+    unresponsive_after_followups: 'No response after 2 follow-ups — dormant',
+    positive_ghosted: 'Lead was engaging but went quiet — follow-up sent',
+    ghosted_mid: 'No response to follow-ups — conversation may be dormant'
   }
 
   const toggleConvFilters = () => {
@@ -255,11 +259,19 @@
       ].filter(Boolean).join(' ')
       const dispPill = dispTag ? `<span class="disposition-pill" style="background:${dispTag.color};font-size:10px;padding:1px 7px;">${dispTag.name}</span>` : ''
       const blockedBadge = isBlocked ? `<span style="font-size:10px;background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 6px;font-weight:600;">Blocked</span>` : ''
+      const engStatus = c.engagement_status
+      const engPill = engStatus === 'positive_ghosted'
+        ? `<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:20px;padding:1px 6px;font-weight:600;">Went Quiet</span>`
+        : engStatus === 'ghosted_mid'
+        ? `<span style="font-size:10px;background:#f3f4f6;color:#6b7280;border-radius:20px;padding:1px 6px;font-weight:600;">No Response</span>`
+        : ''
+      const hotBadge = c.handoff_reason === 'quote_requested' ? `<span style="font-size:12px;" title="Hot lead — requesting quote">🔥</span>` : ''
+      const avatarStyle = c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''
       return `<div class="conv3-item ${classes}" style="${borderStyle}" onclick="openConversation('${c.id}')">
-        <div class="conv3-avatar" style="${c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''}">${initials}${isUnread && !isBlocked ? '<div class="conv3-unread-dot"></div>' : ''}</div>
+        <div class="conv3-avatar" style="${avatarStyle}">${initials}${isUnread && !isBlocked ? '<div class="conv3-unread-dot"></div>' : ''}</div>
         <div class="conv3-item-body">
           <div class="conv3-item-top">
-            <div class="conv3-item-name" style="${isUnread ? 'font-weight:700;' : ''}">${name}</div>
+            <div class="conv3-item-name" style="${isUnread ? 'font-weight:700;' : ''}">${name} ${hotBadge}</div>
             <div style="display:flex;align-items:center;gap:5px;">
               ${(c.unread_count || 0) > 0 ? `<span style="background:#3b82f6;color:white;font-size:10px;font-weight:700;border-radius:9px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;">${c.unread_count}</span>` : ''}
               <div class="conv3-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
@@ -267,7 +279,7 @@
           </div>
           <div class="conv3-item-phone">${lead?.phone || ''}</div>
           <div class="conv3-item-preview">${lastMsg?.body || 'No messages yet'}</div>
-          ${dispPill || blockedBadge ? `<div class="conv3-item-tags">${dispPill}${blockedBadge}</div>` : ''}
+          ${[dispPill, blockedBadge, engPill].some(Boolean) ? `<div class="conv3-item-tags">${dispPill}${blockedBadge}${engPill}</div>` : ''}
         </div>
         <button class="conv3-item-star ${isStarred ? 'starred' : ''}" onclick="starConversation('${c.id}',event)" title="${isStarred ? 'Unstar' : 'Star'}">★</button>
       </div>`
@@ -556,14 +568,25 @@
         allConversations[existingIdx] = { ...allConversations[existingIdx], ...conv }
       }
 
+      const isGhostedStatus = ['positive_ghosted', 'ghosted_mid'].includes(conv.engagement_status)
+      const suggestionBanner = !conv.needs_agent_review && isGhostedStatus
+        ? `<div class="handoff-banner ${conv.engagement_status === 'positive_ghosted' ? 'amber' : 'gray'}" style="font-size:12px;">
+            <span>${conv.engagement_status === 'positive_ghosted' ? '💤 This lead was engaging but went quiet — AI is sending follow-ups automatically.' : '🔇 No response after follow-ups — lead may be dormant.'}</span>
+            <div class="handoff-banner-actions">
+              <button class="btn btn-sm" style="background:rgba(0,0,0,0.1);color:inherit;" onclick="reEnableAutopilot('${lead?.id}','${conv.id}')">Re-enable Autopilot</button>
+            </div>
+          </div>`
+        : ''
+
       center.innerHTML = `
         ${bannerText ? `<div class="handoff-banner ${bannerColor}">
           <span>⚑ ${bannerText}</span>
           <div class="handoff-banner-actions">
-            <button class="btn btn-sm" style="background:white;color:#374151;" onclick="takeOverConversation('${conv.id}','${lead?.id}')">Take Over</button>
+            ${isGhostedStatus ? `<button class="btn btn-sm" style="background:rgba(0,0,0,0.1);color:inherit;" onclick="reEnableAutopilot('${lead?.id}','${conv.id}')">Re-enable Autopilot</button>` : `<button class="btn btn-sm" style="background:white;color:#374151;" onclick="takeOverConversation('${conv.id}','${lead?.id}')">Take Over</button>`}
             <button class="btn btn-sm" style="background:rgba(0,0,0,0.1);color:inherit;" onclick="markConvResolved('${conv.id}')">Mark Resolved</button>
           </div>
         </div>` : ''}
+        ${suggestionBanner}
         <div class="conv3-conv-header">
           <div class="conv3-conv-header-left">
             <button class="btn btn-ghost btn-sm conv3-back-btn" onclick="backToConversations()" style="flex-shrink:0;min-height:36px;">← Back</button>
@@ -783,6 +806,14 @@
 
   const markConvResolved = async (convId) => {
     await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null }) })
+    await loadConversations()
+    openConversation(convId)
+  }
+
+  const reEnableAutopilot = async (leadId, convId) => {
+    if (!leadId) return
+    await fetch(`/leads/${leadId}/autopilot`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autopilot: true }) })
+    await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null, engagement_status: 'active', followup_stage: 'none', followup_count: 0 }) })
     await loadConversations()
     openConversation(convId)
   }

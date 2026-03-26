@@ -40,6 +40,201 @@ const calculateSendTime = (dayNumber, sendTime, startDate, timezone) => {
   }
 }
 
+const isInBusinessHoursForTimezone = (timezone) => {
+  try {
+    const tz = timezone || 'America/New_York'
+    const now = new Date()
+    const hourStr = now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false })
+    const dayStr = now.toLocaleString('en-US', { timeZone: tz, weekday: 'short' })
+    const hour = parseInt(hourStr)
+    const isWeekend = dayStr === 'Sat' || dayStr === 'Sun'
+    return !isWeekend && hour >= 9 && hour < 19
+  } catch {
+    return true
+  }
+}
+
+const isPositiveEngagement = (history) => {
+  const recentInbound = history.filter(m => m.role === 'user').slice(-5)
+  const buyingSignals = [
+    'how much', 'what does it cost', 'sounds good', 'interested', 'tell me more',
+    'what are my options', 'i want', 'sign me up', "let's do it", 'when can we',
+    'book', 'schedule', 'call me', 'yes', 'yeah', 'sure', 'okay', 'ok',
+    "i'd like", 'i would like', 'that works', 'works for me', 'can you',
+    'send me', 'deductible', 'premium', 'coverage', 'plan', 'quote', 'how does'
+  ]
+  return recentInbound.some(m =>
+    buyingSignals.some(signal => m.content.toLowerCase().includes(signal))
+  )
+}
+
+const generateFollowupMessage = async (lead, history, profile, followupContext) => {
+  try {
+    const Anthropic = require('@anthropic-ai/sdk')
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const agentName = profile?.agent_name || 'your agent'
+    const agentFirstName = profile?.agent_nickname || agentName.split(' ')[0]
+    const stage = followupContext.stage
+
+    let instruction = ''
+    if (stage === 'stage1') {
+      instruction = `Send a brief warm follow-up. Reference exactly where the conversation left off. Ask the next logical question from the qualification flow. Keep it to 1-2 sentences. Be casual and non-pressuring.`
+    } else if (stage === 'stage2') {
+      instruction = `Send a very light one-sentence follow-up like "No worries at all — whenever you're ready just text me back and I'll pick up right where we left off." No questions.`
+    } else if (stage === 'stage3') {
+      instruction = `Send a final gentle one-sentence check-in. Something like "Still here whenever you want to revisit your options — no rush at all." No questions, no pressure.`
+    } else {
+      instruction = `Send a very brief final one-sentence message making it easy to re-engage with no pressure.`
+    }
+
+    const systemPrompt = `You are an AI texting on behalf of ${agentFirstName}, a health insurance advisor. ${instruction}
+
+Rules: never be pushy, maximum 1-2 sentences, use the lead's first name once if appropriate, do not repeat phrases from previous messages, sound like a real person texting.`
+
+    const messagesToSend = history.length > 0 ? history.slice(-6) : [{ role: 'user', content: 'Hi' }]
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 150,
+      system: systemPrompt,
+      messages: messagesToSend
+    })
+    return response.content[0]?.text || null
+  } catch (err) {
+    console.error('generateFollowupMessage error:', err.message)
+    return null
+  }
+}
+
+const checkGhostedConversations = async () => {
+  try {
+    const now = new Date()
+    const fifteenMinAgo = new Date(now - 15 * 60 * 1000).toISOString()
+
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('needs_agent_review', false)
+      .not('last_outbound_at', 'is', null)
+      .lte('last_outbound_at', fifteenMinAgo)
+      .in('followup_stage', ['none', 'stage1', 'stage2', 'stage3'])
+
+    if (!conversations || conversations.length === 0) return
+
+    for (const conv of conversations) {
+      const lastOutbound = new Date(conv.last_outbound_at)
+      const lastInbound = conv.last_inbound_at ? new Date(conv.last_inbound_at) : null
+
+      // Skip if lead replied after our last outbound
+      if (lastInbound && lastInbound > lastOutbound) continue
+
+      const minutesSince = (now - lastOutbound) / (1000 * 60)
+      const stage = conv.followup_stage || 'none'
+      let targetStage = null
+
+      if (stage === 'none' && minutesSince >= 15) targetStage = 'stage1'
+      else if (stage === 'stage1' && minutesSince >= 60) targetStage = 'stage2'
+      else if (stage === 'stage2' && minutesSince >= 240) targetStage = 'stage3'
+      else if (stage === 'stage3' && minutesSince >= 1200) targetStage = 'stage4'
+
+      if (!targetStage) continue
+
+      // Load the lead
+      const { data: lead } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', conv.lead_id)
+        .single()
+
+      if (!lead || !lead.autopilot || lead.opted_out || lead.is_blocked) continue
+      if (!isInBusinessHoursForTimezone(lead.timezone)) continue
+
+      // Load message history
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('direction, body, sent_at')
+        .eq('conversation_id', conv.id)
+        .order('sent_at', { ascending: true })
+
+      if (!messages || messages.length === 0) continue
+
+      const history = messages.map(m => ({
+        role: m.direction === 'inbound' ? 'user' : 'assistant',
+        content: m.body
+      }))
+
+      const positive = isPositiveEngagement(history)
+      const engagementStatus = positive ? 'positive_ghosted' : (lastInbound ? 'ghosted_mid' : 'dormant')
+
+      const { data: profile } = await supabase
+        .from('user_profiles').select('*').eq('id', lead.user_id).single()
+
+      const { data: phoneNumbers } = await supabase
+        .from('phone_numbers').select('phone_number, state, is_default')
+        .eq('user_id', lead.user_id).eq('is_active', true)
+
+      const fromNumber = pickNumberForLead(phoneNumbers, lead.state) || process.env.TWILIO_PHONE_NUMBER
+      if (!fromNumber) continue
+
+      const followupText = await generateFollowupMessage(lead, history, profile, { stage: targetStage })
+      if (!followupText) continue
+
+      const result = await sendSMS(lead.phone, followupText, fromNumber)
+      if (!result.success) {
+        console.error(`Follow-up send failed for lead ${lead.id}:`, result.error)
+        continue
+      }
+
+      await supabase.from('messages').insert({
+        conversation_id: conv.id,
+        direction: 'outbound',
+        body: followupText,
+        sent_at: now.toISOString(),
+        is_ai: true,
+        twilio_sid: result.sid,
+        status: 'sent'
+      })
+
+      const newFollowupCount = (conv.followup_count || 0) + 1
+      const newStage = targetStage === 'stage4' ? 'completed' : targetStage
+
+      const convUpdates = {
+        followup_stage: newStage,
+        followup_count: newFollowupCount,
+        last_outbound_at: now.toISOString(),
+        engagement_status: engagementStatus,
+        updated_at: now.toISOString()
+      }
+
+      // After final follow-up on positive engagement — hand off to agent
+      if (targetStage === 'stage4' && engagementStatus === 'positive_ghosted') {
+        convUpdates.needs_agent_review = true
+        convUpdates.handoff_reason = 'positive_ghosted'
+        await supabase.from('leads').update({ autopilot: false, updated_at: now.toISOString() }).eq('id', lead.id)
+      }
+
+      await supabase.from('conversations').update(convUpdates).eq('id', conv.id)
+
+      // Notify agent when a positive-engagement lead goes quiet (stage2 only, avoid spamming)
+      if (engagementStatus === 'positive_ghosted' && targetStage === 'stage2') {
+        const { createNotification } = require('./notifications')
+        const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.phone
+        createNotification(
+          lead.user_id,
+          'lead_ghosted',
+          `${leadName} went quiet after engaging`,
+          `This lead was showing interest but stopped responding. A follow-up has been sent.`,
+          lead.id,
+          conv.id
+        )
+      }
+
+      console.log(`Follow-up ${targetStage} sent to lead ${lead.id} (${engagementStatus})`)
+    }
+  } catch (err) {
+    console.error('checkGhostedConversations error:', err.message)
+  }
+}
+
 const isWithinBusinessHours = (sendTime) => {
   try {
     const [hours] = sendTime.split(':').map(Number)
@@ -292,7 +487,9 @@ const processScheduledMessages = async () => {
 const startScheduler = () => {
   console.log('Campaign scheduler started — master Twilio account active')
   setInterval(processScheduledMessages, 60000)
+  setInterval(checkGhostedConversations, 60000)
   processScheduledMessages()
+  checkGhostedConversations()
 }
 
 module.exports = { startScheduler }
