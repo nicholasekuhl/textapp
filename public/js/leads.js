@@ -1,6 +1,7 @@
 // ===== STATE =====
 let allLeads = []
 let allCampaigns = []
+let unreadConvMap = {}
 let allBuckets = []
 let allDispositionTags = []
 let allTemplates = []
@@ -351,7 +352,10 @@ const renderLeads = (leads) => {
             </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-            <button class="lead-3dot-btn" onclick="event.stopPropagation();openLeadActionsMenu('${lead.id}','${safeName}',this)" title="More actions">⋯</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${unreadConvMap[lead.id] ? `<button onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Unread messages" style="background:#ef4444;color:white;border:none;border-radius:9px;padding:2px 6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;">💬 ${unreadConvMap[lead.id]}</button>` : ''}
+              <button class="lead-3dot-btn" onclick="event.stopPropagation();openLeadActionsMenu('${lead.id}','${safeName}',this)" title="More actions">⋯</button>
+            </div>
             <div class="autopilot-wrap">
               <span class="autopilot-label ${lead.autopilot ? 'on' : ''}" id="ap-label-${lead.id}">${lead.autopilot ? 'Autopilot ON' : 'Autopilot'}</span>
               <label class="toggle">
@@ -1926,6 +1930,13 @@ const init = async () => {
     allCampaigns = data.campaigns || []
   } catch (e) {}
   await Promise.all([loadDispositionTags(), loadTemplates(), loadProfile()])
+  // Load unread conversation map for lead card badges
+  fetch('/conversations').then(r => r.json()).then(d => {
+    unreadConvMap = {}
+    ;(d.conversations || []).forEach(c => {
+      if ((c.unread_count || 0) > 0 && c.lead_id) unreadConvMap[c.lead_id] = c.unread_count
+    })
+  }).catch(() => {})
   loadLeads()
   loadCalBadge()
   loadNotifBadge()

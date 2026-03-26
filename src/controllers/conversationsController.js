@@ -154,6 +154,21 @@ const createScheduledMessage = async (req, res) => {
   }
 }
 
+const markConversationRead = async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .update({ unread_count: 0, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    console.error('markConversationRead error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
 const getConversationMessages = async (req, res) => {
   try {
     const { data: conv, error: convErr } = await supabase
@@ -182,5 +197,6 @@ module.exports = {
   starConversation,
   getScheduledMessages,
   createScheduledMessage,
-  getConversationMessages
+  getConversationMessages,
+  markConversationRead
 }

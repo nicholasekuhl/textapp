@@ -54,11 +54,12 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { agent_name, agency_name, calendly_url, timezone, compliance_footer, compliance_footer_enabled, personal_phone, sms_notifications_enabled, inapp_notifications_enabled } = req.body
+    const { agent_name, agency_name, calendly_url, timezone, compliance_footer, compliance_footer_enabled, personal_phone, sms_notifications_enabled, inapp_notifications_enabled, agent_nickname } = req.body
 
     const updates = { updated_at: new Date().toISOString() }
     if (agent_name !== undefined) updates.agent_name = agent_name
     if (agency_name !== undefined) updates.agency_name = agency_name
+    if (agent_nickname !== undefined) updates.agent_nickname = agent_nickname
     if (calendly_url !== undefined) updates.calendly_url = calendly_url
     if (timezone !== undefined) updates.timezone = timezone
     if (compliance_footer !== undefined) updates.compliance_footer = compliance_footer

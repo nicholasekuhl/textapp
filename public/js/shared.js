@@ -58,6 +58,8 @@ const loadProfile = async () => {
     if (agentNameEl) agentNameEl.value = p.agent_name || ''
     const agencyNameEl = document.getElementById('profile-agency-name')
     if (agencyNameEl) agencyNameEl.value = p.agency_name || ''
+    const nicknameEl = document.getElementById('profile-agent-nickname')
+    if (nicknameEl) nicknameEl.value = p.agent_nickname || ''
     const calendlyEl = document.getElementById('profile-calendly-url')
     if (calendlyEl) calendlyEl.value = p.calendly_url || ''
     const tzEl = document.getElementById('profile-timezone')
@@ -148,12 +150,31 @@ const updateNotifBadge = (count) => {
   badge.textContent = count > 9 ? '9+' : count
 }
 
+const updateConvNavBadge = (count) => {
+  const convLink = document.querySelector('a[href="/conversations.html"]')
+  if (!convLink) return
+  let badge = convLink.querySelector('.conv-nav-badge')
+  if (count <= 0) {
+    if (badge) badge.remove()
+    return
+  }
+  if (!badge) {
+    badge = document.createElement('span')
+    badge.className = 'conv-nav-badge'
+    badge.style.cssText = 'position:absolute;top:4px;right:4px;background:#ef4444;color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;padding:0 4px;display:flex;align-items:center;justify-content:center;pointer-events:none;'
+    convLink.style.position = 'relative'
+    convLink.appendChild(badge)
+  }
+  badge.textContent = count > 99 ? '99+' : count
+}
+
 const loadNotifBadge = async () => {
   if (document.hidden) return
   try {
     const res = await fetch('/notifications/unread-count')
     const data = await res.json()
     updateNotifBadge(data.count || 0)
+    updateConvNavBadge(data.count || 0)
   } catch {}
 }
 

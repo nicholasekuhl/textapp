@@ -58,6 +58,7 @@ const sendInitialOutreach = async (req, res) => {
 const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile) => {
   const msg = lastInboundMessage.toLowerCase()
   const agentName = profile?.agent_name || 'your agent'
+  const agentFirstName = profile?.agent_nickname || agentName.split(' ')[0]
   const fullText = history.map(m => m.content).join(' ').toLowerCase()
 
   // TRIGGER 1: Appointment confirmed
@@ -65,7 +66,7 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
     return {
       triggered: true,
       reason: 'appointment_confirmed',
-      message: `Perfect, I've got everything noted. ${agentName} will be in touch and can walk you through everything from here. Looking forward to connecting you!`
+      message: `Perfect, I've got everything noted. ${agentFirstName} will be in touch and can walk you through everything from here. Looking forward to connecting you!`
     }
   }
 
@@ -75,7 +76,7 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
     return {
       triggered: true,
       reason: 'quote_requested',
-      message: `Absolutely — ${agentName} can put that together on a quick call so the numbers actually make sense for your specific situation. When works best for you?`
+      message: `Absolutely — ${agentFirstName} can put that together on a quick call so the numbers actually make sense for your specific situation. When works best for you?`
     }
   }
 
@@ -86,7 +87,7 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
     return {
       triggered: true,
       reason: 'complex_medical',
-      message: `That's really helpful context. The right plan really does depend on your specific situation — ${agentName} can make sure you're matched with the right coverage. Do you prefer a quick review later today or tomorrow?`
+      message: `That's really helpful context. The right plan really does depend on your specific situation — ${agentFirstName} can make sure you're matched with the right coverage. Do you prefer a quick review later today or tomorrow?`
     }
   }
 
@@ -109,7 +110,7 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
     return {
       triggered: true,
       reason: 'qualification_complete',
-      message: `Perfect, I've got everything noted. ${agentName} will be in touch and can walk you through everything from here. Looking forward to connecting you!`
+      message: `Perfect, I've got everything noted. ${agentFirstName} will be in touch and can walk you through everything from here. Looking forward to connecting you!`
     }
   }
 
@@ -276,7 +277,7 @@ const handleIncomingMessage = async (req, res) => {
     })
 
     await supabase.from('conversations')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ updated_at: new Date().toISOString(), unread_count: (conversation.unread_count || 0) + 1 })
       .eq('id', conversation.id)
 
     // Upgrade lead status to 'replied' if new or contacted
@@ -293,6 +294,7 @@ const handleIncomingMessage = async (req, res) => {
     // In-app notification
     if (profile?.inapp_notifications_enabled !== false) {
       const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.phone
+      console.log('Creating notification for user:', userId)
       createNotification(userId, 'inbound_message', `${leadName} replied`, Body.slice(0, 100), lead.id, conversation.id)
     }
 
@@ -337,6 +339,10 @@ const handleIncomingMessage = async (req, res) => {
         const aiResponse = await generateAIResponse(lead, history, profile, Body)
 
         if (aiResponse) {
+          // Natural typing delay — humans don't respond instantly
+          const delay = Math.floor(Math.random() * 7000) + 8000
+          await new Promise(resolve => setTimeout(resolve, delay))
+
           const aiBody = buildMessageBody(aiResponse, profile, lead, false)
           const result = await sendSMS(lead.phone, aiBody, fromNumber)
           if (result.success) {
@@ -484,8 +490,8 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       if ((STATUS_PRIORITY_B[lead.status] ?? 0) < STATUS_PRIORITY_B.booked) bookedUpdate.status = 'booked'
       await supabase.from('leads').update(bookedUpdate).eq('id', lead.id)
 
-      const agentName = profile?.agent_name || 'your agent'
-      const confirmText = `Perfect, locked in! ${agentName} will call you ${appointmentData.day_desc} at ${appointmentData.time_desc}. Looking forward to it!`
+      const agentFirstName = profile?.agent_nickname || (profile?.agent_name || 'your agent').split(' ')[0]
+      const confirmText = `Perfect, locked in! ${agentFirstName} will call you ${appointmentData.day_desc} at ${appointmentData.time_desc} — he'll walk you through everything and make it really simple. Looking forward to connecting you two!`
       const confirmResult = await sendSMS(lead.phone, confirmText, fromNumber)
       if (confirmResult.success) {
         await supabase.from('messages').insert({
@@ -510,6 +516,7 @@ const generateAIResponse = async (lead, history, profile, inboundBody = '') => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const agentName = profile?.agent_name || 'your agent'
+    const agentFirstName = profile?.agent_nickname || agentName.split(' ')[0]
     const calendlyUrl = profile?.calendly_url || '[booking link]'
 
     const systemPrompt = `You are a health insurance coverage specialist working for an independent health insurance agency. Your job is to have warm, helpful SMS conversations with people who have expressed interest in health coverage, gather the information needed to understand their situation, and schedule a quick call with a licensed advisor who will walk them through their options.
@@ -559,9 +566,9 @@ You do not need to collect every single data point before suggesting a call. Use
 BOOKING A CALL:
 - Never cold drop a booking link — negotiate a time first
 - Ask if they prefer today, tomorrow, morning or afternoon
-- Once they give a time, confirm it warmly and let them know ${agentName} will be calling them at that time to walk through their options
+- Once they give a time, confirm it warmly and let them know ${agentFirstName} — he's the advisor here — will be calling them at that time to walk through their options
 - After confirming the time, share the booking link so the lead can add it to their calendar: ${calendlyUrl}
-- Example confirmation: "Perfect, I will lock that in. ${agentName} will give you a quick call at that time and walk you through everything step by step so you can pick what feels right."
+- Example confirmation: "Perfect, locked in! ${agentFirstName} will give you a quick call at that time — he'll walk you through everything step by step so you can pick what feels right."
 
 ---
 
@@ -581,25 +588,25 @@ Never follow up more than twice without a response. Never guilt, pressure, or cr
 OBJECTIONS AND COMMON SITUATIONS:
 
 "Can you just send me info by email?"
-"I can definitely send everything over by email. The thing is ${agentName} just needs to do a quick review of your specific situation first so that what I send actually makes sense for you. It only takes a few minutes — what time works for a quick call?"
+"I can definitely send everything over by email. The thing is ${agentFirstName} just needs to do a quick review of your specific situation first so that what I send actually makes sense for you. It only takes a few minutes — what time works for a quick call?"
 
 "I already have coverage"
 "Got it, totally understand. A lot of people find it is worth doing a quick comparison just to make sure what you have is still the best fit — especially if anything has changed with your situation. No pressure at all, but happy to help if you ever want a second opinion."
 
 "How much does it cost?"
-"It really depends on a few things like your age, ZIP, income, and what level of coverage you need. That is exactly what ${agentName} can help map out on a quick call — there are usually a few different options at different price points."
+"It really depends on a few things like your age, ZIP, income, and what level of coverage you need. That is exactly what ${agentFirstName} can help map out on a quick call — there are usually a few different options at different price points."
 
 "I need to think about it"
 "Of course, totally makes sense. No rush at all. Just text me whenever you are ready and I can pick up right where we left off."
 
 "Pre-existing conditions or specific medications"
-"That is really helpful to know. The right plan really does depend on how each company covers your specific situation — some plans cover certain things more affordably than others. ${agentName} can help match you with the right one. Do you prefer a quick review later today or tomorrow morning?"
+"That is really helpful to know. The right plan really does depend on how each company covers your specific situation — some plans cover certain things more affordably than others. ${agentFirstName} can help match you with the right one. Do you prefer a quick review later today or tomorrow morning?"
 
 High income lead (private plans likely better):
-"Got it, thanks for sharing. With that income level, private PPO options will usually line up better since Marketplace discounts would not apply. There are actually some really solid nationwide plans available. The main thing now is just narrowing them down so you are not paying for coverage you do not need. Would you prefer a quick review with ${agentName} later today or tomorrow?"
+"Got it, thanks for sharing. With that income level, private PPO options will usually line up better since Marketplace discounts would not apply. There are actually some really solid nationwide plans available. The main thing now is just narrowing them down so you are not paying for coverage you do not need. Would you prefer a quick review with ${agentFirstName} later today or tomorrow?"
 
 Low income lead (Marketplace savings likely available):
-"Great, thanks for sharing that. With that income it looks like you may be in a range where there are some savings available on the Marketplace — I would want ${agentName} to take a closer look to see exactly what applies to your situation. Would a quick call work for you later today or tomorrow?"
+"Great, thanks for sharing that. With that income it looks like you may be in a range where there are some savings available on the Marketplace — I would want ${agentFirstName} to take a closer look to see exactly what applies to your situation. Would a quick call work for you later today or tomorrow?"
 Note: never confirm they qualify — always frame as "may be" and "looks like"
 
 ---
@@ -624,6 +631,10 @@ RESPONSE STYLE RULES:
 - Never start two consecutive messages with the same opening word
 - Read the full conversation history before responding — never repeat a question already answered
 - If you are unsure what they mean, ask one simple clarifying question
+- Never use the agent's full name in casual conversation — first name only
+- Never say "senior advisor" more than once per conversation
+- Vary your language naturally — do not repeat the same phrases across messages
+- After a lead confirms a time, do not ask for their phone number if you already have it — check the conversation context first
 
 Lead info: Name: ${lead.first_name || ''} ${lead.last_name || ''}, State: ${lead.state || 'unknown'}, Product interest: ${lead.product || 'unknown'}`
 

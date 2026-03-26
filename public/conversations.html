@@ -242,7 +242,7 @@
       const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
       const msgs = c.messages || []
       const lastMsg = msgs[msgs.length - 1]
-      const isUnread = lastMsg?.direction === 'inbound'
+      const isUnread = (c.unread_count || 0) > 0 || lastMsg?.direction === 'inbound'
       const dispTag = lead?.disposition_tag_id ? allDispositionTags.find(t => t.id === lead.disposition_tag_id) : null
       const isBlocked = lead?.is_blocked
       const isStarred = c.is_starred
@@ -259,8 +259,11 @@
         <div class="conv3-avatar" style="${c.needs_agent_review ? 'background:linear-gradient(135deg,#ef4444,#f97316);' : ''}">${initials}${isUnread && !isBlocked ? '<div class="conv3-unread-dot"></div>' : ''}</div>
         <div class="conv3-item-body">
           <div class="conv3-item-top">
-            <div class="conv3-item-name">${name}</div>
-            <div class="conv3-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
+            <div class="conv3-item-name" style="${isUnread ? 'font-weight:700;' : ''}">${name}</div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              ${(c.unread_count || 0) > 0 ? `<span style="background:#3b82f6;color:white;font-size:10px;font-weight:700;border-radius:9px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;">${c.unread_count}</span>` : ''}
+              <div class="conv3-item-time">${lastMsg ? formatTime(lastMsg.sent_at) : ''}</div>
+            </div>
           </div>
           <div class="conv3-item-phone">${lead?.phone || ''}</div>
           <div class="conv3-item-preview">${lastMsg?.body || 'No messages yet'}</div>
@@ -635,6 +638,12 @@
         console.error('Messages load error:', e.message)
         conv.messages = conv.messages || []
       }
+
+      // Mark conversation as read
+      fetch(`/conversations/${convId}/read`, { method: 'PATCH' }).catch(() => {})
+      const convInList = allConversations.find(c => c.id === convId)
+      if (convInList) convInList.unread_count = 0
+
       renderMessages(conv, 'all')
       renderTemplatePills(conv.lead_id)
       if (rightPanelOpen) renderRightPanel(conv, lead, [])
