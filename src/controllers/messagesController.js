@@ -438,13 +438,18 @@ const handleIncomingMessage = async (req, res) => {
             // Check if conversation just confirmed an appointment
             const { data: conv } = await supabase.from('conversations').select('appointment_confirmed').eq('id', conversation.id).single()
             if (!conv?.appointment_confirmed) {
-              const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today/i.test(aiBody)
+              const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
               const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
               const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
               const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
+              const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
               console.log('Checking for appointment confirmation')
-              console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation, 'hasBookingPattern:', hasBookingPattern)
+              console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation, 'hasBookingPattern:', hasBookingPattern, 'mightBeBooking:', mightBeBooking)
               console.log('Response text:', aiBody)
+              if (!mightBeBooking) {
+                console.log('Skipping detectAppointment — no booking signals in response')
+                return
+              }
               const apptData = await detectAppointment(history, aiResponse)
               if (apptData.confirmed) {
                 console.log('Appointment detected:', apptData)
@@ -522,17 +527,18 @@ const detectAppointment = async (history, aiResponse) => {
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
-      system: `Analyze this SMS conversation. Did both parties just agree on a specific day AND time for a phone call?
-Return ONLY valid JSON. If yes: {"confirmed":true,"datetime":"${today.slice(0,4)}-MM-DDTHH:MM:00","day_desc":"Tuesday","time_desc":"2:00 PM"}
-If no: {"confirmed":false}
-Today is ${today}. Only return confirmed=true if a specific date+time was mutually agreed upon.`,
+      max_tokens: 100,
+      system: `Did both parties agree on a specific day AND time for a call? Today is ${today}.
+Return ONLY valid JSON, no markdown.
+If yes: {"confirmed":true,"day":"tomorrow","time":"2pm"}
+If no: {"confirmed":false}`,
       messages: recentMessages
     })
 
     const rawText = response.content[0]?.text || '{"confirmed":false}'
     console.log('detectAppointment raw response:', rawText)
-    return JSON.parse(rawText)
+    const cleaned = rawText.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim()
+    return JSON.parse(cleaned)
   } catch (err) {
     console.error('detectAppointment error:', err.message)
     return { confirmed: false }
@@ -542,24 +548,55 @@ Today is ${today}. Only return confirmed=true if a specific date+time was mutual
 const bookAppointment = async (lead, conversationId, appointmentData, profile, fromNumber) => {
   try {
     console.log('bookAppointment called with:', JSON.stringify(appointmentData))
+    const day = appointmentData.day || ''
+    const time = appointmentData.time || ''
+    if (!day || !time) {
+      console.error('bookAppointment: missing day or time from detectAppointment:', appointmentData)
+      return
+    }
+
+    // Parse natural language day/time into a schedulable datetime
     const tz = profile?.timezone || 'America/New_York'
-    const localStr = appointmentData.datetime
-    if (!localStr || localStr.includes('MM') || localStr.includes('DD')) {
-      console.error('bookAppointment: invalid datetime from detectAppointment:', localStr)
-      return
+    const today = new Date()
+    const dayMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
+    const dayLower = day.toLowerCase()
+    let targetDate = new Date(today.toLocaleString('en-US', { timeZone: tz }))
+
+    if (dayLower === 'today' || dayLower === 'tonight') {
+      // keep today
+    } else if (dayLower === 'tomorrow') {
+      targetDate.setDate(targetDate.getDate() + 1)
+    } else if (dayLower === 'next week') {
+      targetDate.setDate(targetDate.getDate() + 7)
+    } else {
+      const targetDay = dayMap[dayLower]
+      if (targetDay !== undefined) {
+        const currentDay = targetDate.getDay()
+        let diff = targetDay - currentDay
+        if (diff <= 0) diff += 7
+        targetDate.setDate(targetDate.getDate() + diff)
+      }
     }
 
-    const utcDate = new Date(new Date(localStr).toLocaleString('en-US', { timeZone: 'UTC' }))
-    const tzDate = new Date(new Date(localStr).toLocaleString('en-US', { timeZone: tz }))
-    const offset = utcDate - tzDate
-    const scheduledAt = new Date(new Date(localStr).getTime() + offset).toISOString()
+    // Parse time string like "2pm", "2:30pm", "14:00"
+    const timeMatch = time.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+    let hours = 12, minutes = 0
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1], 10)
+      minutes = parseInt(timeMatch[2] || '0', 10)
+      const meridiem = (timeMatch[3] || '').toLowerCase()
+      if (meridiem === 'pm' && hours < 12) hours += 12
+      if (meridiem === 'am' && hours === 12) hours = 0
+    }
+    targetDate.setHours(hours, minutes, 0, 0)
 
+    const scheduledAt = targetDate.toISOString()
     if (!scheduledAt || scheduledAt === 'Invalid Date') {
-      console.error('bookAppointment: could not parse scheduledAt from:', localStr)
+      console.error('bookAppointment: could not build scheduledAt from day:', day, 'time:', time)
       return
     }
 
-    console.log('Attempting appointment INSERT for lead', lead.id, 'at', scheduledAt)
+    console.log('Attempting appointment INSERT for lead', lead.id, 'at', scheduledAt, '(day:', day, 'time:', time, ')')
     const { data: appointment, error: apptErr } = await supabase
       .from('appointments')
       .insert({
@@ -596,7 +633,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       await supabase.from('leads').update(bookedUpdate).eq('id', lead.id)
 
       const agentFirstName = profile?.agent_nickname || (profile?.agent_name || 'your agent').split(' ')[0]
-      const confirmText = `Locked in. ${agentFirstName} will call you ${appointmentData.day_desc} at ${appointmentData.time_desc} and walk you through everything. Looking forward to connecting you two!`
+      const confirmText = `Locked in. ${agentFirstName} will call you ${day} at ${time} and walk you through everything. Looking forward to connecting you two!`
       const confirmResult = await sendSMS(lead.phone, confirmText, fromNumber)
       if (confirmResult.success) {
         await supabase.from('messages').insert({
