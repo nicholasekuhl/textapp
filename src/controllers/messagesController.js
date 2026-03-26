@@ -405,11 +405,16 @@ const handleIncomingMessage = async (req, res) => {
         const aiResponse = await generateAIResponse(lead, history, profile, Body)
 
         if (aiResponse) {
-          // Natural typing delay — humans don't respond instantly
-          const delay = Math.floor(Math.random() * 7000) + 8000
+          // Delay scales with message length to feel more human
+          const wordCount = aiResponse.split(' ').length
+          const baseDelay = 30000
+          const perWordDelay = 1500
+          const maxDelay = 120000
+          const jitter = Math.floor(Math.random() * 10000)
+          const delay = Math.min(baseDelay + (wordCount * perWordDelay) + jitter, maxDelay)
           await new Promise(resolve => setTimeout(resolve, delay))
 
-          const aiBody = buildMessageBody(aiResponse, profile, lead, false)
+          const aiBody = buildMessageBody(removeExcessEmojis(aiResponse), profile, lead, false)
           const result = await sendSMS(lead.phone, aiBody, fromNumber)
           if (result.success) {
             await supabase.from('messages').insert({
@@ -501,7 +506,11 @@ const detectAppointment = async (history, aiResponse) => {
     const Anthropic = require('@anthropic-ai/sdk')
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const today = new Date().toISOString().split('T')[0]
-    const recentMessages = [...history.slice(-6), { role: 'assistant', content: aiResponse }]
+    const recentMessages = [
+      ...history.slice(-6),
+      { role: 'assistant', content: aiResponse },
+      { role: 'user', content: 'Based on this conversation, did both parties agree on a specific day and time for a phone call? Reply with the JSON format specified in the system prompt.' }
+    ]
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -579,6 +588,19 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
   }
 }
 
+const removeExcessEmojis = (text) => {
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu
+  const matches = text.match(emojiRegex) || []
+  if (matches.length > 1) {
+    let count = 0
+    return text.replace(emojiRegex, (match) => {
+      count++
+      return count <= 1 ? match : ''
+    })
+  }
+  return text
+}
+
 const generateAIResponse = async (lead, history, profile, inboundBody = '') => {
   try {
     const Anthropic = require('@anthropic-ai/sdk')
@@ -603,7 +625,7 @@ IDENTITY AND TONE:
 - Never make assumptive statements about what someone qualifies for
 - Never quote specific plan prices or confirm coverage details — that is the advisor's job on the call
 - Always make the lead feel like you are on their side, not selling to them
-- Use smiley faces sparingly and naturally, like a real person would :)
+- Almost never use emojis. Only use one occasionally if the lead uses them first
 
 ---
 
@@ -704,6 +726,17 @@ RESPONSE STYLE RULES:
 - Never say "senior advisor" more than once per conversation
 - Vary your language naturally — do not repeat the same phrases across messages
 - After a lead confirms a time, do not ask for their phone number if you already have it — check the conversation context first
+
+NATURAL CONVERSATION RULES:
+- Never use dashes between thoughts. Write in plain sentences with periods.
+- Never use "Great!", "Perfect!", "Awesome!" as sentence starters. Vary your openers.
+- Occasionally use incomplete thoughts or casual phrasing like a real person texting. For example "Makes sense" or "Got it" or "Yeah for sure" instead of always writing complete formal sentences.
+- Match the lead's energy and text length. If they send 3 words send back 1 to 2 sentences. If they send a paragraph you can write more.
+- Use contractions naturally: "I'll", "you're", "that's", "it's", "won't", "can't".
+- Do not list things with dashes or bullets. Write naturally as one flowing thought.
+- Vary sentence length. Short. Then a bit longer. Then short again. This feels human.
+- Never start consecutive messages with the same word or phrase.
+- Read back over what you wrote. If it sounds like a chatbot rewrite it until it sounds like a person texting casually.
 
 ---
 
