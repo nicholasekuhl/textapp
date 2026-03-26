@@ -4,14 +4,14 @@ Read and follow ALL of these rules for every
 task in this session without exception.
 These rules take priority over everything else.
 
-## RULE 1: READ FILES SELECTIVELY
+## RULE 0: READ FILES SELECTIVELY
 Read ONLY the specific files mentioned in
 each task. Do not read the entire codebase
 unless explicitly asked to.
 Only read additional files if directly
 needed to complete the specific task.
 
-## RULE 2: NO PERSONAL OR SPECIFIC DATA
+## RULE 1: NO PERSONAL OR SPECIFIC DATA
 Never use specific real names, company names,
 vendor names, or personal data anywhere in
 the codebase as placeholder, example, or
@@ -41,7 +41,7 @@ REPLACE ALL with generic versions:
 - Sample phone: "+1 (555) 000-0001"
 - Sample email: "jane.smith@email.com"
 
-## RULE 3: FILE ORGANIZATION
+## RULE 2: FILE ORGANIZATION
 The public/ directory is split into separate
 page files. Never create a monolithic index.html.
 
@@ -55,10 +55,21 @@ Existing page files:
 - public/admin.html
 - public/login.html
 - public/signup.html
+- public/lead.html (lead profile page)
 
 Shared code lives in:
-- public/js/shared.js
-- public/css/shared.css
+- public/js/shared.js (sidebar, auth, toast,
+  notifications, renderSidebar function)
+- public/css/shared.css (design system,
+  CSS variables)
+- public/toast.js
+
+SIDEBAR RULE:
+The sidebar is rendered via renderSidebar()
+in public/js/shared.js and injected into
+every page. Never hardcode sidebar HTML
+in individual page files. If adding new
+nav items update shared.js only.
 
 ADDING TO EXISTING FILES:
 Add to existing page file if feature belongs
@@ -77,7 +88,7 @@ what needs splitting before proceeding.
 
 NEVER duplicate shared code across files.
 
-## RULE 4: DATABASE PERFORMANCE
+## RULE 3: DATABASE PERFORMANCE
 Whenever adding a new table or column used
 in WHERE, ORDER BY, or JOIN, automatically
 add the appropriate index in the same SQL block.
@@ -97,16 +108,16 @@ Standard indexes to always add:
 - Every sort column (created_at, scheduled_at)
 - Every lookup column (phone, email, twilio_sid)
 
-## RULE 5: NEVER BREAK EXISTING FUNCTIONALITY
+## RULE 4: NEVER BREAK EXISTING FUNCTIONALITY
 Before making any changes:
 1. Read all relevant files first
 2. Identify what is already working
 3. Make surgical changes only
 4. Never rewrite working code from scratch
-5. If full rewrite needed explain why and
-   wait for confirmation before proceeding
+5. If full rewrite needed explain why
+   and wait for confirmation
 
-## RULE 6: SQL CONFIRMATION
+## RULE 5: SQL CONFIRMATION
 Never assume SQL has been run in Supabase.
 When task requires database changes:
 1. Output all SQL clearly labeled
@@ -114,7 +125,7 @@ When task requires database changes:
 3. Wait for my confirmation before writing
    any code that depends on new columns or tables
 
-## RULE 7: MASTER TWILIO ONLY
+## RULE 6: MASTER TWILIO ONLY
 Never add per-user Twilio credentials.
 All SMS sending uses master credentials:
 - process.env.TWILIO_ACCOUNT_SID
@@ -122,235 +133,152 @@ All SMS sending uses master credentials:
 From number comes from user's phone_numbers
 table record only.
 Never read Twilio credentials from user_profiles.
+FORWARDING_NUMBER = process.env.FORWARDING_NUMBER
+Used only for agent notification texts.
 
-## RULE 8: DATABASE COLUMN NAMES
+## RULE 7: DATABASE COLUMN NAMES
 The leads table uses these exact column names:
 - 'phone' NOT 'phone_number'
+- 'zip_code' NOT 'zip'
 - 'user_id' for owner
 - 'bucket_id' for bucket assignment
 - 'is_sold' for sold status
 - 'is_blocked' for blocked status
 - 'is_cold' for cold status
 - 'autopilot' for autopilot toggle
+- 'first_message_sent' for compliance footer
+- 'engagement_status' for ghost tracking
+- 'product' NOT 'plan_type'
+
+The conversations table has these columns:
+- 'is_starred' for favorites
+- 'needs_agent_review' for handoff flag
+- 'handoff_reason' for handoff type
+- 'consecutive_followups' for follow-up count
+- 'appointment_confirmed' boolean
+- 'appointment_id' FK to appointments
+- 'last_inbound_at' timestamp
+- 'last_outbound_at' timestamp
+- 'followup_count' integer
+- 'followup_stage' text
+- 'scheduled_followup_at' timestamp
+- 'engagement_status' text
+- 'quote_push_count' integer
+- 'unread_count' integer
+
 Always verify column names before writing
 queries against existing tables.
 
-## RULE 9: AFTER EVERY TASK TELL ME
+## RULE 8: VISUAL CONSISTENCY
+All new UI components must use existing
+CSS variables from shared.css.
+Never hardcode colors, shadows, or border radius.
+
+Always use:
+- var(--color-primary) not #6366f1
+- var(--shadow-md) not box-shadow: 0 4px...
+- var(--radius-md) not border-radius: 10px
+- var(--color-border) not #e2e8f0
+- var(--color-text-secondary) not #475569
+- var(--space-4) not padding: 16px
+
+New cards: white bg, shadow-md, radius-md
+New buttons: use .btn-primary or .btn-secondary
+New badges: use .badge class with color modifier
+New modals: use existing .modal class structure
+New tables: use existing .table class structure
+
+If a new component needs a style not in shared.css
+add it to shared.css as a reusable class.
+Never add one-off inline styles.
+
+## RULE 9: AI SYSTEM PROMPT RULES
+When modifying the AI system prompt in
+src/controllers/messagesController.js:
+
+Always inject known lead data BEFORE conversation
+history so the AI never re-asks for info already
+known:
+- lead.first_name, last_name, phone
+- lead.zip_code, state, email, date_of_birth
+- Mark fields as 'unknown' if null
+
+Always use agent_nickname if set, otherwise
+first name from agent_name.split(' ')[0]
+
+Never use agent full name in casual conversation.
+
+After appointment confirmed the AI must stop
+qualifying — send one closing message maximum.
+
+AI response delay: 8-15 seconds random before
+sending (already implemented — do not remove).
+
+## RULE 10: AFTER EVERY TASK TELL ME
 1. Which files were changed
 2. What SQL needs to be run (if any)
 3. Whether to push to GitHub now or wait
 
-## QUICK REFERENCE
-- Leads page: public/leads.html
+## QUICK REFERENCE — FILE LOCATIONS
+Frontend pages:
+- Leads: public/leads.html
 - Conversations: public/conversations.html
 - Campaigns: public/campaigns.html
 - Stats: public/stats.html
 - Calendar: public/calendar.html
 - Settings: public/settings.html
 - Admin: public/admin.html
-- Shared JS: public/js/shared.js
-- Shared CSS: public/css/shared.css
-- Main server: src/server.js
+- Lead profile: public/lead.html
+
+Shared:
+- JS utilities: public/js/shared.js
+- CSS design system: public/css/shared.css
+- Toast system: public/toast.js
+
+Backend:
+- Server entry: src/server.js
 - Database: src/db.js
 - Twilio helper: src/twilio.js
 - Scheduler: src/scheduler.js
-- Auth routes: src/routes/auth.js
-- Lead routes: src/routes/leads.js
-- Message routes: src/routes/messages.js
-- Campaign routes: src/routes/campaigns.js
-- Conversation routes: src/routes/conversations.js
-- Phone number routes: src/routes/phoneNumbers.js
 - Notifications: src/notifications.js
+- Send limits: src/sendLimits.js
+- Spintext: src/spintext.js
 
----
+Routes (src/routes/):
+auth.js, leads.js, messages.js, campaigns.js,
+conversations.js, dispositions.js, templates.js,
+tasks.js, appointments.js, phoneNumbers.js,
+stats.js, notifications.js, scheduledMessages.js,
+buckets.js
 
-# TextApp — Project Context
+Controllers (src/controllers/):
+One per route, same naming convention.
 
-## What It Is
-AI-powered SMS marketing SaaS for sales agents.
-Industry agnostic — built for any sales agent.
+## QUICK REFERENCE — KEY PATTERNS
 
-## Tech Stack
-- Backend: Node.js + Express
-- Database: Supabase (PostgreSQL) with RLS
-- SMS: Twilio (master account only)
-- AI: Claude Sonnet (claude-sonnet-4-6)
-- Hosting: Railway (24/7, auto-deploy from GitHub)
-- Email: SendGrid via Supabase Auth SMTP
+Creating a notification:
+createNotification(userId, type, title, body,
+  leadId, conversationId)
+Types: 'inbound_message', 'hot_lead', 'lead_ghosted'
 
-## Core Architecture Decisions
-- Master Twilio account only — no per-user credentials
-- All SMS sends use process.env.TWILIO_ACCOUNT_SID
-  and TWILIO_AUTH_TOKEN
-- From number comes from user's phone_numbers table
-- Campaigns = initial outreach + A/B testing only
-- Dispositions = post-reply automation engine
-- Buckets = user-created colored pill folders
-- Sold bucket = permanent system bucket (green, locked)
-- All data isolated per user via Supabase RLS
-- Telnyx planned for Phase 5 SaaS switch
+Sending SMS (always use master credentials):
+sendSMS(to, body, fromNumber)
+fromNumber comes from phone_numbers table
 
-## Database Notes
-- leads table uses 'phone' not 'phone_number'
-- All tables have user_id UUID REFERENCES auth.users(id)
-- RLS enabled on all tables
-- All indexes use user_id as first column in composite
+Checking business hours:
+Use lead's timezone from leads.timezone
+Business hours: 9am-8pm lead's local time
 
-## What's Fully Built
-### Core App
-- Multi-user auth with email verification
-- Password reset flow
-- Terms of Service on signup
-- Agent invite system
-- Admin panel with user suspension
-- Per-user data isolation (RLS)
-- Mobile responsive
+Engagement status values:
+'active', 'ghosted_mid', 'positive_ghosted',
+'dormant'
 
-### Leads
-- CSV/Excel upload with smart column mapping
-- Lead deduplication on upload
-- Bucket system (user-created colored pills)
-- Lead cards with notes, autopilot toggle
-- Disposition pills, campaign pills
-- Advanced search and filter panel
-- Sold/Not Sold filter
-- Exclude disposition filter
-- Create lead button (manual entry)
-- CSV export
-- Bulk selection (actions in progress)
-- Copy buttons on name, phone, email
+Handoff reason values:
+'appointment_confirmed', 'quote_requested',
+'complex_medical', 'frustration_detected',
+'qualification_complete', 'consecutive_followups',
+'positive_ghosted', 'unresponsive_after_followups'
 
-### Campaigns
-- Campaign builder with drip sequences
-- Day + send time scheduling per lead timezone
-- Spintext support {option1|option2}
-- Campaign pause on reply (verified)
-- A/B testing via multiple campaigns
-- Response rate per campaign
-
-### Disposition Tags
-- Create/edit/delete with 12 color picker
-- Optional drip sequence per tag
-- Automated actions engine:
-  add/remove tags, pause/add/remove campaigns,
-  send immediate text, update status,
-  mark sold, mark cold, add note,
-  move to bucket (in progress)
-
-### AI Engine
-- Claude Sonnet production system prompt
-- Full qualification flow (8 steps)
-- Ghosted lead follow-up logic
-- Objection handling built in
-- Compliance guardrails
-- Agent name + Calendly from user profile
-- Smart handoff detection (6 triggers)
-- Colored handoff banners in conversations
-- Needs Review tab
-- Take Over / Mark Resolved buttons
-
-### Conversations
-- Three panel layout (sidebar/thread/details)
-- Tabs: All / Unread / Recent / Starred
-- Show/hide blocked toggle
-- Scheduled messages with date/time picker
-- Real time polling every 10 seconds
-- Contact details right panel (collapsible)
-- Star/favorite conversations
-- Block/unblock leads
-- Scheduled/Sent/Rejected sub-tabs
-- AI suggestion on focus
-
-### Notifications
-- In-app bell with unread badge
-- Dropdown with lead name, preview, time ago
-- SMS forwarding to agent's personal cell
-- Per-user toggle: SMS on/off, in-app on/off
-- Personal phone field in profile settings
-
-### Compliance
-- Per-user compliance footer
-- First message detection (first_message_sent flag)
-- [Agency Name] placeholder auto-replaced
-- Append to first message only
-- Toggle enable/disable with warning
-- Preview in settings
-
-### Operations
-- Scheduler running every 60 seconds on Railway
-- Birthday automation
-- Keyword auto-response triggers
-- Scheduler health heartbeat
-- Scheduler status on Stats page
-- Message delivery tracking (delivered/failed)
-- Daily send volume warnings
-- Onboarding checklist (5 steps)
-- Empty states on all pages
-
-### Phone Numbers
-- In-app search by state or area code
-- Purchase via Twilio API
-- Webhook auto-configured on purchase
-- Carrier violations counter
-- Release number with confirmation
-- All numbers under master Twilio account
-
-### Settings Pages
-- Disposition Tags
-- Preset Templates
-- Phone Numbers (search + purchase + manage)
-- Team & Invites
-- Account (profile, compliance, notifications)
-- Admin panel (/admin.html)
-
-### Stats/Analytics
-- Message volume chart (line)
-- Lead funnel chart
-- Campaign performance table
-- Best times to send heatmap
-- Scheduler health status
-- Recent activity feed
-- Delivery rate metrics
-
-### Calendar
-- Month view with appointment dots
-- Day view with appointment cards
-- Today's Calls section
-- AI auto-books appointments from conversations
-- Confirmation text sent to lead
-- Calendly link sent after booking
-
-## In Progress / Build Queue
-1. Buckets as colored pill folders (user-created)
-2. Lead dropdown actions menu (three-dot)
-3. Bulk actions on selected leads
-4. Campaigns scoped to initial outreach only
-5. Disposition action: move to bucket
-6. Mark as Sold → auto moves to Sold bucket
-7. Status auto-update system
-8. Commission tracking + earnings dashboard
-9. Toast notification system
-10. Lead card quick actions (always visible)
-11. Analytics dashboard rebuild
-12. Skeleton loading screens
-13. Remove all hardcoded personal data
-
-## Phase 5 SaaS Checklist
-- Telnyx ISV + subaccounts per user
-- Programmatic A2P brand/campaign registration
-- Stripe subscriptions + SMS credit system
-- Super admin revenue dashboard
-- Agent impersonation for support
-- Redis + Bull job queue
-- Sentry error monitoring
-- Staging environment
-- Google Calendar sync
-- Zapier webhook for lead auto-import
-- Sales pipeline Kanban view
-- Mobile app (React Native or PWA)
-- White label option
-- Team accounts (agency owner + agents)
-- Global search (Command+K)
-- Dark mode
-- Bulk message blast feature
-- Product website with pricing page
+Follow-up stages:
+'none', 'stage1', 'stage2', 'scheduled',
+'stage3', 'stage4'
