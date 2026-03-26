@@ -438,8 +438,15 @@ const handleIncomingMessage = async (req, res) => {
             // Check if conversation just confirmed an appointment
             const { data: conv } = await supabase.from('conversations').select('appointment_confirmed').eq('id', conversation.id).single()
             if (!conv?.appointment_confirmed) {
+              const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today/i.test(aiBody)
+              const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
+              const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call/i.test(aiBody)
+              console.log('Checking for appointment confirmation')
+              console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation)
+              console.log('Response text:', aiBody)
               const apptData = await detectAppointment(history, aiResponse)
               if (apptData.confirmed) {
+                console.log('Appointment detected:', apptData)
                 await bookAppointment(lead, conversation.id, apptData, profile, fromNumber)
               }
             }
@@ -537,7 +544,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
     const offset = utcDate - tzDate
     const scheduledAt = new Date(new Date(localStr).getTime() + offset).toISOString()
 
-    const { data: appointment } = await supabase
+    const { data: appointment, error: apptErr } = await supabase
       .from('appointments')
       .insert({
         user_id: lead.user_id,
@@ -546,11 +553,10 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
         duration_minutes: 15,
         title: `Call with ${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
         notes: `Booked via AI conversation`,
-        status: 'scheduled',
-        lead_name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
-        lead_phone: lead.phone
+        status: 'scheduled'
       })
       .select().single()
+    if (apptErr) console.error('Appointment insert error:', apptErr.message)
 
     if (appointment) {
       await supabase.from('conversations').update({

@@ -184,7 +184,7 @@ const filterLeads = () => {
   updateActiveFilterPills()
 }
 
-const applyFilters = () => filterLeads()
+const applyFilters = () => { filterLeads(); updateFilterBadge() }
 
 const resetFilters = () => {
   const ids = ['sf-search', 'sf-status', 'sf-state', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-date-from', 'sf-date-to']
@@ -199,6 +199,7 @@ const resetFilters = () => {
   document.getElementById('campaign-clear-btn').style.display = 'none'
   renderBucketPills()
   filterLeads()
+  updateFilterBadge()
 }
 
 const updateActiveFilterPills = () => {
@@ -1124,10 +1125,18 @@ const submitImport = async () => {
   finally { document.getElementById('upload-submit-btn').disabled = false }
 }
 
-const dropZone = document.getElementById('drop-zone')
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover') })
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'))
-dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) { importFile = e.dataTransfer.files[0]; document.getElementById('modal-file-name').textContent = importFile.name; openUploadModal() } })
+// Page-level drag-and-drop — opens upload modal with the dropped file
+document.addEventListener('dragover', (e) => { e.preventDefault() })
+document.addEventListener('drop', (e) => {
+  e.preventDefault()
+  // Only handle drops outside the modal's own drop zone
+  if (e.target.closest('#modal-drop-zone')) return
+  if (e.dataTransfer.files[0]) {
+    importFile = e.dataTransfer.files[0]
+    document.getElementById('modal-file-name').textContent = importFile.name
+    openUploadModal()
+  }
+})
 
 // ===== ENROLL MODAL =====
 const openEnrollModal = () => {
@@ -1621,7 +1630,7 @@ const renderChecklist = (checks, done) => {
     { key: 'profile', label: 'Complete your profile', sub: 'Add your name and agency — Settings → Account', action: () => { window.location.href = '/settings.html?panel=account' }, actionText: 'Go to Settings →' },
     { key: 'phone', label: 'Add a phone number', sub: 'Purchase a number to send and receive texts', action: () => { window.location.href = '/settings.html?panel=phone-numbers' }, actionText: 'Go to Settings →' },
     { key: 'campaign', label: 'Create your first campaign', sub: 'Write your drip message sequence', action: () => { window.location.href = '/campaigns.html' }, actionText: 'Go to Campaigns →' },
-    { key: 'leads', label: 'Import your first leads', sub: 'Upload a CSV or Excel file', action: () => document.getElementById('drop-zone').click(), actionText: 'Import now →' }
+    { key: 'leads', label: 'Import your first leads', sub: 'Upload a CSV or Excel file', action: () => openUploadModal(), actionText: 'Import now →' }
   ]
   const pct = Math.round((done / 4) * 100)
   document.getElementById('checklist-bar').style.width = `${pct}%`
@@ -1639,11 +1648,34 @@ const dismissChecklist = () => {
   document.getElementById('onboarding-checklist').style.display = 'none'
 }
 
-const toggleMobileFilters = () => {
+const toggleFilters = () => {
   const panel = document.getElementById('search-panel')
   const arrow = document.getElementById('filters-arrow')
-  const open = panel.classList.toggle('mobile-open')
+  const open = panel.classList.toggle('panel-open')
   arrow.textContent = open ? '▲' : '▼'
+}
+
+// Outside-click collapses the filter panel
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('search-panel')
+  const toggleBtn = document.getElementById('filters-toggle-btn')
+  if (panel?.classList.contains('panel-open') && !panel.contains(e.target) && !toggleBtn?.contains(e.target)) {
+    panel.classList.remove('panel-open')
+    const arrow = document.getElementById('filters-arrow')
+    if (arrow) arrow.textContent = '▼'
+  }
+})
+
+const updateFilterBadge = () => {
+  const filterIds = ['sf-status', 'sf-state', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-date-from', 'sf-date-to']
+  let count = filterIds.filter(id => document.getElementById(id)?.value).length
+  count += (msState['disposition']?.selected || []).length
+  count += (msState['exclude-disposition']?.selected || []).length
+  if (activeCampaignQuickFilter) count++
+  const badge = document.getElementById('filters-count-badge')
+  if (!badge) return
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline'; }
+  else { badge.style.display = 'none'; }
 }
 
 // ===== ACTIONS MENU =====

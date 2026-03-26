@@ -620,9 +620,19 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
 .action-value-area textarea { resize: vertical; min-height: 60px; }
 
 /* =============================================
+   LEADS PAGE TOOLBAR & FILTER BAR
+   ============================================= */
+.leads-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 4px 0; }
+.leads-toolbar h1 { font-size: 22px; font-weight: 700; color: var(--gray-900); margin: 0; }
+.leads-filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.leads-filter-bar input[type="text"] { flex: 1; padding: 8px 14px; border: 1px solid var(--border-default); border-radius: var(--radius-full); font-size: 13px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.leads-filter-bar input[type="text"]:focus { border-color: var(--indigo-400); box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+
+/* =============================================
    SEARCH / FILTER PANEL
    ============================================= */
-.search-panel { background: var(--bg-card); border-radius: var(--radius-xl); padding: 20px 24px; margin-bottom: 20px; border: 1px solid var(--border-default); box-shadow: var(--shadow-xs); }
+.search-panel { display: none; background: var(--bg-card); border-radius: var(--radius-xl); padding: 20px 24px; margin-bottom: 20px; border: 1px solid var(--border-default); box-shadow: var(--shadow-xs); }
+.search-panel.panel-open { display: block; }
 .search-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .search-panel-header h3 { font-size: 15px; font-weight: 600; }
 .search-panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
@@ -813,8 +823,8 @@ input, select, textarea { font-size: 16px; }
 .nav-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 150; }
 .nav-overlay.open { display: block; }
 
-/* Mobile filter toggle */
-.filters-toggle-btn { display: none; }
+/* Filter toggle — used on all screen sizes */
+.filters-toggle-btn { display: inline-flex; }
 
 /* Mobile settings select */
 .settings-nav-mobile { display: none; }
@@ -890,9 +900,7 @@ input, select, textarea { font-size: 16px; }
   .bucket-tabs::-webkit-scrollbar { display: none; }
 
   /* Filter panel — behind toggle */
-  .filters-toggle-btn { display: flex; width: 100%; justify-content: space-between; align-items: center; margin-bottom: 12px; min-height: 44px; }
-  .search-panel { display: none; }
-  .search-panel.mobile-open { display: block; }
+  .leads-filter-bar { flex-wrap: nowrap; }
   .search-panel-grid { grid-template-columns: 1fr 1fr !important; }
 
   /* Leads toolbar */
