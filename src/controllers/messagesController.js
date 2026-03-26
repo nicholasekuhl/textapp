@@ -74,6 +74,7 @@ const sendInitialOutreach = async (req, res) => {
 
     await supabase.from('messages').insert({
       conversation_id: conversation.id,
+      user_id: req.user.id,
       direction: 'outbound',
       body: messageBody,
       sent_at: new Date().toISOString(),
@@ -182,6 +183,7 @@ const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
       if (result.success) {
         await supabase.from('messages').insert({
           conversation_id: conversation.id,
+          user_id: lead.user_id,
           direction: 'outbound',
           body: handoff.message,
           sent_at: new Date().toISOString(),
@@ -273,6 +275,7 @@ const handleIncomingMessage = async (req, res) => {
       if (blockedConv) {
         await supabase.from('messages').insert({
           conversation_id: blockedConv.id,
+          user_id: userId,
           direction: 'inbound',
           body: Body,
           sent_at: new Date().toISOString()
@@ -313,6 +316,7 @@ const handleIncomingMessage = async (req, res) => {
 
     await supabase.from('messages').insert({
       conversation_id: conversation.id,
+      user_id: userId,
       direction: 'inbound',
       body: Body,
       sent_at: new Date().toISOString()
@@ -410,6 +414,7 @@ const handleIncomingMessage = async (req, res) => {
           if (result.success) {
             await supabase.from('messages').insert({
               conversation_id: conversation.id,
+              user_id: userId,
               direction: 'outbound',
               body: aiBody,
               sent_at: new Date().toISOString(),
@@ -465,6 +470,7 @@ const sendManualMessage = async (req, res) => {
 
     await supabase.from('messages').insert({
       conversation_id,
+      user_id: req.user.id,
       direction: 'outbound',
       body: finalBody,
       sent_at: new Date().toISOString(),
@@ -558,6 +564,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       if (confirmResult.success) {
         await supabase.from('messages').insert({
           conversation_id: conversationId,
+          user_id: lead.user_id,
           direction: 'outbound',
           body: confirmText,
           sent_at: new Date().toISOString(),

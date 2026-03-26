@@ -149,6 +149,7 @@ const executeActions = async (lead, actions, dispositionTagId, profile) => {
               if (conversation) {
                 await supabase.from('messages').insert({
                   conversation_id: conversation.id,
+                  user_id: lead.user_id || null,
                   direction: 'outbound',
                   body,
                   sent_at: new Date().toISOString(),

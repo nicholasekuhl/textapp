@@ -186,6 +186,7 @@ const checkGhostedConversations = async () => {
 
       await supabase.from('messages').insert({
         conversation_id: conv.id,
+        user_id: lead.user_id,
         direction: 'outbound',
         body: followupText,
         sent_at: now.toISOString(),
@@ -389,6 +390,7 @@ const processScheduledMessages = async () => {
           .from('messages')
           .insert({
             conversation_id: conversation.id,
+            user_id: enrollment.user_id || null,
             direction: 'outbound',
             body: messageBody,
             sent_at: new Date().toISOString(),
@@ -455,6 +457,7 @@ const processScheduledMessages = async () => {
           if (sm.conversation_id) {
             await supabase.from('messages').insert({
               conversation_id: sm.conversation_id,
+              user_id: sm.user_id || null,
               direction: 'outbound',
               body: sm.body,
               sent_at: now.toISOString(),
