@@ -530,21 +530,36 @@ Today is ${today}. Only return confirmed=true if a specific date+time was mutual
       messages: recentMessages
     })
 
-    return JSON.parse(response.content[0]?.text || '{"confirmed":false}')
-  } catch {
+    const rawText = response.content[0]?.text || '{"confirmed":false}'
+    console.log('detectAppointment raw response:', rawText)
+    return JSON.parse(rawText)
+  } catch (err) {
+    console.error('detectAppointment error:', err.message)
     return { confirmed: false }
   }
 }
 
 const bookAppointment = async (lead, conversationId, appointmentData, profile, fromNumber) => {
   try {
+    console.log('bookAppointment called with:', JSON.stringify(appointmentData))
     const tz = profile?.timezone || 'America/New_York'
     const localStr = appointmentData.datetime
+    if (!localStr || localStr.includes('MM') || localStr.includes('DD')) {
+      console.error('bookAppointment: invalid datetime from detectAppointment:', localStr)
+      return
+    }
+
     const utcDate = new Date(new Date(localStr).toLocaleString('en-US', { timeZone: 'UTC' }))
     const tzDate = new Date(new Date(localStr).toLocaleString('en-US', { timeZone: tz }))
     const offset = utcDate - tzDate
     const scheduledAt = new Date(new Date(localStr).getTime() + offset).toISOString()
 
+    if (!scheduledAt || scheduledAt === 'Invalid Date') {
+      console.error('bookAppointment: could not parse scheduledAt from:', localStr)
+      return
+    }
+
+    console.log('Attempting appointment INSERT for lead', lead.id, 'at', scheduledAt)
     const { data: appointment, error: apptErr } = await supabase
       .from('appointments')
       .insert({
@@ -557,7 +572,13 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
         status: 'scheduled'
       })
       .select().single()
-    if (apptErr) console.error('Appointment insert error:', apptErr.message)
+
+    if (apptErr) {
+      console.error('Appointment insert error:', apptErr.message)
+      console.error('Appointment insert details:', apptErr.details, apptErr.hint, apptErr.code)
+      return
+    }
+    console.log('Appointment created:', appointment?.id, 'at', appointment?.scheduled_at)
 
     if (appointment) {
       await supabase.from('conversations').update({
@@ -575,7 +596,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       await supabase.from('leads').update(bookedUpdate).eq('id', lead.id)
 
       const agentFirstName = profile?.agent_nickname || (profile?.agent_name || 'your agent').split(' ')[0]
-      const confirmText = `Perfect, locked in! ${agentFirstName} will call you ${appointmentData.day_desc} at ${appointmentData.time_desc} — he'll walk you through everything and make it really simple. Looking forward to connecting you two!`
+      const confirmText = `Locked in. ${agentFirstName} will call you ${appointmentData.day_desc} at ${appointmentData.time_desc} and walk you through everything. Looking forward to connecting you two!`
       const confirmResult = await sendSMS(lead.phone, confirmText, fromNumber)
       if (confirmResult.success) {
         await supabase.from('messages').insert({
@@ -592,6 +613,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
     }
   } catch (err) {
     console.error('Appointment booking error:', err.message)
+    console.error('Appointment booking stack:', err.stack)
   }
 }
 
