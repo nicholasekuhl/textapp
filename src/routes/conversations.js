@@ -8,7 +8,8 @@ const {
   getScheduledMessages,
   createScheduledMessage,
   getConversationMessages,
-  markConversationRead
+  markConversationRead,
+  deleteConversation
 } = require('../controllers/conversationsController')
 
 router.get('/', getConversations)
@@ -17,6 +18,7 @@ router.patch('/:id', updateConversation)
 router.patch('/:id/star', starConversation)
 router.patch('/:id/read', markConversationRead)
 router.get('/:id/messages', getConversationMessages)
+router.delete('/:id', deleteConversation)
 router.get('/:id/scheduled', getScheduledMessages)
 router.post('/:id/scheduled', createScheduledMessage)
 

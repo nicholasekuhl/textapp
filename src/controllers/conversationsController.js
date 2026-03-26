@@ -190,6 +190,26 @@ const getConversationMessages = async (req, res) => {
   }
 }
 
+const deleteConversation = async (req, res) => {
+  try {
+    const { data: conv, error: fetchErr } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single()
+    if (fetchErr || !conv) return res.status(404).json({ error: 'Conversation not found' })
+
+    await supabase.from('messages').delete().eq('conversation_id', req.params.id)
+    await supabase.from('conversations').delete().eq('id', req.params.id)
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('deleteConversation error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
 module.exports = {
   getConversations,
   getConversation,
@@ -198,5 +218,6 @@ module.exports = {
   getScheduledMessages,
   createScheduledMessage,
   getConversationMessages,
-  markConversationRead
+  markConversationRead,
+  deleteConversation
 }

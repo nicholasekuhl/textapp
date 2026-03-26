@@ -611,6 +611,7 @@
                   : `<button onclick="blockConvLead('${lead?.id}','${conv.id}');closeAllMenus()">🚫 Block lead</button>`}
                 <button onclick="resumeLeadCampaigns('${lead?.id}',this)">▶ Resume campaigns</button>
                 <button onclick="markConvResolved('${conv.id}');closeAllMenus()">✓ Mark resolved</button>
+                <button onclick="deleteConversation('${conv.id}');closeAllMenus()" style="color:#ef4444;">🗑 Delete conversation</button>
               </div>
             </div>
             <button id="conv3-right-toggle" class="conv3-icon-btn" onclick="toggleRightPanel()" title="${rightPanelOpen ? 'Hide details' : 'Show details'}" style="font-size:16px;">${rightPanelOpen ? '›' : '‹'}</button>
@@ -808,6 +809,18 @@
     await fetch(`/conversations/${convId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ needs_agent_review: false, handoff_reason: null }) })
     await loadConversations()
     openConversation(convId)
+  }
+
+  const deleteConversation = async (convId) => {
+    if (!confirm('Delete this conversation and all messages? This cannot be undone.')) return
+    const res = await fetch(`/conversations/${convId}`, { method: 'DELETE' })
+    if (!res.ok) { showToast('Failed to delete conversation', 'error'); return }
+    allConversations = allConversations.filter(c => c.id !== convId)
+    filterConversations(document.getElementById('conv3-search')?.value || '')
+    const center = document.getElementById('conv3-center')
+    if (center) center.innerHTML = '<div class="conv3-empty"><div style="font-size:28px;margin-bottom:8px;">💬</div><div style="color:#9ca3af;font-size:13px;">Select a conversation to get started</div></div>'
+    document.getElementById('conv3-layout')?.classList.remove('conv3-open')
+    showToast('Conversation deleted', 'success')
   }
 
   const reEnableAutopilot = async (leadId, convId) => {

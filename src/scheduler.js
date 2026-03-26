@@ -91,7 +91,15 @@ const generateFollowupMessage = async (lead, history, profile, followupContext) 
 
 Rules: never be pushy, maximum 1-2 sentences, use the lead's first name once if appropriate, do not repeat phrases from previous messages, sound like a real person texting.`
 
-    const messagesToSend = history.length > 0 ? history.slice(-6) : [{ role: 'user', content: 'Hi' }]
+    const messagesToSend = history.length > 0 ? history.slice(-20) : [{ role: 'user', content: 'Hi' }]
+
+    if (messagesToSend.length === 0 || messagesToSend[messagesToSend.length - 1].role === 'assistant') {
+      messagesToSend.push({
+        role: 'user',
+        content: '[The lead has not responded. Generate a brief, warm, casual follow-up check-in message under 2 sentences. Do not restart the conversation.]'
+      })
+    }
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 150,
@@ -121,6 +129,10 @@ const checkGhostedConversations = async () => {
     if (!conversations || conversations.length === 0) return
 
     for (const conv of conversations) {
+      if (conv.followup_stage === 'stage4' || conv.needs_agent_review === true || conv.engagement_status === 'dormant') {
+        continue
+      }
+
       const lastOutbound = new Date(conv.last_outbound_at)
       const lastInbound = conv.last_inbound_at ? new Date(conv.last_inbound_at) : null
 
