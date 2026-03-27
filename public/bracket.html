@@ -19,7 +19,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;min-height:100vh}
 
-  /* ── Header ── */
+  /* Header */
   header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100}
   header h1{font-size:17px;font-weight:600}
   header p{font-size:11px;color:var(--text2);margin-top:2px}
@@ -29,37 +29,47 @@
   .mode-badge.view{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
   button{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:6px 13px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
   button:hover{background:var(--border)}
-  button.btn-blue{border-color:var(--blue-bd);color:var(--blue)}
-  button.btn-blue:hover{background:var(--blue-bg)}
-  button.btn-green{border-color:var(--green-bd);color:var(--green)}
-  button.btn-green:hover{background:var(--green-bg)}
-  button.btn-red{border-color:var(--red-bd);color:var(--red)}
-  button.btn-red:hover{background:var(--red-bg)}
-  button.btn-teal{border-color:var(--teal-bd);color:var(--teal)}
-  button.btn-teal:hover{background:var(--teal-bg)}
+  button.btn-blue{border-color:var(--blue-bd);color:var(--blue)}   button.btn-blue:hover{background:var(--blue-bg)}
+  button.btn-green{border-color:var(--green-bd);color:var(--green)} button.btn-green:hover{background:var(--green-bg)}
+  button.btn-red{border-color:var(--red-bd);color:var(--red)}       button.btn-red:hover{background:var(--red-bg)}
+  button.btn-teal{border-color:var(--teal-bd);color:var(--teal)}    button.btn-teal:hover{background:var(--teal-bg)}
   #save-status{font-size:11px;color:var(--text3);min-width:60px}
 
-  /* ── Modal ── */
+  /* Modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:center;justify-content:center}
-  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:26px;width:340px;max-width:94vw}
+  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:26px;width:360px;max-width:94vw}
   .modal h2{font-size:15px;font-weight:600;margin-bottom:16px}
-  .modal input{width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:10px}
+  .modal label{font-size:11px;color:var(--text2);display:block;margin-bottom:4px}
+  .modal input[type=text],.modal input[type=number],.modal input[type=password]{width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:12px}
   .modal input:focus{outline:none;border-color:var(--blue)}
   .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
   .modal-err{font-size:11px;color:var(--red);min-height:16px;margin-bottom:6px}
+  .modal-section{border-top:1px solid var(--border);margin-top:14px;padding-top:14px}
+  .modal-section h3{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em}
   .hidden{display:none!important}
 
-  /* ── Layout ── */
+  /* Settings dropdown */
+  .settings-dropdown{position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:6px;z-index:150;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+  .sd-header{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:4px 10px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+  .sd-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:background .12s}
+  .sd-item:hover{background:var(--bg3)}
+  .sd-item.danger{color:var(--red)}
+  .sd-item.danger:hover{background:var(--red-bg)}
+  .sd-item.winner-action{color:var(--green)}
+  .sd-item.winner-action:hover{background:var(--green-bg)}
+  .sd-divider{border:none;border-top:1px solid var(--border);margin:4px 0}
+
+  /* Layout */
   .main{display:flex;align-items:flex-start}
   .bracket-scroll{overflow-x:auto;flex:1;padding:20px}
   .rounds{display:flex;align-items:flex-start;min-width:1500px}
 
-  /* ── Round columns ── */
+  /* Round columns */
   .round-col{display:flex;flex-direction:column;padding:0 4px}
-  .round-col.r0{min-width:210px} /* R1 wider for AV input */
+  .round-col.r0{min-width:210px}
   .round-col.r1{min-width:190px}
   .round-col.r2{min-width:190px}
-  .round-col.seed{min-width:220px}
+  .round-col.seed{min-width:225px}
   .round-col.finals{min-width:190px;display:flex;flex-direction:column;gap:10px;justify-content:center}
   .round-head{text-align:center;margin-bottom:10px}
   .rtitle{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
@@ -68,46 +78,45 @@
   .match-num{font-size:10px;color:var(--text3);text-align:right;padding:0 2px 2px}
   .ref-lbl{font-size:9px;color:var(--amber)}
 
-  /* ── Slots ── */
-  .slot{display:flex;align-items:center;min-height:38px;border:1px solid var(--border);border-radius:5px;padding:0 7px;margin:1px 0;background:var(--bg2);gap:5px;transition:background .12s,border-color .12s;position:relative}
+  /* Slots */
+  .slot{display:flex;align-items:center;min-height:40px;border:1px solid var(--border);border-radius:5px;padding:4px 7px;margin:1px 0;background:var(--bg2);gap:5px;transition:background .12s,border-color .12s;position:relative}
   .slot.clickable{cursor:pointer}
   .slot.clickable:hover{background:var(--bg3);border-color:var(--border2)}
   .slot.winner{background:var(--green-bg);border-color:var(--green-bd)}
   .slot.winner .sname{color:var(--green);font-weight:500}
   .slot.av-bye{background:var(--teal-bg);border-color:var(--teal-bd);border-style:dashed}
-  .slot.av-bye .sname{color:var(--teal);font-style:italic}
+  .slot.av-bye .sname{color:var(--teal)}
   .slot.empty .sname{color:var(--text3)}
   .snum{font-size:10px;color:var(--text3);min-width:18px;flex-shrink:0;font-weight:500}
-  .sname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;cursor:text}
 
-  /* Slot inner layout: name row + av row stacked */
-  .slot-inner{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;padding:4px 0}
-  .slot-name-row{display:flex;align-items:center;gap:4px;min-width:0}
+  /* Slot inner stacked layout */
+  .slot-inner{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden}
+  .slot-name-row{display:flex;align-items:center;gap:5px;min-width:0}
+  .sname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;flex:1}
   .slot-av-row{display:flex;align-items:center;gap:4px}
   .av-label{font-size:9px;color:var(--text3);flex-shrink:0}
-  .av-inp{flex:1;max-width:100px;padding:2px 6px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--amber);font-size:11px;font-family:inherit;text-align:right;transition:border-color .15s}
+  .av-inp{flex:1;max-width:110px;padding:2px 6px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--amber);font-size:11px;font-family:inherit;text-align:right;transition:border-color .15s}
   .av-inp:focus{outline:none;border-color:var(--amber);background:var(--bg)}
   .av-inp::placeholder{color:var(--text3);font-size:9px}
   .av-display{font-size:10px;color:var(--amber);font-weight:500}
 
+  /* Settings gear button on slot (admin only) */
+  .slot-gear{flex-shrink:0;width:20px;height:20px;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--text3);transition:background .12s,color .12s}
+  .slot-gear:hover{background:var(--border);color:var(--text)}
+
   /* Bye badge */
-  .bye-badge{font-size:9px;padding:1px 6px;border-radius:3px;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-bd);white-space:nowrap;flex-shrink:0}
+  .bye-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-bd);white-space:nowrap;flex-shrink:0}
 
-  /* Inline edit */
-  .name-edit{border:none;background:transparent;font-size:12px;color:var(--text);font-family:inherit;flex:1;outline:none;min-width:0;border-bottom:1px solid var(--border2)}
-
-  /* ── Seeding panel ── */
+  /* Seeding */
   .seed-panel{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:32px}
   .seed-panel h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-  .seed-note{font-size:10px;color:var(--text3);margin-bottom:10px;line-height:1.5}
+  .seed-note{font-size:10px;color:var(--text3);margin-bottom:10px;line-height:1.6}
   .seed-row{display:flex;align-items:center;gap:7px;min-height:34px;border-radius:5px;padding:4px 10px;margin:3px 0;border:1px solid var(--border)}
   .seed-row.top2{background:var(--green-bg);border-color:var(--green-bd)}
   .seed-row.mid2{background:var(--bg3);border-color:var(--border2)}
   .seed-row.bot2{background:var(--red-bg);border-color:var(--red-bd);opacity:.7}
   .seed-rank{font-size:12px;font-weight:700;min-width:28px;flex-shrink:0}
-  .top2 .seed-rank{color:var(--gold)}
-  .mid2 .seed-rank{color:var(--silver)}
-  .bot2 .seed-rank{color:var(--red)}
+  .top2 .seed-rank{color:var(--gold)} .mid2 .seed-rank{color:var(--silver)} .bot2 .seed-rank{color:var(--red)}
   .seed-info{flex:1;min-width:0}
   .seed-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
   .seed-av{font-size:10px;color:var(--amber);margin-top:1px}
@@ -119,7 +128,7 @@
   .rank-btn{margin-top:10px;width:100%;font-size:11px;border-color:var(--teal-bd);color:var(--teal)}
   .rank-btn:hover{background:var(--teal-bg)}
 
-  /* ── Finals ── */
+  /* Finals */
   .final-card{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:14px}
   .final-card h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
   .final-result{margin-top:7px;padding:6px 10px;border-radius:5px;font-size:12px;font-weight:600;min-height:30px;background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
@@ -128,30 +137,28 @@
   .final-result.bronze{background:#1e1208;border-color:var(--bronze);color:var(--bronze)}
   .elim-slot{display:flex;align-items:center;height:28px;padding:0 8px;margin:2px 0;border-radius:4px;background:var(--red-bg);border:1px solid var(--red-bd);font-size:12px;color:var(--red);opacity:.6}
 
-  /* ── AV Leaderboard sidebar ── */
-  .lb-wrap{width:260px;flex-shrink:0;padding:20px 16px 20px 0}
+  /* Leaderboard */
+  .lb-wrap{width:258px;flex-shrink:0;padding:20px 16px 20px 0}
   .lb-panel{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:16px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow-y:auto}
-  .lb-panel::-webkit-scrollbar{width:4px}
-  .lb-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .lb-panel::-webkit-scrollbar{width:4px} .lb-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
   .lb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .lb-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
   .lb-count{font-size:10px;color:var(--text3)}
+  .lb-tabs{display:flex;gap:4px;margin-bottom:10px}
+  .lb-tab{flex:1;padding:4px 0;text-align:center;font-size:10px;border-radius:4px;border:1px solid var(--border2);cursor:pointer;color:var(--text2);background:var(--bg3);transition:background .12s}
+  .lb-tab.active{background:var(--amber);border-color:var(--amber);color:#000;font-weight:600}
   .lb-search{width:100%;padding:5px 9px;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:11px;font-family:inherit;margin-bottom:10px}
   .lb-search:focus{outline:none;border-color:var(--blue)}
   .lb-table{width:100%;border-collapse:collapse;font-size:12px}
-  .lb-table tr{border-bottom:1px solid var(--border)}
-  .lb-table tr:last-child{border-bottom:none}
+  .lb-table tr{border-bottom:1px solid var(--border)} .lb-table tr:last-child{border-bottom:none}
   .lb-table td{padding:7px 3px;vertical-align:middle}
   .lb-rank{width:24px;font-size:11px;font-weight:700;color:var(--text3);text-align:center;padding-right:4px}
-  .lb-rank.r1{color:var(--gold);font-size:15px}
-  .lb-rank.r2{color:var(--silver);font-size:13px}
-  .lb-rank.r3{color:var(--bronze);font-size:12px}
+  .lb-rank.r1{color:var(--gold);font-size:15px} .lb-rank.r2{color:var(--silver);font-size:13px} .lb-rank.r3{color:var(--bronze);font-size:12px}
   .lb-name-cell{max-width:105px}
   .lb-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:12px;font-weight:500}
-  .lb-stage{font-size:9px;color:var(--text3);margin-top:1px}
   .lb-rounds{font-size:9px;color:var(--text3);margin-top:1px}
   .lb-bar-wrap{height:2px;background:var(--border);border-radius:2px;margin-top:3px}
-  .lb-bar{height:2px;border-radius:2px;transition:width .5s ease}
+  .lb-bar{height:2px;border-radius:2px;transition:width .5s}
   .lb-av-cell{text-align:right;white-space:nowrap;padding-left:4px}
   .lb-av{color:var(--amber);font-weight:600;font-size:12px}
   .lb-av-sub{font-size:9px;color:var(--text3);margin-top:1px}
@@ -159,9 +166,6 @@
   .lb-footer-label{font-size:10px;color:var(--text2)}
   .lb-footer-val{font-size:14px;font-weight:700;color:var(--amber)}
   .lb-empty{font-size:11px;color:var(--text3);padding:16px 4px;text-align:center;line-height:1.7}
-  .lb-tabs{display:flex;gap:4px;margin-bottom:10px}
-  .lb-tab{flex:1;padding:4px 0;text-align:center;font-size:10px;border-radius:4px;border:1px solid var(--border2);cursor:pointer;color:var(--text2);background:var(--bg3)}
-  .lb-tab.active{background:var(--amber);border-color:var(--amber);color:#000;font-weight:600}
 </style>
 </head>
 <body>
@@ -179,10 +183,42 @@
   </div>
 </div>
 
+<!-- Slot Settings Modal -->
+<div class="modal-overlay hidden" id="slot-modal">
+  <div class="modal">
+    <h2 id="slot-modal-title">Edit Slot</h2>
+    <div class="modal-section">
+      <h3>Team Name</h3>
+      <input type="text" id="slot-name-input" placeholder="Team name" maxlength="30"/>
+    </div>
+    <div class="modal-section" id="slot-av-section">
+      <h3>AV Scores</h3>
+      <label>R1 Annual Volume</label>
+      <input type="number" id="slot-av-r1" min="0" step="any" placeholder="$0"/>
+      <label>R2 Annual Volume</label>
+      <input type="number" id="slot-av-r2" min="0" step="any" placeholder="$0"/>
+      <label>R3 Annual Volume</label>
+      <input type="number" id="slot-av-r3" min="0" step="any" placeholder="$0"/>
+    </div>
+    <div class="modal-section modal-section-danger" id="slot-danger-section">
+      <h3 style="color:var(--red)">Danger Zone</h3>
+      <button class="btn-red" style="width:100%;margin-bottom:6px" onclick="clearSlotFromModal()">🗑 Clear this team from bracket</button>
+      <div style="font-size:10px;color:var(--text3)">Removes team name and AV scores. Clears downstream rounds.</div>
+    </div>
+    <div class="modal-btns" style="margin-top:14px">
+      <button onclick="closeSlotModal()">Cancel</button>
+      <button class="btn-green" onclick="saveSlotModal()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings dropdown (rendered into body) -->
+<div class="settings-dropdown hidden" id="settings-dd"></div>
+
 <header>
   <div>
     <h1>44-Team Tournament Bracket</h1>
-    <p>Live bracket — updates automatically · Double-click any name to edit · AV tracked per round</p>
+    <p>Live bracket — updates automatically · Click ⚙ on any slot to edit (admin only)</p>
   </div>
   <div class="hbtns">
     <span class="mode-badge view" id="mode-badge">👁 View only</span>
@@ -198,8 +234,6 @@
   <div class="bracket-scroll">
     <div class="rounds" id="rounds"></div>
   </div>
-
-  <!-- AV Leaderboard -->
   <div class="lb-wrap">
     <div class="lb-panel">
       <div class="lb-header">
@@ -207,10 +241,10 @@
         <span class="lb-count" id="lb-count"></span>
       </div>
       <div class="lb-tabs">
-        <div class="lb-tab active" onclick="setLbTab('r3')" id="tab-r3">R3 (Seeding)</div>
-        <div class="lb-tab" onclick="setLbTab('total')" id="tab-total">Total AV</div>
-        <div class="lb-tab" onclick="setLbTab('r1')" id="tab-r1">R1</div>
-        <div class="lb-tab" onclick="setLbTab('r2')" id="tab-r2">R2</div>
+        <div class="lb-tab active" onclick="setLbTab('r3')"    id="tab-r3">R3 (Seed)</div>
+        <div class="lb-tab"        onclick="setLbTab('total')" id="tab-total">Total</div>
+        <div class="lb-tab"        onclick="setLbTab('r1')"    id="tab-r1">R1</div>
+        <div class="lb-tab"        onclick="setLbTab('r2')"    id="tab-r2">R2</div>
       </div>
       <input class="lb-search" id="lb-search" placeholder="Search team…" oninput="renderLeaderboard()"/>
       <table class="lb-table"><tbody id="lb-body">
@@ -238,254 +272,278 @@ async function doLogin() {
   try {
     const res=await fetch('/bracket/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
     const data=await res.json()
-    if (!res.ok) { err.textContent=data.error||'Wrong password'; return }
+    if (!res.ok){err.textContent=data.error||'Wrong password';return}
     adminToken=data.token; localStorage.setItem('bracket_token',adminToken); isAdmin=true
     closeLogin(); document.getElementById('login-pw').value=''; applyAdminMode(); render()
-  } catch(e) { err.textContent='Network error' }
+  } catch(e){err.textContent='Network error'}
 }
-document.getElementById('login-pw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin() })
+document.getElementById('login-pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()})
 
-function logoutAdmin() { adminToken=null; isAdmin=false; localStorage.removeItem('bracket_token'); applyAdminMode(); render() }
+function logoutAdmin(){adminToken=null;isAdmin=false;localStorage.removeItem('bracket_token');applyAdminMode();render()}
 
-function applyAdminMode() {
-  const badge=document.getElementById('mode-badge'), btn=document.getElementById('admin-login-btn')
-  if (isAdmin) { badge.textContent='⚡ Admin mode'; badge.className='mode-badge admin'; btn.classList.add('hidden'); document.querySelectorAll('.admin-only').forEach(el=>el.classList.remove('hidden')) }
-  else         { badge.textContent='👁 View only';  badge.className='mode-badge view';  btn.classList.remove('hidden'); document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden')) }
+function applyAdminMode(){
+  const badge=document.getElementById('mode-badge'),btn=document.getElementById('admin-login-btn')
+  if(isAdmin){badge.textContent='⚡ Admin mode';badge.className='mode-badge admin';btn.classList.add('hidden');document.querySelectorAll('.admin-only').forEach(el=>el.classList.remove('hidden'))}
+  else{badge.textContent='👁 View only';badge.className='mode-badge view';btn.classList.remove('hidden');document.querySelectorAll('.admin-only').forEach(el=>el.classList.add('hidden'))}
+}
+
+// ── Slot Settings Modal ───────────────────────────────────────────────────
+let _editCtx = null  // {ri, mi, side}
+
+function openSlotModal(ri, mi, side) {
+  const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
+  _editCtx = {ri, mi, side}
+  document.getElementById('slot-modal-title').textContent = `Edit: ${so.name||'Empty slot'}`
+  document.getElementById('slot-name-input').value = so.name || ''
+  const name = so.name || ''
+  document.getElementById('slot-av-r1').value = getAV(name,'r1') || ''
+  document.getElementById('slot-av-r2').value = getAV(name,'r2') || ''
+  document.getElementById('slot-av-r3').value = getAV(name,'r3') || ''
+  document.getElementById('slot-modal').classList.remove('hidden')
+  setTimeout(()=>document.getElementById('slot-name-input').focus(), 50)
+}
+
+function closeSlotModal(){document.getElementById('slot-modal').classList.add('hidden');_editCtx=null}
+
+function saveSlotModal(){
+  if (!_editCtx) return
+  const {ri,mi,side}=_editCtx
+  const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
+  const oldName = so.name||''
+  const newName = document.getElementById('slot-name-input').value.trim() || oldName
+
+  // Migrate AV scores if name changed
+  if (newName !== oldName && oldName && avScores[oldName]) {
+    avScores[newName] = avScores[oldName]; delete avScores[oldName]
+  }
+  if (!avScores[newName]) avScores[newName] = {}
+
+  so.name = newName
+  if (ri===0) teams[mi*2+side] = newName
+
+  const r1v=parseFloat(document.getElementById('slot-av-r1').value)||0
+  const r2v=parseFloat(document.getElementById('slot-av-r2').value)||0
+  const r3v=parseFloat(document.getElementById('slot-av-r3').value)||0
+  if(r1v) setAV(newName,'r1',r1v); else if(avScores[newName]) delete avScores[newName].r1
+  if(r2v) setAV(newName,'r2',r2v); else if(avScores[newName]) delete avScores[newName].r2
+  if(r3v) setAV(newName,'r3',r3v); else if(avScores[newName]) delete avScores[newName].r3
+
+  closeSlotModal(); scheduleSave(); render(); renderLeaderboard()
+}
+
+function clearSlotFromModal(){
+  if (!_editCtx) return
+  const {ri,mi,side}=_editCtx
+  const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
+  const name = so.name
+  if (!confirm(`Clear "${name||'this slot'}" from the bracket? This will remove them from all downstream rounds.`)) return
+  // Delete AV
+  if (name && avScores[name]) delete avScores[name]
+  // Clear slot
+  so.name=''
+  if (ri===0) teams[mi*2+side]=`Team ${mi*2+side+1}`
+  // Clear winner if this was the winner
+  if (bracket[ri][mi].winner===side) { bracket[ri][mi].winner=null; clearDown(ri,mi) }
+  // Also sweep all rounds for this name
+  if (name) sweepName(name)
+  closeSlotModal(); scheduleSave(); render(); renderLeaderboard()
+}
+
+// Remove a team name from anywhere it appears in the bracket
+function sweepName(name){
+  bracket.forEach((round,ri)=>{
+    round.forEach((m,mi)=>{
+      if(m.a.name===name){m.a.name='';if(m.winner===0){m.winner=null;clearDown(ri,mi)}}
+      if(m.b.name===name){m.b.name='';if(m.winner===1){m.winner=null;clearDown(ri,mi)}}
+    })
+  })
+  seedingTeams=seedingTeams.map(t=>t===name?'':t)
+  if(byeTeam===name) byeTeam=''
+  if(finals.top.a===name){finals.top.a='';if(finals.top.winner===0)finals.top.winner=null}
+  if(finals.top.b===name){finals.top.b='';if(finals.top.winner===1)finals.top.winner=null}
+  if(finals.third.a===name){finals.third.a='';if(finals.third.winner===0)finals.third.winner=null}
+  if(finals.third.b===name){finals.third.b='';if(finals.third.winner===1)finals.third.winner=null}
+  if(finals.champion===name) finals.champion=''
+  if(finals.thirdPlace===name) finals.thirdPlace=''
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
-// avScores: { teamName: { r1: number, r2: number, r3: number } }
 let teams        = Array.from({length:44},(_,i)=>`Team ${i+1}`)
 let avScores     = {}
-let bracket      = []   // [r0(22), r1(11), r2(6 slots)]
-let seedingTeams = Array(6).fill('')  // ranked by R3 AV
-let byeTeam      = ''   // team that gets R3 bye (highest R2 AV)
+let bracket      = []
+let seedingTeams = Array(6).fill('')
+let byeTeam      = ''
 let finals       = {top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''}
 
 const REFS={0:'Austin',1:'Austin',2:'Austin',3:'Austin',4:'Austin/Stacks',5:'Stacks',6:'Stacks',7:'Stacks',8:'Stacks',9:'Stacks',10:'Jared',11:'Jared',12:'Jared',13:'Jared',14:'Jared',15:'Jared',16:'David',17:'David',18:'David',19:'David',20:'David',21:'David'}
 
-function initBracket() {
+function initBracket(){
   finals={top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''}
   seedingTeams=Array(6).fill(''); byeTeam=''
   bracket=[
-    Array.from({length:22},(_,i)=>({a:{name:teams[i*2]},   b:{name:teams[i*2+1]},winner:null})),
-    Array.from({length:11},()   =>({a:{name:''},            b:{name:''},           winner:null})),
-    // R3: 5 real matches (idx 0-4), idx 5 = bye slot (auto-populated)
-    Array.from({length:6}, (_,i)=>({a:{name:''},b:{name:''},winner:null,isByeSlot:i===5}))
+    Array.from({length:22},(_,i)=>({a:{name:teams[i*2]},b:{name:teams[i*2+1]},winner:null})),
+    Array.from({length:11},()=>({a:{name:''},b:{name:''},winner:null})),
+    Array.from({length:6},(_,i)=>({a:{name:'',avBye:i===5},b:{name:i===5?'—':'',bye:i===5},winner:null,isByeSlot:i===5}))
   ]
 }
 
-function getAV(name, round) { return parseFloat(avScores[name]?.[round]||0)||0 }
-function setAV(name, round, val) { if (!avScores[name]) avScores[name]={}; avScores[name][round]=val }
-function totalAV(name) { return getAV(name,'r1')+getAV(name,'r2')+getAV(name,'r3') }
-
-function getState()   { return {teams,avScores,bracket,seedingTeams,byeTeam,finals} }
-function loadState(s) {
-  if (!s) return
-  if (s.teams)        teams=s.teams
-  if (s.avScores)     avScores=s.avScores
-  if (s.bracket)      bracket=s.bracket
-  if (s.seedingTeams) seedingTeams=s.seedingTeams
-  if (s.byeTeam!==undefined) byeTeam=s.byeTeam
-  if (s.finals)       finals=s.finals
+function getAV(name,round){return parseFloat(avScores[name]?.[round]||0)||0}
+function setAV(name,round,val){if(!avScores[name])avScores[name]={};avScores[name][round]=val}
+function totalAV(name){return getAV(name,'r1')+getAV(name,'r2')+getAV(name,'r3')}
+function getState(){return{teams,avScores,bracket,seedingTeams,byeTeam,finals}}
+function loadState(s){
+  if(!s)return
+  if(s.teams)teams=s.teams
+  if(s.avScores)avScores=s.avScores
+  if(s.bracket){
+    // Sanitize: ensure bye slot is clean
+    if(s.bracket[2]&&s.bracket[2][5]){
+      const bs=s.bracket[2][5]
+      if(!bs.isByeSlot) bs.isByeSlot=true
+      // Remove stale avBye flag from name slot if it was accidentally set
+    }
+    bracket=s.bracket
+  }
+  if(s.seedingTeams)seedingTeams=s.seedingTeams
+  if(s.byeTeam!==undefined)byeTeam=s.byeTeam||''
+  if(s.finals)finals=s.finals
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────
 let saveTimer=null
 
-async function loadBracket() {
-  try { const res=await fetch('/bracket/state'); const data=await res.json(); if(data.state) loadState(data.state); else initBracket() }
-  catch(e) { initBracket() }
-  render(); renderLeaderboard()
+async function loadBracket(){
+  try{const res=await fetch('/bracket/state');const data=await res.json();if(data.state)loadState(data.state);else initBracket()}
+  catch(e){initBracket()}
+  render();renderLeaderboard()
 }
 
-async function saveBracket() {
-  if (!isAdmin) return
-  const status=document.getElementById('save-status'); status.textContent='Saving…'
-  try {
+async function saveBracket(){
+  if(!isAdmin)return
+  const status=document.getElementById('save-status');status.textContent='Saving…'
+  try{
     const res=await fetch('/bracket/save',{method:'POST',headers:{'Content-Type':'application/json','x-bracket-token':adminToken},body:JSON.stringify({state:getState()})})
-    if (res.status===401) { isAdmin=false; adminToken=null; localStorage.removeItem('bracket_token'); applyAdminMode(); status.textContent='Session expired'; return }
-    status.textContent='✓ Saved'; setTimeout(()=>status.textContent='',2500)
-  } catch(e) { status.textContent='Save failed' }
+    if(res.status===401){isAdmin=false;adminToken=null;localStorage.removeItem('bracket_token');applyAdminMode();status.textContent='Session expired';return}
+    status.textContent='✓ Saved';setTimeout(()=>status.textContent='',2500)
+  }catch(e){status.textContent='Save failed'}
 }
 
-function scheduleSave() { if(!isAdmin) return; clearTimeout(saveTimer); saveTimer=setTimeout(saveBracket,1500) }
+function scheduleSave(){if(!isAdmin)return;clearTimeout(saveTimer);saveTimer=setTimeout(saveBracket,1500)}
 
-setInterval(async()=>{ if(isAdmin) return; try { const res=await fetch('/bracket/state'); const data=await res.json(); if(data.state){loadState(data.state);render();renderLeaderboard()} } catch(e){} },8000)
+setInterval(async()=>{
+  if(isAdmin)return
+  try{const res=await fetch('/bracket/state');const data=await res.json();if(data.state){loadState(data.state);render();renderLeaderboard()}}
+  catch(e){}
+},8000)
 
-// ── Bye + Seeding logic ───────────────────────────────────────────────────
-// Called by admin button "Calc R3 bye + seed"
-// 1. Find team with highest R2 AV from all R2 match participants → that's the bye team
-// 2. Bye team auto-fills slot 5 of R3 (they still need R3 AV entered)
-// 3. After R3 week, seed all 6 teams (5 winners + bye) by their R3 AV descending
-function calcByeAndSeed() {
-  if (!isAdmin) return
-
-  // Collect all teams that appeared in R2 (bracket[1])
-  let r2teams = []
-  bracket[1].forEach(m=>{ if(m.a.name) r2teams.push(m.a.name); if(m.b.name) r2teams.push(m.b.name) })
-  r2teams = [...new Set(r2teams)].filter(Boolean)
-
-  // Find highest R2 AV
-  let best='', bestAV=-1
-  r2teams.forEach(name=>{ const av=getAV(name,'r2'); if(av>bestAV){bestAV=av;best=name} })
-
-  if (!best) { alert('Enter R2 AV scores first — the highest R2 AV will receive the R3 bye.'); return }
-
+// ── Bye + Seeding ─────────────────────────────────────────────────────────
+function calcByeAndSeed(){
+  if(!isAdmin)return
+  let r2teams=[]
+  bracket[1].forEach(m=>{if(m.a.name)r2teams.push(m.a.name);if(m.b.name)r2teams.push(m.b.name)})
+  r2teams=[...new Set(r2teams)].filter(Boolean)
+  let best='',bestAV=-1
+  r2teams.forEach(name=>{const av=getAV(name,'r2');if(av>bestAV){bestAV=av;best=name}})
+  if(!best){alert('Enter R2 AV scores first — the highest R2 AV will receive the R3 bye.');return}
   byeTeam=best
-  // Put bye team in R3 slot 5
-  bracket[2][5].a.name=best
-  bracket[2][5].b.name='BYE'
-  bracket[2][5].winner=0  // auto-wins (advances to seeding)
-  bracket[2][5].isByeSlot=true
-
-  alert(`✅ R3 bye awarded to: ${best} (R2 AV: $${bestAV.toLocaleString()})\n\nThey auto-advance but still need their R3 AV entered this week.\n\nAfter entering all R3 AV scores, use "Calc R3 bye + seed" again to rank the seeding round.`)
-
-  // Now seed by R3 AV if we have 6 teams in R3
-  seedFromR3AV()
-  scheduleSave(); render(); renderLeaderboard()
+  bracket[2][5].a.name=best; bracket[2][5].b.name='BYE'; bracket[2][5].winner=0; bracket[2][5].isByeSlot=true
+  alert(`✅ R3 bye → ${best} (R2 AV: $${bestAV.toLocaleString()})\n\nThey auto-advance but still need R3 AV entered.\nRe-run this after all R3 AV scores are in to rank seeding.`)
+  seedFromR3AV(); scheduleSave(); render(); renderLeaderboard()
 }
 
-function seedFromR3AV() {
-  // Collect 6 R3 teams: 5 R3 match winners + bye team
-  let r3teams = []
-  for (let i=0;i<5;i++) {
-    const m=bracket[2][i]
-    if (m.winner===0&&m.a.name) r3teams.push(m.a.name)
-    else if (m.winner===1&&m.b.name) r3teams.push(m.b.name)
-    else if (m.a.name) r3teams.push(m.a.name)  // include even if winner not set yet
-  }
-  if (byeTeam&&!r3teams.includes(byeTeam)) r3teams.push(byeTeam)
+function seedFromR3AV(){
+  let r3teams=[]
+  for(let i=0;i<5;i++){const m=bracket[2][i];const w=m.winner===0?m.a.name:m.winner===1?m.b.name:m.a.name;if(w)r3teams.push(w)}
+  if(byeTeam&&!r3teams.includes(byeTeam))r3teams.push(byeTeam)
   r3teams=[...new Set(r3teams)].filter(Boolean)
-
-  // Sort by R3 AV descending
   r3teams.sort((a,b)=>getAV(b,'r3')-getAV(a,'r3'))
-  for (let i=0;i<6;i++) seedingTeams[i]=r3teams[i]||''
-
-  // Push top 2 to finals top, next 2 to finals third
-  finals.top.a=seedingTeams[0]||''; finals.top.b=seedingTeams[1]||''
-  finals.third.a=seedingTeams[2]||''; finals.third.b=seedingTeams[3]||''
-  finals.top.winner=null; finals.third.winner=null; finals.champion=''; finals.thirdPlace=''
+  for(let i=0;i<6;i++)seedingTeams[i]=r3teams[i]||''
+  finals.top.a=seedingTeams[0]||'';finals.top.b=seedingTeams[1]||''
+  finals.third.a=seedingTeams[2]||'';finals.third.b=seedingTeams[3]||''
+  finals.top.winner=null;finals.third.winner=null;finals.champion='';finals.thirdPlace=''
 }
 
-// ── Bracket click logic ───────────────────────────────────────────────────
-function clickSlot(ri,mi,side) {
-  if (!isAdmin) return
-  const m=bracket[ri][mi], s=side===0?m.a:m.b
-  if (!s||!s.name||m.isByeSlot) return
-  if (m.winner===side) { m.winner=null; clearDown(ri,mi) }
-  else { m.winner=side; pushWin(ri,mi) }
-  scheduleSave(); render(); renderLeaderboard()
+// ── Bracket click / win logic ─────────────────────────────────────────────
+function clickSlot(ri,mi,side){
+  if(!isAdmin)return
+  const m=bracket[ri][mi],s=side===0?m.a:m.b
+  if(!s||!s.name||m.isByeSlot)return
+  if(m.winner===side){m.winner=null;clearDown(ri,mi)}
+  else{m.winner=side;pushWin(ri,mi)}
+  scheduleSave();render();renderLeaderboard()
 }
 
-function pushWin(ri,mi) {
-  const m=bracket[ri][mi]; if(m.winner===null) return
-  const name=winnerName(m)
-  if (ri===0) { const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b'; bracket[1][nmi][ns].name=name; if(bracket[1][nmi].winner!==null){bracket[1][nmi].winner=null;clearSeed()} }
-  else if (ri===1) { if(mi<=9){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b'; bracket[2][nmi][ns].name=name; if(bracket[2][nmi].winner!==null){bracket[2][nmi].winner=null}} else {/* mi=10 leftover — not used in R3 bracket */} }
+function pushWin(ri,mi){
+  const m=bracket[ri][mi];if(m.winner===null)return
+  const name=m.winner===0?m.a.name:m.b.name
+  if(ri===0){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b';bracket[1][nmi][ns].name=name;if(bracket[1][nmi].winner!==null){bracket[1][nmi].winner=null;clearDown(1,nmi)}}
+  else if(ri===1&&mi<=9){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b';bracket[2][nmi][ns].name=name;if(bracket[2][nmi].winner!==null){bracket[2][nmi].winner=null}}
 }
 
-function winnerName(m) { return m.winner===0?m.a.name:m.b.name }
-
-function clearDown(ri,mi) {
-  if (ri===0) { const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b'; bracket[1][nmi][ns].name=''; bracket[1][nmi].winner=null; clearDown(1,nmi) }
-  else if (ri===1) { if(mi<=9){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b'; bracket[2][nmi][ns].name=''; bracket[2][nmi].winner=null} }
-  clearSeed()
+function clearDown(ri,mi){
+  if(ri===0){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b';bracket[1][nmi][ns].name='';bracket[1][nmi].winner=null;clearDown(1,nmi)}
+  else if(ri===1&&mi<=9){const nmi=Math.floor(mi/2),ns=mi%2===0?'a':'b';bracket[2][nmi][ns].name='';bracket[2][nmi].winner=null}
+  clearSeedIfNeeded()
 }
 
-function clearSeed() { seedingTeams=Array(6).fill(''); finals={top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''} }
+function clearSeedIfNeeded(){seedingTeams=Array(6).fill('');finals={top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''}}
 
-function clickFinal(type,side) {
-  if (!isAdmin) return
+function clickFinal(type,side){
+  if(!isAdmin)return
   const m=type==='top'?finals.top:finals.third
-  const name=side===0?m.a:m.b; if(!name) return
+  const name=side===0?m.a:m.b;if(!name)return
   if(m.winner===side){m.winner=null;if(type==='top')finals.champion='';else finals.thirdPlace=''}
   else{m.winner=side;const w=side===0?m.a:m.b;if(type==='top')finals.champion=w;else finals.thirdPlace=w}
-  scheduleSave(); render(); renderLeaderboard()
+  scheduleSave();render();renderLeaderboard()
 }
 
-// ── Inline name edit (any slot, any round) ────────────────────────────────
-function startNameEdit(ri, mi, side, nameEl, currentName) {
-  if (!isAdmin) return
-  nameEl.style.display='none'
-  const inp=document.createElement('input'); inp.className='name-edit'
-  inp.value=currentName; inp.maxLength=30
-  nameEl.parentNode.insertBefore(inp, nameEl)
-  inp.focus(); inp.select()
-  const done=()=>{
-    const v=inp.value.trim()||currentName
-    const so=side===0?bracket[ri][mi].a:bracket[ri][mi].b
-    // migrate AV scores to new name
-    if (v!==so.name&&avScores[so.name]) { avScores[v]=avScores[so.name]; delete avScores[so.name] }
-    so.name=v
-    if (ri===0) teams[mi*2+side]=v
-    nameEl.style.display=''; inp.remove()
-    scheduleSave(); render(); renderLeaderboard()
-  }
-  inp.addEventListener('blur',done)
-  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') inp.blur(); e.stopPropagation() })
-}
+// ── Close dropdown on outside click ──────────────────────────────────────
+document.addEventListener('click',e=>{
+  const dd=document.getElementById('settings-dd')
+  if(!dd.classList.contains('hidden')&&!dd.contains(e.target))dd.classList.add('hidden')
+})
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
 let lbTab='r3'
-function setLbTab(t) {
+function setLbTab(t){
   lbTab=t
   document.querySelectorAll('.lb-tab').forEach(el=>el.classList.remove('active'))
   document.getElementById('tab-'+t).classList.add('active')
-  const labels={'r1':'R1 AV Total','r2':'R2 AV Total','r3':'R3 AV Total','total':'Total AV (All Rounds)'}
+  const labels={r1:'R1 AV Total',r2:'R2 AV Total',r3:'R3 AV Total',total:'Total AV'}
   document.getElementById('lb-footer-label').textContent=labels[t]||'Total'
   renderLeaderboard()
 }
 
-function getStage(name) {
-  let depth=0
-  bracket.forEach((round,ri)=>{ round.forEach(m=>{ if(m.a.name===name||m.b.name===name) depth=Math.max(depth,ri+1) }) })
-  if (seedingTeams.includes(name)) depth=Math.max(depth,4)
-  if (finals.top.a===name||finals.top.b===name||finals.third.a===name||finals.third.b===name) depth=Math.max(depth,5)
-  if (finals.champion===name||finals.thirdPlace===name) depth=Math.max(depth,6)
-  return ['','R1','R2','R3','Seeding','Finals','🏆'][depth]||''
+function getStage(name){
+  let d=0
+  bracket.forEach((round,ri)=>round.forEach(m=>{if(m.a.name===name||m.b.name===name)d=Math.max(d,ri+1)}))
+  if(seedingTeams.includes(name))d=Math.max(d,4)
+  if(finals.top.a===name||finals.top.b===name||finals.third.a===name||finals.third.b===name)d=Math.max(d,5)
+  if(finals.champion===name||finals.thirdPlace===name)d=Math.max(d,6)
+  return['','R1','R2','R3','Seeding','Finals','🏆'][d]||''
 }
 
-function barColor(rank) {
-  if(rank===0) return '#fbbf24'; if(rank===1) return '#94a3b8'; if(rank===2) return '#cd7c2f'
-  return `hsl(${220+rank*2},55%,${50-rank}%)`
+function barColor(rank){
+  if(rank===0)return'#fbbf24';if(rank===1)return'#94a3b8';if(rank===2)return'#cd7c2f'
+  return`hsl(${220+rank*2},55%,${50-rank}%)`
 }
 
-function renderLeaderboard() {
+function renderLeaderboard(){
   const body=document.getElementById('lb-body'),totalEl=document.getElementById('lb-total'),countEl=document.getElementById('lb-count')
   const search=(document.getElementById('lb-search')?.value||'').toLowerCase().trim()
-  if(!body) return
-
+  if(!body)return
   const getVal=name=>lbTab==='total'?totalAV(name):getAV(name,lbTab)
-
-  const all=teams.map(name=>({name,av:getVal(name),stage:getStage(name),r1:getAV(name,'r1'),r2:getAV(name,'r2'),r3:getAV(name,'r3')}))
-    .filter(e=>e.av>0).sort((a,b)=>b.av-a.av)
-
+  const all=teams.map(name=>({name,av:getVal(name),stage:getStage(name),r1:getAV(name,'r1'),r2:getAV(name,'r2'),r3:getAV(name,'r3')})).filter(e=>e.av>0).sort((a,b)=>b.av-a.av)
   const filtered=search?all.filter(e=>e.name.toLowerCase().includes(search)):all
-  const totalAVsum=all.reduce((s,e)=>s+e.av,0)
-  const maxAV=all[0]?.av||1
-
-  if(countEl) countEl.textContent=all.length?all.length+' teams':''
-  if(totalEl) totalEl.textContent=all.length?'$'+totalAVsum.toLocaleString():'—'
-
-  if(filtered.length===0) { body.innerHTML=`<tr><td colspan="3"><div class="lb-empty">${search?'No match':'Enter AV scores<br>per round to rank<br>teams here'}</div></td></tr>`; return }
-
+  const tot=all.reduce((s,e)=>s+e.av,0),maxAV=all[0]?.av||1
+  if(countEl)countEl.textContent=all.length?all.length+' teams':''
+  if(totalEl)totalEl.textContent=all.length?'$'+tot.toLocaleString():'—'
+  if(filtered.length===0){body.innerHTML=`<tr><td colspan="3"><div class="lb-empty">${search?'No match':'Enter AV scores per round<br>to rank teams here'}</div></td></tr>`;return}
   body.innerHTML=filtered.map(e=>{
     const gi=all.indexOf(e),rc=gi===0?'r1':gi===1?'r2':gi===2?'r3':'',medal=gi===0?'🥇':gi===1?'🥈':gi===2?'🥉':(gi+1)
     const pct=Math.round((e.av/maxAV)*100),col=barColor(gi)
-    const roundBreakdown=lbTab==='total'?`R1:$${e.r1.toLocaleString()} R2:$${e.r2.toLocaleString()} R3:$${e.r3.toLocaleString()}`:(e.stage?e.stage:'')
-    return `<tr>
-      <td class="lb-rank ${rc}">${medal}</td>
-      <td class="lb-name-cell">
-        <div class="lb-name" title="${e.name}">${e.name}${e.name===byeTeam?' <span style="font-size:9px;color:var(--teal)">bye</span>':''}</div>
-        <div class="lb-rounds">${roundBreakdown}</div>
-        <div class="lb-bar-wrap"><div class="lb-bar" style="width:${pct}%;background:${col}"></div></div>
-      </td>
-      <td class="lb-av-cell">
-        <div class="lb-av">$${e.av.toLocaleString()}</div>
-        <div class="lb-av-sub">${lbTab==='total'?'total':lbTab} av</div>
-      </td>
-    </tr>`
+    const sub=lbTab==='total'?`R1:$${e.r1.toLocaleString()} · R2:$${e.r2.toLocaleString()} · R3:$${e.r3.toLocaleString()}`:(e.stage||'')
+    return`<tr><td class="lb-rank ${rc}">${medal}</td><td class="lb-name-cell"><div class="lb-name" title="${e.name}">${e.name}${e.name===byeTeam?' <span style="font-size:9px;color:var(--teal)">bye</span>':''}</div><div class="lb-rounds">${sub}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${pct}%;background:${col}"></div></div></td><td class="lb-av-cell"><div class="lb-av">$${e.av.toLocaleString()}</div><div class="lb-av-sub">${lbTab==='total'?'total':lbTab} av</div></td></tr>`
   }).join('')
 }
 
@@ -495,87 +553,86 @@ const R_TITLE=['Round 1','Round 2','Round 3']
 const R_SUB=['22 matches · all 44 teams','11 matches','5 matches + R2 highest AV bye']
 const M_OFF=[1,23,34]
 
-function makeAVInput(name, round, small) {
-  const av=document.createElement('input'); av.className='av-inp'
-  av.type='number'; av.min='0'; av.step='any'
+function makeAVInput(name,round){
+  const av=document.createElement('input');av.className='av-inp'
+  av.type='number';av.min='0';av.step='any'
   av.placeholder=round.toUpperCase()+' AV $'
-  av.title=`${round.toUpperCase()} Annual Volume`
   av.value=getAV(name,round)||''
-  if(small) av.style.maxWidth='85px'
-  av.addEventListener('click',  e=>e.stopPropagation())
-  av.addEventListener('dblclick',e=>e.stopPropagation())
-  av.addEventListener('change',  e=>{ setAV(name,round,parseFloat(e.target.value)||0); scheduleSave(); renderLeaderboard() })
+  av.addEventListener('click',e=>e.stopPropagation())
+  av.addEventListener('change',e=>{setAV(name,round,parseFloat(e.target.value)||0);scheduleSave();renderLeaderboard()})
   return av
 }
 
-function render() {
-  const wrap=document.getElementById('rounds'); wrap.innerHTML=''
+function render(){
+  const wrap=document.getElementById('rounds');wrap.innerHTML=''
 
   ;[0,1,2].forEach(ri=>{
-    const col=document.createElement('div'); col.className=`round-col r${ri}`
+    const col=document.createElement('div');col.className=`round-col r${ri}`
     col.innerHTML=`<div class="round-head"><div class="rtitle">${R_TITLE[ri]}</div><div class="rsub">${R_SUB[ri]}</div></div>`
-    const n=bracket[ri].length
-    const slotH=Math.floor((COL_H-52)/n)
-    const avRound=['r1','r2','r3'][ri]
+    const n=bracket[ri].length,slotH=Math.floor((COL_H-52)/n),avRound=['r1','r2','r3'][ri]
 
     bracket[ri].forEach((m,mi)=>{
-      const grp=document.createElement('div'); grp.className='match-wrap'; grp.style.height=slotH+'px'
-      const ml=document.createElement('div'); ml.className='match-num'
+      const grp=document.createElement('div');grp.className='match-wrap';grp.style.height=slotH+'px'
+      const ml=document.createElement('div');ml.className='match-num'
       ml.innerHTML=`M${M_OFF[ri]+mi}${ri===0&&REFS[mi]?` <span class="ref-lbl">${REFS[mi]}</span>`:''}`
       grp.appendChild(ml)
 
       ;[0,1].forEach(side=>{
         const so=side===0?m.a:m.b
-        const isBye=m.isByeSlot&&side===1
-        const isAutoWin=m.isByeSlot&&side===0
-        const el=document.createElement('div'); el.className='slot'
+        const isByePlaceholder=m.isByeSlot&&side===1
+        const isByeWinner=m.isByeSlot&&side===0
+        const el=document.createElement('div');el.className='slot'
 
-        if (!isBye) {
-          if(m.winner===side) el.classList.add('winner')
-          else if(!so.name)   el.classList.add('empty')
-          if(isAdmin&&!m.isByeSlot) { el.classList.add('clickable'); el.addEventListener('click',()=>clickSlot(ri,mi,side)) }
-          if(isAutoWin&&m.isByeSlot) el.classList.add('av-bye')
+        if(isByePlaceholder){
+          el.style.opacity='.35';el.style.borderStyle='dashed'
+          const nm=document.createElement('span');nm.className='sname';nm.style.color='var(--text3)';nm.textContent='BYE';el.appendChild(nm)
+          grp.appendChild(el);return
         }
 
-        // Seed number R1
-        if (ri===0&&!isBye) { const sn=document.createElement('span');sn.className='snum';sn.textContent=mi*2+side+1;el.appendChild(sn) }
+        if(isByeWinner) el.classList.add('av-bye')
+        else if(m.winner===side) el.classList.add('winner')
+        else if(!so.name) el.classList.add('empty')
 
-        if (isBye) {
-          // BYE placeholder
-          el.style.opacity='.4'; el.style.borderStyle='dashed'
-          const nm=document.createElement('span'); nm.className='sname'; nm.textContent='BYE'; nm.style.color='var(--text3)'; el.appendChild(nm)
-        } else {
-          const inner=document.createElement('div'); inner.className='slot-inner'
+        if(isAdmin&&!m.isByeSlot){el.classList.add('clickable');el.addEventListener('click',()=>clickSlot(ri,mi,side))}
 
-          // Name row
-          const nameRow=document.createElement('div'); nameRow.className='slot-name-row'
-          const nm=document.createElement('span'); nm.className='sname'
-          nm.textContent=so.name||(ri===0?'—':'TBD')
-          if(isAdmin) { nm.style.cursor='text'; nm.addEventListener('dblclick',e=>{e.stopPropagation();startNameEdit(ri,mi,side,nm,so.name||'')}) }
-          nameRow.appendChild(nm)
+        if(ri===0){const sn=document.createElement('span');sn.className='snum';sn.textContent=mi*2+side+1;el.appendChild(sn)}
 
-          if(isAutoWin&&m.isByeSlot) {
-            const bb=document.createElement('span'); bb.className='bye-badge'; bb.textContent='R3 BYE'; nameRow.appendChild(bb)
+        const inner=document.createElement('div');inner.className='slot-inner'
+
+        // Name row
+        const nameRow=document.createElement('div');nameRow.className='slot-name-row'
+        const nm=document.createElement('span');nm.className='sname'
+        nm.textContent=isByeWinner&&!so.name?'Highest R2 AV — bye':(so.name||(ri===0?'—':'TBD'))
+        nameRow.appendChild(nm)
+        if(isByeWinner&&so.name){const bb=document.createElement('span');bb.className='bye-badge';bb.textContent='R3 BYE';nameRow.appendChild(bb)}
+        inner.appendChild(nameRow)
+
+        // AV row
+        if(so.name||(ri===0)){
+          const avRow=document.createElement('div');avRow.className='slot-av-row'
+          const lbl=document.createElement('span');lbl.className='av-label';lbl.textContent=avRound.toUpperCase()+':'
+          avRow.appendChild(lbl)
+          if(isAdmin){
+            const avinp=makeAVInput(so.name||'',avRound)
+            avinp.addEventListener('click',e=>e.stopPropagation())
+            avRow.appendChild(avinp)
+          } else {
+            const val=getAV(so.name,avRound)
+            const d=document.createElement('span');d.className='av-display';d.textContent=val>0?'$'+val.toLocaleString():'—';avRow.appendChild(d)
           }
-          inner.appendChild(nameRow)
-
-          // AV row — show input for admin, display for viewers (if value exists)
-          if (so.name||(ri===0)) {
-            const avRow=document.createElement('div'); avRow.className='slot-av-row'
-            const lbl=document.createElement('span'); lbl.className='av-label'; lbl.textContent=avRound.toUpperCase()+':'
-            avRow.appendChild(lbl)
-            if (isAdmin) {
-              avRow.appendChild(makeAVInput(so.name||'',avRound))
-            } else {
-              const val=getAV(so.name,avRound)
-              if (val>0) { const d=document.createElement('span');d.className='av-display';d.textContent='$'+val.toLocaleString();avRow.appendChild(d) }
-              else { const d=document.createElement('span');d.className='av-display';d.style.color='var(--text3)';d.textContent='—';avRow.appendChild(d) }
-            }
-            inner.appendChild(avRow)
-          }
-
-          el.appendChild(inner)
+          inner.appendChild(avRow)
         }
+
+        el.appendChild(inner)
+
+        // Gear button — admin only
+        if(isAdmin){
+          const gear=document.createElement('div');gear.className='slot-gear';gear.textContent='⚙'
+          gear.title='Edit team / AV / clear'
+          gear.addEventListener('click',e=>{e.stopPropagation();openSlotModal(ri,mi,side)})
+          el.appendChild(gear)
+        }
+
         grp.appendChild(el)
       })
       col.appendChild(grp)
@@ -583,63 +640,60 @@ function render() {
     wrap.appendChild(col)
   })
 
-  // ── Seeding ───────────────────────────────────────────────────────────
-  const sc=document.createElement('div'); sc.className='round-col seed'
+  // Seeding
+  const sc=document.createElement('div');sc.className='round-col seed'
   sc.innerHTML=`<div class="round-head"><div class="rtitle">Seeding Round</div><div class="rsub">Ranked by R3 AV only</div></div>`
-  const sp=document.createElement('div'); sp.className='seed-panel'
+  const sp=document.createElement('div');sp.className='seed-panel'
   const filled=seedingTeams.filter(t=>t).length
-  sp.innerHTML=`<h3>${filled<6?filled+'/6 teams':'All 6 ranked'}</h3><p class="seed-note">Top 2 R3 AV → 1st/2nd match<br>Seeds 3-4 → 3rd place match<br>Seeds 5-6 → eliminated</p>`
-
-  const GL=[{r:'1st',cls:'top2',badge:'badge-top',txt:'→ 1st/2nd'},{r:'2nd',cls:'top2',badge:'badge-top',txt:'→ 1st/2nd'},{r:'3rd',cls:'mid2',badge:'badge-mid',txt:'→ 3rd place'},{r:'4th',cls:'mid2',badge:'badge-mid',txt:'→ 3rd place'},{r:'5th',cls:'bot2',badge:'badge-out',txt:'Eliminated'},{r:'6th',cls:'bot2',badge:'badge-out',txt:'Eliminated'}]
+  sp.innerHTML=`<h3>${filled<6?filled+'/6 teams':'All 6 ranked'}</h3><p class="seed-note">Top 2 R3 AV → 1st/2nd match<br>Seeds 3–4 → 3rd place match<br>Seeds 5–6 → eliminated</p>`
+  const GL=[{r:'1st',cls:'top2',badge:'badge-top',txt:'→ 1st/2nd'},{r:'2nd',cls:'top2',badge:'badge-top',txt:'→ 1st/2nd'},{r:'3rd',cls:'mid2',badge:'badge-mid',txt:'→ 3rd place'},{r:'4th',cls:'mid2',badge:'badge-mid',txt:'→ 3rd place'},{r:'5th',cls:'bot2',badge:'badge-out',txt:'Elim.'},{r:'6th',cls:'bot2',badge:'badge-out',txt:'Elim.'}]
   GL.forEach((g,i)=>{
     if(i===2||i===4){const d=document.createElement('hr');d.className='seed-divider';sp.appendChild(d)}
-    const row=document.createElement('div'); row.className='seed-row '+g.cls
-    const name=seedingTeams[i]||'—'
-    const r3av=seedingTeams[i]?getAV(seedingTeams[i],'r3'):0
-    const isBye=seedingTeams[i]===byeTeam&&byeTeam
-    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name}${isBye?' <span style="font-size:9px;color:var(--teal)">(bye)</span>':''}</div>${r3av>0?`<div class="seed-av">R3 AV: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
+    const row=document.createElement('div');row.className='seed-row '+g.cls
+    const name=seedingTeams[i]||'—',r3av=seedingTeams[i]?getAV(seedingTeams[i],'r3'):0,isBye=seedingTeams[i]===byeTeam&&byeTeam
+    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name}${isBye?' <span style="font-size:9px;color:var(--teal)">(bye)</span>':''}</div>${r3av>0?`<div class="seed-av">R3: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
     sp.appendChild(row)
   })
   if(isAdmin){const rb=document.createElement('button');rb.className='rank-btn';rb.textContent='⚡ Calc R3 bye + rank seeding';rb.onclick=calcByeAndSeed;sp.appendChild(rb)}
-  sc.appendChild(sp); wrap.appendChild(sc)
+  sc.appendChild(sp);wrap.appendChild(sc)
 
-  // ── Finals ────────────────────────────────────────────────────────────
-  const fc=document.createElement('div'); fc.className='round-col finals'
+  // Finals
+  const fc=document.createElement('div');fc.className='round-col finals'
 
-  const topCard=document.createElement('div'); topCard.className='final-card'
+  const topCard=document.createElement('div');topCard.className='final-card'
   topCard.innerHTML='<h3>🥇 1st &amp; 2nd Place Match</h3>'
   ;['a','b'].forEach((s,i)=>{
-    const el=document.createElement('div'); el.className='slot'+(isAdmin?' clickable':'')
-    const name=finals.top[s]; if(!name) el.classList.add('empty'); if(finals.top.winner===i) el.classList.add('winner')
-    const nm=document.createElement('span'); nm.className='sname'; nm.textContent=name||`Seed ${i+1} — TBD`; el.appendChild(nm)
-    if(isAdmin) el.addEventListener('click',()=>clickFinal('top',i))
+    const el=document.createElement('div');el.className='slot'+(isAdmin?' clickable':'')
+    const name=finals.top[s];if(!name)el.classList.add('empty');if(finals.top.winner===i)el.classList.add('winner')
+    const nm=document.createElement('span');nm.className='sname';nm.textContent=name||`Seed ${i+1} — TBD`;el.appendChild(nm)
+    if(isAdmin)el.addEventListener('click',()=>clickFinal('top',i))
     topCard.appendChild(el)
   })
-  const cr=document.createElement('div'); cr.className='final-result'+(finals.champion?' gold':''); cr.textContent=finals.champion?'🏆 '+finals.champion:'Champion —'; topCard.appendChild(cr)
+  const cr=document.createElement('div');cr.className='final-result'+(finals.champion?' gold':'');cr.textContent=finals.champion?'🏆 '+finals.champion:'Champion —';topCard.appendChild(cr)
   if(finals.top.winner!==null){const sr=document.createElement('div');sr.className='final-result silver';sr.textContent='🥈 '+(finals.top.winner===0?finals.top.b:finals.top.a);topCard.appendChild(sr)}
   fc.appendChild(topCard)
 
-  const thCard=document.createElement('div'); thCard.className='final-card'
+  const thCard=document.createElement('div');thCard.className='final-card'
   thCard.innerHTML='<h3>🥉 3rd Place Match</h3>'
   ;['a','b'].forEach((s,i)=>{
-    const el=document.createElement('div'); el.className='slot'+(isAdmin?' clickable':'')
-    const name=finals.third[s]; if(!name) el.classList.add('empty'); if(finals.third.winner===i) el.classList.add('winner')
-    const nm=document.createElement('span'); nm.className='sname'; nm.textContent=name||`Seed ${i+3} — TBD`; el.appendChild(nm)
-    if(isAdmin) el.addEventListener('click',()=>clickFinal('third',i))
+    const el=document.createElement('div');el.className='slot'+(isAdmin?' clickable':'')
+    const name=finals.third[s];if(!name)el.classList.add('empty');if(finals.third.winner===i)el.classList.add('winner')
+    const nm=document.createElement('span');nm.className='sname';nm.textContent=name||`Seed ${i+3} — TBD`;el.appendChild(nm)
+    if(isAdmin)el.addEventListener('click',()=>clickFinal('third',i))
     thCard.appendChild(el)
   })
-  const tr=document.createElement('div'); tr.className='final-result'+(finals.thirdPlace?' bronze':''); tr.textContent=finals.thirdPlace?'🥉 '+finals.thirdPlace:'3rd Place —'; thCard.appendChild(tr)
+  const tr=document.createElement('div');tr.className='final-result'+(finals.thirdPlace?' bronze':'');tr.textContent=finals.thirdPlace?'🥉 '+finals.thirdPlace:'3rd Place —';thCard.appendChild(tr)
   fc.appendChild(thCard)
 
-  const elimCard=document.createElement('div'); elimCard.className='final-card'
+  const elimCard=document.createElement('div');elimCard.className='final-card'
   elimCard.innerHTML='<h3>❌ Eliminated — 5th &amp; 6th</h3>'
-  ;[4,5].forEach(i=>{ const el=document.createElement('div'); el.className='elim-slot'; el.textContent=seedingTeams[i]||(i===4?'5th seed':'6th seed'); elimCard.appendChild(el) })
+  ;[4,5].forEach(i=>{const el=document.createElement('div');el.className='elim-slot';el.textContent=seedingTeams[i]||(i===4?'5th seed':'6th seed');elimCard.appendChild(el)})
   fc.appendChild(elimCard)
 
   wrap.appendChild(fc)
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────
+// Boot
 applyAdminMode()
 loadBracket()
 </script>
