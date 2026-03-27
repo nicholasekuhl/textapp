@@ -457,7 +457,7 @@ const getLeads = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('leads')
-      .select('*, campaign_leads(status)')
+      .select('*, campaign_leads(status), lead_dispositions(disposition_tag_id)')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
     if (error) throw error
@@ -879,7 +879,40 @@ const bulkAction = async (req, res) => {
         .update({ disposition_tag_id: disposition_id, updated_at: now })
         .in('id', validIds)
       const historyRows = validIds.map(id => ({ lead_id: id, user_id: userId, disposition_tag_id: disposition_id, applied_at: now }))
-      await supabase.from('lead_dispositions').insert(historyRows)
+      await supabase.from('lead_dispositions').upsert(historyRows, { onConflict: 'lead_id,disposition_tag_id', ignoreDuplicates: true })
+      return res.json({ success: true, affected: validIds.length })
+    }
+
+    if (action === 'remove_disposition') {
+      const { disposition_id } = payload
+      if (!disposition_id) return res.status(400).json({ error: 'disposition_id required' })
+      await supabase.from('lead_dispositions')
+        .delete()
+        .in('lead_id', validIds)
+        .eq('disposition_tag_id', disposition_id)
+      // Clear disposition_tag_id on lead if it matched this tag
+      await supabase.from('leads')
+        .update({ disposition_tag_id: null, updated_at: now })
+        .in('id', validIds)
+        .eq('disposition_tag_id', disposition_id)
+      return res.json({ success: true, affected: validIds.length })
+    }
+
+    if (action === 'autopilot_on') {
+      await supabase.from('leads').update({ autopilot: true, updated_at: now }).in('id', validIds)
+      return res.json({ success: true, affected: validIds.length })
+    }
+
+    if (action === 'autopilot_off') {
+      await supabase.from('leads').update({ autopilot: false, updated_at: now }).in('id', validIds)
+      return res.json({ success: true, affected: validIds.length })
+    }
+
+    if (action === 'block') {
+      await supabase.from('leads').update({ is_blocked: true, updated_at: now }).in('id', validIds)
+      await supabase.from('campaign_leads')
+        .update({ status: 'paused', paused_at: now })
+        .in('lead_id', validIds).in('status', ['pending', 'active'])
       return res.json({ success: true, affected: validIds.length })
     }
 

@@ -2,6 +2,32 @@
 
 let currentUser = null
 
+// ─── GLOBAL ERROR BOUNDARY ───────────────────────────────────────────────────
+
+window.addEventListener('unhandledrejection', event => {
+  console.error('Unhandled promise rejection:', event.reason)
+})
+
+/**
+ * Show a friendly error state inside a container element.
+ * @param {string} containerId  - ID of the element to render the error into
+ * @param {string} sectionName  - Human-readable name shown in the error message
+ * @param {Function} retryFn    - Called when the user clicks Retry
+ * @param {string} [message]    - Optional custom error message
+ */
+const showPageError = (containerId, sectionName, retryFn, message) => {
+  const el = document.getElementById(containerId)
+  if (!el) return
+  el.innerHTML = `
+    <div style="text-align:center;padding:48px 24px;color:var(--color-text-secondary);">
+      <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
+      <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:6px;">Could not load ${sectionName}</div>
+      <div style="font-size:13px;margin-bottom:20px;">${message || 'An error occurred. Check your connection and try again.'}</div>
+      <button class="btn btn-secondary" onclick="(${retryFn.toString()})()">Retry</button>
+    </div>
+  `
+}
+
 // ─── AUTH ───────────────────────────────────────────────────────────────────
 
 const checkAuth = async () => {

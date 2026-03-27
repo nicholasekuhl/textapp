@@ -166,9 +166,17 @@ const filterLeads = () => {
   if (status) filtered = filtered.filter(l => l.status === status)
   if (state) filtered = filtered.filter(l => l.state === state)
   const selDisp = msState['disposition'].selected
-  if (selDisp.length) filtered = filtered.filter(l => selDisp.some(s => s.id === l.disposition_tag_id))
+  if (selDisp.length) filtered = filtered.filter(l => {
+    const ids = (l.lead_dispositions || []).map(ld => ld.disposition_tag_id)
+    if (!ids.length && l.disposition_tag_id) ids.push(l.disposition_tag_id)
+    return selDisp.some(s => ids.includes(s.id))
+  })
   const selExcl = msState['exclude-disposition'].selected
-  if (selExcl.length) filtered = filtered.filter(l => !selExcl.some(s => s.id === l.disposition_tag_id))
+  if (selExcl.length) filtered = filtered.filter(l => {
+    const ids = (l.lead_dispositions || []).map(ld => ld.disposition_tag_id)
+    if (!ids.length && l.disposition_tag_id) ids.push(l.disposition_tag_id)
+    return !selExcl.some(s => ids.includes(s.id))
+  })
   if (campaign) filtered = filtered.filter(l => l.campaign_tags?.includes(campaign))
   if (timezone) filtered = filtered.filter(l => l.timezone === timezone)
   if (autopilot === 'true') filtered = filtered.filter(l => l.autopilot === true)
@@ -300,14 +308,16 @@ const renderLeads = (leads) => {
     const initials = getInitials(lead.first_name, lead.last_name)
     const localTime = lead.timezone ? getLocalTime(lead.timezone) : ''
     const tags = lead.campaign_tags || []
-    const dispTag = allDispositionTags.find(t => t.id === lead.disposition_tag_id)
+    const leadDispIds = (lead.lead_dispositions || []).map(ld => ld.disposition_tag_id)
+    if (!leadDispIds.length && lead.disposition_tag_id) leadDispIds.push(lead.disposition_tag_id)
+    const leadDispTags = leadDispIds.map(id => allDispositionTags.find(t => t.id === id)).filter(Boolean)
     const safeName = name.replace(/'/g, "\\'")
     const hasActiveCampaign = (lead.campaign_leads || []).some(cl => cl.status === 'active' || cl.status === 'pending')
     const borderColor = lead.opted_out ? '#ef4444'
       : lead.is_blocked ? '#9ca3af'
       : lead.is_sold ? '#16a34a'
       : hasActiveCampaign ? '#3b82f6'
-      : dispTag ? dispTag.color
+      : leadDispTags[0] ? leadDispTags[0].color
       : 'transparent'
     const replyBadge = lead.has_replied != null
       ? (lead.has_replied
@@ -345,7 +355,7 @@ const renderLeads = (leads) => {
                 <button class="copy-btn" onclick="copyToClipboard('${safeName}', this)" title="Copy name">${COPY_SVG}</button>
                 ${lead.opted_out ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.3px;">🚫 OPTED OUT</span>' : ''}
                 ${lead.is_sold ? '<span class="sold-badge">✓ SOLD</span>' : ''}
-                ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color}">${dispTag.name}</span>` : ''}
+                ${leadDispTags.map(t => `<span class="disposition-pill" style="background:${t.color}">${t.name}</span>`).join('')}
                 ${replyBadge}
                 ${apptBadge}
               </div>
@@ -538,7 +548,7 @@ const clearSelection = () => {
 
 // ===== BULK DROPDOWNS =====
 const closeBulkDropdowns = () => {
-  ['bulk-disp-dd', 'bulk-camp-dd', 'bulk-bucket-dd'].forEach(id => {
+  ['bulk-disp-dd', 'bulk-remove-disp-dd', 'bulk-camp-dd', 'bulk-bucket-dd'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.style.display = 'none'
   })
@@ -572,6 +582,14 @@ const toggleBulkDropdown = (ddId, type) => {
     dd.innerHTML = `<div class="bulk-dd-label">Move ${n} lead${n !== 1 ? 's' : ''} to:</div><div class="bulk-dd-pills">` +
       `<button class="bulk-dd-pill" style="background:#9ca3af;" onclick="confirmBulkBucket(null,'No bucket')">— No bucket</button>` +
       bucketPills + '</div>'
+  } else if (type === 'remove-disp') {
+    if (!allDispositionTags.length) {
+      dd.innerHTML = '<div style="padding:12px;font-size:13px;color:#9ca3af;">No disposition tags yet.</div>'
+    } else {
+      dd.innerHTML = `<div class="bulk-dd-label">Remove from ${n} lead${n !== 1 ? 's' : ''}:</div><div class="bulk-dd-pills">` +
+        allDispositionTags.map(t => `<button class="bulk-dd-pill" style="background:${t.color};" onclick="confirmBulkRemoveDisposition('${t.id}','${t.name.replace(/'/g, "\\'")}')">${t.name}</button>`).join('') +
+        '</div>'
+    }
   }
 
   dd.style.display = 'block'
@@ -601,10 +619,16 @@ const confirmBulkDisposition = async (tagId, tagName) => {
   try {
     const data = await executeBulkAction('disposition', { disposition_id: tagId })
     if (!data.success) throw new Error(data.error)
-    allLeads.forEach(l => { if (selectedLeads.has(l.id)) l.disposition_tag_id = tagId })
+    allLeads.forEach(l => {
+      if (selectedLeads.has(l.id)) {
+        l.disposition_tag_id = tagId
+        const alreadyHas = (l.lead_dispositions || []).some(ld => ld.disposition_tag_id === tagId)
+        if (!alreadyHas) l.lead_dispositions = [...(l.lead_dispositions || []), { disposition_tag_id: tagId }]
+      }
+    })
     clearSelection()
     filterLeads()
-    toast.success('Disposition applied', `${tagName} applied to ${data.affected} lead${data.affected !== 1 ? 's' : ''}`)
+    toast.success('Tag applied', `${tagName} applied to ${data.affected} lead${data.affected !== 1 ? 's' : ''}`)
   } catch (err) { toast.error('Error', err.message || 'Bulk action failed') }
 }
 
@@ -635,6 +659,55 @@ const confirmBulkBucket = async (bucketId, bucketName) => {
     renderBucketPills()
     filterLeads()
     toast.success('Bucket updated', `${data.affected} lead${data.affected !== 1 ? 's' : ''} moved to ${bucketName}`)
+  } catch (err) { toast.error('Error', err.message || 'Bulk action failed') }
+}
+
+const confirmBulkRemoveDisposition = async (tagId, tagName) => {
+  closeBulkDropdowns()
+  const n = selectedLeads.size
+  if (!await confirmModal(`Remove "${tagName}" from ${n} lead${n !== 1 ? 's' : ''}?`, `This will remove this disposition tag from all selected leads.`, 'Remove')) return
+  try {
+    const data = await executeBulkAction('remove_disposition', { disposition_id: tagId })
+    if (!data.success) throw new Error(data.error)
+    allLeads.forEach(l => {
+      if (selectedLeads.has(l.id)) {
+        l.lead_dispositions = (l.lead_dispositions || []).filter(ld => ld.disposition_tag_id !== tagId)
+        if (l.disposition_tag_id === tagId) l.disposition_tag_id = l.lead_dispositions[0]?.disposition_tag_id || null
+      }
+    })
+    clearSelection()
+    filterLeads()
+    toast.success('Tag removed', `"${tagName}" removed from ${data.affected} lead${data.affected !== 1 ? 's' : ''}`)
+  } catch (err) { toast.error('Error', err.message || 'Bulk action failed') }
+}
+
+const confirmBulkAutopilot = async (enable) => {
+  const n = selectedLeads.size
+  const label = enable ? 'Enable Autopilot' : 'Disable Autopilot'
+  const desc = enable ? `AI will automatically respond to replies from ${n} selected lead${n !== 1 ? 's' : ''}.` : `AI responses will be paused for ${n} selected lead${n !== 1 ? 's' : ''}.`
+  if (!await confirmModal(`${label} for ${n} lead${n !== 1 ? 's' : ''}?`, desc, label)) return
+  try {
+    const action = enable ? 'autopilot_on' : 'autopilot_off'
+    const data = await executeBulkAction(action, {})
+    if (!data.success) throw new Error(data.error)
+    allLeads.forEach(l => { if (selectedLeads.has(l.id)) l.autopilot = enable })
+    clearSelection()
+    updateStats(allLeads)
+    filterLeads()
+    toast.success(label, `${data.affected} lead${data.affected !== 1 ? 's' : ''} updated`)
+  } catch (err) { toast.error('Error', err.message || 'Bulk action failed') }
+}
+
+const confirmBulkBlock = async () => {
+  const n = selectedLeads.size
+  if (!await confirmModal(`Block ${n} lead${n !== 1 ? 's' : ''}?`, `This will block all selected leads and pause their campaigns. This cannot be easily undone.`, 'Block All', true)) return
+  try {
+    const data = await executeBulkAction('block', {})
+    if (!data.success) throw new Error(data.error)
+    allLeads.forEach(l => { if (selectedLeads.has(l.id)) l.is_blocked = true })
+    clearSelection()
+    filterLeads()
+    toast.info('Leads blocked', `${data.affected} lead${data.affected !== 1 ? 's' : ''} blocked`)
   } catch (err) { toast.error('Error', err.message || 'Bulk action failed') }
 }
 
@@ -830,34 +903,50 @@ const sendManualSMS = async () => {
 // ===== DISPOSITION =====
 const openDispositionModal = (leadId, name) => {
   dispositionTargetLeadId = leadId
-  document.getElementById('disposition-lead-name').textContent = `Applying disposition to: ${name}`
+  document.getElementById('disposition-lead-name').textContent = `Disposition tags for: ${name}`
   document.getElementById('disposition-notes').value = ''
+  const lead = allLeads.find(l => l.id === leadId)
+  const currentIds = new Set(
+    (lead?.lead_dispositions || []).map(ld => ld.disposition_tag_id)
+      .concat(lead?.disposition_tag_id ? [lead.disposition_tag_id] : [])
+  )
   const grid = document.getElementById('disp-picker-grid')
   if (!allDispositionTags.length) {
     grid.innerHTML = `<div style="color:#9ca3af;font-size:13px;">No disposition tags yet. Create some in Settings → Disposition Tags.</div>`
   } else {
     grid.innerHTML = allDispositionTags.map(tag => `
-      <button class="disp-pick-btn" style="background:${tag.color}" onclick="applyDisposition('${tag.id}')">${tag.name}</button>
+      <label class="disp-check-row" style="border-left:4px solid ${tag.color};">
+        <input type="checkbox" value="${tag.id}" ${currentIds.has(tag.id) ? 'checked' : ''}>
+        <span class="disp-check-dot" style="background:${tag.color};"></span>
+        <span class="disp-check-label">${tag.name}</span>
+      </label>
     `).join('')
   }
   document.getElementById('disposition-modal').classList.add('open')
 }
 
-const applyDisposition = async (tagId) => {
+const applyDisposition = async () => {
   const notes = document.getElementById('disposition-notes').value
+  const checkedIds = [...document.querySelectorAll('#disp-picker-grid input[type=checkbox]:checked')].map(cb => cb.value)
   try {
-    const res = await fetch('/dispositions/apply', {
+    const res = await fetch('/dispositions/apply-multi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lead_id: dispositionTargetLeadId, disposition_tag_id: tagId, notes })
+      body: JSON.stringify({ lead_id: dispositionTargetLeadId, tag_ids: checkedIds, notes })
     })
     const data = await res.json()
     if (data.success) {
-      const tag = allDispositionTags.find(t => t.id === tagId)
+      // Update local state
+      const lead = allLeads.find(l => l.id === dispositionTargetLeadId)
+      if (lead) {
+        lead.lead_dispositions = checkedIds.map(id => ({ disposition_tag_id: id }))
+        lead.disposition_tag_id = checkedIds[0] || null
+      }
       document.getElementById('disposition-modal').classList.remove('open')
-      loadLeads()
-      toast.success('Disposition applied', tag ? `${tag.name} applied to lead` : 'Disposition updated')
-    } else { toast.error('Error', data.error || 'Failed to apply disposition') }
+      filterLeads()
+      const count = checkedIds.length
+      toast.success('Dispositions updated', count ? `${count} tag${count !== 1 ? 's' : ''} applied` : 'All tags removed')
+    } else { toast.error('Error', data.error || 'Failed to apply dispositions') }
   } catch (err) { toast.error('Error', 'Something went wrong') }
 }
 
@@ -1582,11 +1671,13 @@ const openLeadDetail = async (leadId) => {
   if (!lead) return
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown'
   const initials = getInitials(lead.first_name, lead.last_name)
-  const dispTag = allDispositionTags.find(t => t.id === lead.disposition_tag_id)
+  const detailDispIds = (lead.lead_dispositions || []).map(ld => ld.disposition_tag_id)
+  if (!detailDispIds.length && lead.disposition_tag_id) detailDispIds.push(lead.disposition_tag_id)
+  const detailDispTags = detailDispIds.map(id => allDispositionTags.find(t => t.id === id)).filter(Boolean)
   document.getElementById('detail-avatar').textContent = initials
   document.getElementById('detail-name').innerHTML = `
     ${name}
-    ${dispTag ? `<span class="disposition-pill" style="background:${dispTag.color}">${dispTag.name}</span>` : ''}
+    ${detailDispTags.map(t => `<span class="disposition-pill" style="background:${t.color}">${t.name}</span>`).join('')}
     <span class="tag tag-${lead.status}">${lead.status}</span>
     ${lead.is_sold ? '<span class="tag" style="background:#d1fae5;color:#065f46;">✓ Sold</span>' : ''}
   `

@@ -206,6 +206,55 @@ const applyDisposition = async (req, res) => {
   }
 }
 
+const applyMultiDisposition = async (req, res) => {
+  try {
+    const { lead_id, tag_ids, notes } = req.body
+    if (!lead_id) return res.status(400).json({ error: 'lead_id is required' })
+    const ids = Array.isArray(tag_ids) ? tag_ids : []
+
+    const { data: lead, error: leadError } = await supabase
+      .from('leads').select('*').eq('id', lead_id).eq('user_id', req.user.id).single()
+    if (leadError) throw leadError
+
+    // Verify all tags belong to this user
+    let tags = []
+    if (ids.length > 0) {
+      const { data: tagData } = await supabase
+        .from('disposition_tags').select('*').eq('user_id', req.user.id).in('id', ids)
+      tags = tagData || []
+    }
+
+    const now = new Date().toISOString()
+
+    // Replace all dispositions for this lead
+    await supabase.from('lead_dispositions').delete().eq('lead_id', lead_id)
+    if (tags.length > 0) {
+      await supabase.from('lead_dispositions').insert(
+        tags.map(t => ({ lead_id, disposition_tag_id: t.id, user_id: req.user.id, applied_at: now, notes: notes || null }))
+      )
+    }
+
+    // Keep leads.disposition_tag_id as first tag for backward compat
+    await supabase.from('leads').update({
+      disposition_tag_id: tags[0]?.id || null,
+      disposition_color: tags[0]?.color || null,
+      updated_at: now
+    }).eq('id', lead_id)
+
+    // Pause active campaign drips on disposition
+    if (tags.length > 0) {
+      await supabase.from('campaign_leads')
+        .update({ status: 'paused', paused_at: now })
+        .eq('lead_id', lead_id).eq('status', 'pending')
+    }
+
+    res.json({ success: true, tags })
+  } catch (err) {
+    console.error('applyMultiDisposition error:', err)
+    res.status(500).json({ error: err.message })
+  }
+}
+
 const getLeadDispositionHistory = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -226,5 +275,6 @@ module.exports = {
   updateDispositionTag,
   deleteDispositionTag,
   applyDisposition,
+  applyMultiDisposition,
   getLeadDispositionHistory
 }

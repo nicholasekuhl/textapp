@@ -6,6 +6,7 @@ const {
   updateDispositionTag,
   deleteDispositionTag,
   applyDisposition,
+  applyMultiDisposition,
   getLeadDispositionHistory
 } = require('../controllers/dispositionsController')
 
@@ -14,6 +15,7 @@ router.post('/', createDispositionTag)
 router.put('/:id', updateDispositionTag)
 router.delete('/:id', deleteDispositionTag)
 router.post('/apply', applyDisposition)
+router.post('/apply-multi', applyMultiDisposition)
 router.get('/history/:leadId', getLeadDispositionHistory)
 
 module.exports = router
