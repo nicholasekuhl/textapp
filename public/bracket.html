@@ -41,6 +41,8 @@
   .modal h2{font-size:15px;font-weight:600;margin-bottom:16px}
   .modal label{font-size:11px;color:var(--text2);display:block;margin-bottom:4px}
   .modal input[type=text],.modal input[type=number],.modal input[type=password]{width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:12px}
+  .modal select{width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:12px;cursor:pointer}
+  .modal select:focus{outline:none;border-color:var(--blue)}
   .modal input:focus{outline:none;border-color:var(--blue)}
   .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
   .modal-err{font-size:11px;color:var(--red);min-height:16px;margin-bottom:6px}
@@ -196,6 +198,13 @@
 <div class="modal-overlay hidden" id="slot-modal">
   <div class="modal">
     <h2 id="slot-modal-title">Edit Slot</h2>
+    <div class="modal-section" id="slot-r3-picker" style="display:none">
+      <h3>Pick team for this R3 slot</h3>
+      <p style="font-size:10px;color:var(--text3);margin-bottom:8px">Select from R2 participants — or type a name manually below</p>
+      <select id="slot-r3-select" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:10px">
+        <option value="">— pick a team —</option>
+      </select>
+    </div>
     <div class="modal-section">
       <h3>Team Name</h3>
       <input type="text" id="slot-name-input" placeholder="Team name" maxlength="30"/>
@@ -227,11 +236,10 @@
 <header>
   <div>
     <h1>44-Team Tournament Bracket</h1>
-    <p>Live bracket — updates automatically · Click ⚙ on any slot to edit (admin only)</p>
+    <p>Live bracket — updates automatically · Admins: click ⚙ to edit any slot · R3 slots assigned manually</p>
   </div>
   <div class="hbtns">
     <span class="mode-badge view" id="mode-badge">👁 View only</span>
-    <button class="btn-teal hidden admin-only" onclick="calcByeAndSeed()">⚡ Calc R3 bye + seed</button>
     <button class="btn-green hidden admin-only" onclick="saveBracket()">💾 Save</button>
     <span id="save-status"></span>
     <button class="btn-red hidden admin-only" onclick="logoutAdmin()">Logout</button>
@@ -308,8 +316,50 @@ function openSlotModal(ri, mi, side) {
   document.getElementById('slot-av-r1').value = getAV(name,'r1') || ''
   document.getElementById('slot-av-r2').value = getAV(name,'r2') || ''
   document.getElementById('slot-av-r3').value = getAV(name,'r3') || ''
+
+  // R3 slots (excluding bye slot): show team picker populated from R2 participants
+  const pickerSection = document.getElementById('slot-r3-picker')
+  const select = document.getElementById('slot-r3-select')
+  if (ri === 2) {
+    pickerSection.style.display = 'block'
+    // Collect all unique team names from R2 matches
+    const r2teams = []
+    bracket[1].forEach(m => {
+      if (m.a.name && !r2teams.includes(m.a.name)) r2teams.push(m.a.name)
+      if (m.b.name && !r2teams.includes(m.b.name)) r2teams.push(m.b.name)
+    })
+    // Also include any teams already manually placed in R3
+    bracket[2].forEach(m => {
+      if (m.a.name && !r2teams.includes(m.a.name)) r2teams.push(m.a.name)
+      if (m.b.name && !m.b.bye && m.b.name && !r2teams.includes(m.b.name)) r2teams.push(m.b.name)
+    })
+    r2teams.sort()
+    select.innerHTML = '<option value="">— pick a team —</option>'
+    r2teams.forEach(t => {
+      const opt = document.createElement('option')
+      opt.value = t; opt.textContent = t
+      if (t === so.name) opt.selected = true
+      select.appendChild(opt)
+    })
+    // When picker changes, update the name input
+    select.onchange = () => {
+      if (select.value) {
+        document.getElementById('slot-name-input').value = select.value
+        // Auto-fill known AV scores for this team
+        document.getElementById('slot-av-r1').value = getAV(select.value,'r1') || ''
+        document.getElementById('slot-av-r2').value = getAV(select.value,'r2') || ''
+        document.getElementById('slot-av-r3').value = getAV(select.value,'r3') || ''
+      }
+    }
+  } else {
+    pickerSection.style.display = 'none'
+  }
+
   document.getElementById('slot-modal').classList.remove('hidden')
-  setTimeout(()=>document.getElementById('slot-name-input').focus(), 50)
+  setTimeout(()=>{
+    if (ri === 2) document.getElementById('slot-r3-select').focus()
+    else document.getElementById('slot-name-input').focus()
+  }, 50)
 }
 
 function closeSlotModal(){document.getElementById('slot-modal').classList.add('hidden');_editCtx=null}
@@ -367,7 +417,7 @@ function sweepName(name){
     })
   })
   seedingTeams=seedingTeams.map(t=>t===name?'':t)
-  if(byeTeam===name) byeTeam=''
+
   if(finals.top.a===name){finals.top.a='';if(finals.top.winner===0)finals.top.winner=null}
   if(finals.top.b===name){finals.top.b='';if(finals.top.winner===1)finals.top.winner=null}
   if(finals.third.a===name){finals.third.a='';if(finals.third.winner===0)finals.third.winner=null}
@@ -381,25 +431,25 @@ let teams        = Array.from({length:44},(_,i)=>`Team ${i+1}`)
 let avScores     = {}
 let bracket      = []
 let seedingTeams = Array(6).fill('')
-let byeTeam      = ''
+
 let finals       = {top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''}
 
 const REFS={0:'Austin',1:'Austin',2:'Austin',3:'Austin',4:'Austin/Stacks',5:'Stacks',6:'Stacks',7:'Stacks',8:'Stacks',9:'Stacks',10:'Jared',11:'Jared',12:'Jared',13:'Jared',14:'Jared',15:'Jared',16:'David',17:'David',18:'David',19:'David',20:'David',21:'David'}
 
 function initBracket(){
   finals={top:{a:'',b:'',winner:null},third:{a:'',b:'',winner:null},champion:'',thirdPlace:''}
-  seedingTeams=Array(6).fill(''); byeTeam=''
+  seedingTeams=Array(6).fill('')
   bracket=[
     Array.from({length:22},(_,i)=>({a:{name:teams[i*2]},b:{name:teams[i*2+1]},winner:null})),
     Array.from({length:11},()=>({a:{name:''},b:{name:''},winner:null})),
-    Array.from({length:6},(_,i)=>({a:{name:'',avBye:i===5},b:{name:i===5?'—':'',bye:i===5},winner:null,isByeSlot:i===5}))
+    Array.from({length:6},()=>({a:{name:''},b:{name:''},winner:null}))
   ]
 }
 
 function getAV(name,round){return parseFloat(avScores[name]?.[round]||0)||0}
 function setAV(name,round,val){if(!avScores[name])avScores[name]={};avScores[name][round]=val}
 function totalAV(name){return getAV(name,'r1')+getAV(name,'r2')+getAV(name,'r3')}
-function getState(){return{teams,avScores,bracket,seedingTeams,byeTeam,finals}}
+function getState(){return{teams,avScores,bracket,seedingTeams,finals}}
 
 // Migrate old flat AV format { name: number } → new nested { name: { r1: number } }
 function migrateAvScores(raw){
@@ -420,17 +470,9 @@ function loadState(s){
   if(!s)return
   if(s.teams)teams=s.teams
   if(s.avScores)avScores=migrateAvScores(s.avScores)
-  if(s.bracket){
-    // Sanitize: ensure bye slot is clean
-    if(s.bracket[2]&&s.bracket[2][5]){
-      const bs=s.bracket[2][5]
-      if(!bs.isByeSlot) bs.isByeSlot=true
-      // Remove stale avBye flag from name slot if it was accidentally set
-    }
-    bracket=s.bracket
-  }
+  if(s.bracket) bracket=s.bracket
   if(s.seedingTeams)seedingTeams=s.seedingTeams
-  if(s.byeTeam!==undefined)byeTeam=s.byeTeam||''
+
   if(s.finals)finals=s.finals
 }
 
@@ -464,37 +506,13 @@ setInterval(async()=>{
 },8000)
 
 // ── Bye + Seeding ─────────────────────────────────────────────────────────
-function calcByeAndSeed(){
-  if(!isAdmin)return
-  let r2teams=[]
-  bracket[1].forEach(m=>{if(m.a.name)r2teams.push(m.a.name);if(m.b.name)r2teams.push(m.b.name)})
-  r2teams=[...new Set(r2teams)].filter(Boolean)
-  let best='',bestAV=-1
-  r2teams.forEach(name=>{const av=getAV(name,'r2');if(av>bestAV){bestAV=av;best=name}})
-  if(!best){alert('Enter R2 AV scores first — the highest R2 AV will receive the R3 bye.');return}
-  byeTeam=best
-  bracket[2][5].a.name=best; bracket[2][5].b.name='BYE'; bracket[2][5].winner=0; bracket[2][5].isByeSlot=true
-  alert(`✅ R3 bye → ${best} (R2 AV: $${bestAV.toLocaleString()})\n\nThey auto-advance but still need R3 AV entered.\nRe-run this after all R3 AV scores are in to rank seeding.`)
-  seedFromR3AV(); scheduleSave(); render(); renderLeaderboard()
-}
 
-function seedFromR3AV(){
-  let r3teams=[]
-  for(let i=0;i<5;i++){const m=bracket[2][i];const w=m.winner===0?m.a.name:m.winner===1?m.b.name:m.a.name;if(w)r3teams.push(w)}
-  if(byeTeam&&!r3teams.includes(byeTeam))r3teams.push(byeTeam)
-  r3teams=[...new Set(r3teams)].filter(Boolean)
-  r3teams.sort((a,b)=>getAV(b,'r3')-getAV(a,'r3'))
-  for(let i=0;i<6;i++)seedingTeams[i]=r3teams[i]||''
-  finals.top.a=seedingTeams[0]||'';finals.top.b=seedingTeams[1]||''
-  finals.third.a=seedingTeams[2]||'';finals.third.b=seedingTeams[3]||''
-  finals.top.winner=null;finals.third.winner=null;finals.champion='';finals.thirdPlace=''
-}
 
 // ── Bracket click / win logic ─────────────────────────────────────────────
 function clickSlot(ri,mi,side){
   if(!isAdmin)return
   const m=bracket[ri][mi],s=side===0?m.a:m.b
-  if(!s||!s.name||m.isByeSlot)return
+  if(!s||!s.name)return
   if(m.winner===side){m.winner=null;clearDown(ri,mi)}
   else{m.winner=side;pushWin(ri,mi)}
   scheduleSave();render();renderLeaderboard()
@@ -570,7 +588,7 @@ function renderLeaderboard(){
     const gi=all.indexOf(e),rc=gi===0?'r1':gi===1?'r2':gi===2?'r3':'',medal=gi===0?'🥇':gi===1?'🥈':gi===2?'🥉':(gi+1)
     const pct=Math.round((e.av/maxAV)*100),col=barColor(gi)
     const sub=lbTab==='total'?`R1:$${e.r1.toLocaleString()} · R2:$${e.r2.toLocaleString()} · R3:$${e.r3.toLocaleString()}`:(e.stage||'')
-    return`<tr><td class="lb-rank ${rc}">${medal}</td><td class="lb-name-cell"><div class="lb-name" title="${e.name}">${e.name}${e.name===byeTeam?' <span style="font-size:9px;color:var(--teal)">bye</span>':''}</div><div class="lb-rounds">${sub}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${pct}%;background:${col}"></div></div></td><td class="lb-av-cell"><div class="lb-av">$${e.av.toLocaleString()}</div><div class="lb-av-sub">${lbTab==='total'?'total':lbTab} av</div></td></tr>`
+    return`<tr><td class="lb-rank ${rc}">${medal}</td><td class="lb-name-cell"><div class="lb-name" title="${e.name}">${e.name}</div><div class="lb-rounds">${sub}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${pct}%;background:${col}"></div></div></td><td class="lb-av-cell"><div class="lb-av">$${e.av.toLocaleString()}</div><div class="lb-av-sub">${lbTab==='total'?'total':lbTab} av</div></td></tr>`
   }).join('')
 }
 
@@ -585,13 +603,14 @@ const R_TITLE=['Round 1','Round 2','Round 3']
 const R_SUB=['22 matches · all 44 teams','11 matches','5 matches + R2 highest AV bye']
 const M_OFF=[1,23,34]
 
-// Effective slot count per round for connector alignment:
-// R1: 24 (22 matches + 2 phantom = 12 pairs matching R2)
-// R2: 12 (11 matches + 1 bye = 6 pairs matching R3)
-// R3:  6 (exactly 5 matches + 1 bye slot)
-const EFFECTIVE_N = [24, 12, 6]
+// Effective slot count per round for connector alignment (R1/R2 share TOTAL_H)
+const EFFECTIVE_N = [24, 12]
+
+// R3 uses its own tighter total height so matches sit close together
+const R3_TOTAL_H = 900
 
 function matchSpacing(ri) {
+  if (ri === 2) return (R3_TOTAL_H - HEADER_H) / 6  // 6 slots in R3
   return (TOTAL_H - HEADER_H) / EFFECTIVE_N[ri]
 }
 
@@ -620,22 +639,14 @@ function makeAVInput(name,round){
 function buildSlot(ri, mi, side, m) {
   const so = side===0 ? m.a : m.b
   const avRound = ['r1','r2','r3'][ri]
-  const isByePlaceholder = m.isByeSlot && side===1
-  const isByeWinner = m.isByeSlot && side===0
   const el = document.createElement('div'); el.className='slot'
   // Height controlled by CSS .slot { height: 44px }
 
-  if (isByePlaceholder) {
-    el.style.opacity='.3'; el.style.borderStyle='dashed'
-    const nm=document.createElement('span');nm.className='sname';nm.style.color='var(--text3)';nm.textContent='BYE';el.appendChild(nm)
-    return el
-  }
+  if (m.winner===side)  el.classList.add('winner')
+  else if (!so.name)    el.classList.add('empty')
 
-  if (isByeWinner)       el.classList.add('av-bye')
-  else if (m.winner===side) el.classList.add('winner')
-  else if (!so.name)     el.classList.add('empty')
-
-  if (isAdmin && !m.isByeSlot) {
+  // R1 & R2: click slot to mark winner. R3: manually assigned via ⚙ gear — no click-to-win
+  if (isAdmin && ri < 2) {
     el.classList.add('clickable')
     el.addEventListener('click', ()=>clickSlot(ri,mi,side))
   }
@@ -647,9 +658,9 @@ function buildSlot(ri, mi, side, m) {
   // Name row
   const nameRow=document.createElement('div');nameRow.className='slot-name-row'
   const nm=document.createElement('span');nm.className='sname'
-  nm.textContent=isByeWinner&&!so.name?'Highest R2 AV — bye':(so.name||(ri===0?'—':'TBD'))
+  nm.textContent = so.name||(ri===0?'—':'TBD')
   nameRow.appendChild(nm)
-  if (isByeWinner&&so.name) { const bb=document.createElement('span');bb.className='bye-badge';bb.textContent='R3 BYE';nameRow.appendChild(bb) }
+
   inner.appendChild(nameRow)
 
   // AV row
@@ -765,7 +776,8 @@ function render(){
   for (let ri=0; ri<=2; ri++) {
     wrap.appendChild(buildRoundCol(ri))
 
-    if (ri < 2 && bracket[ri+1]) {
+    // Only draw connector between R1 and R2 — R2→R3 has no bracket lines
+    if (ri === 0 && bracket[ri+1]) {
       const connCol = document.createElement('div'); connCol.className='connector-col'
       const svg = buildConnectorSVG(ri)
       if (svg) connCol.appendChild(svg)
@@ -773,8 +785,7 @@ function render(){
     }
   }
 
-  // Seeding
-  // Seeding
+  // Seeding round
   const sc=document.createElement('div');sc.className='round-col seed'
   sc.innerHTML=`<div class="round-head"><div class="rtitle">Seeding Round</div><div class="rsub">Ranked by R3 AV only</div></div>`
   const sp=document.createElement('div');sp.className='seed-panel'
@@ -784,11 +795,11 @@ function render(){
   GL.forEach((g,i)=>{
     if(i===2||i===4){const d=document.createElement('hr');d.className='seed-divider';sp.appendChild(d)}
     const row=document.createElement('div');row.className='seed-row '+g.cls
-    const name=seedingTeams[i]||'—',r3av=seedingTeams[i]?getAV(seedingTeams[i],'r3'):0,isBye=seedingTeams[i]===byeTeam&&byeTeam
-    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name}${isBye?' <span style="font-size:9px;color:var(--teal)">(bye)</span>':''}</div>${r3av>0?`<div class="seed-av">R3: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
+    const name=seedingTeams[i]||'—',r3av=seedingTeams[i]?getAV(seedingTeams[i],'r3'):0
+    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name}</div>${r3av>0?`<div class="seed-av">R3: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
     sp.appendChild(row)
   })
-  if(isAdmin){const rb=document.createElement('button');rb.className='rank-btn';rb.textContent='⚡ Calc R3 bye + rank seeding';rb.onclick=calcByeAndSeed;sp.appendChild(rb)}
+
   sc.appendChild(sp);wrap.appendChild(sc)
 
   // Finals
