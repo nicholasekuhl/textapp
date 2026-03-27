@@ -27,6 +27,18 @@ const logout = async () => {
   window.location.href = '/login.html'
 }
 
+// ─── PROFILE COMPLETION CHECK ─────────────────────────────────────────────────
+
+const REQUIRED_PROFILE_FIELDS = ['agent_name', 'agency_name', 'calendly_url', 'personal_phone']
+
+const checkProfileComplete = (profile) => {
+  if (window.location.pathname.includes('settings.html')) return
+  const missing = REQUIRED_PROFILE_FIELDS.filter(f => !profile[f])
+  if (missing.length > 0) {
+    window.location.href = '/settings.html?setup=1'
+  }
+}
+
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
 
 const loadProfile = async () => {
@@ -36,6 +48,7 @@ const loadProfile = async () => {
     const data = await res.json()
     const p = data.user
     currentUser = p
+    checkProfileComplete(p)
     const displayName = p.agent_name || p.email || ''
     const headerName = document.getElementById('header-agent-name')
     if (headerName) headerName.textContent = displayName
