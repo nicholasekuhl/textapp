@@ -2,7 +2,7 @@ const supabase = require('./db')
 const { sendSMS, buildMessageBody, pickNumberForLead } = require('./twilio')
 const { spintext } = require('./spintext')
 const nodemailer = require('nodemailer')
-const { isWithinQuietHours, checkSystemInitiatedLimit } = require('./compliance')
+const { isWithinQuietHours, checkSystemInitiatedLimit, getNextSendWindow } = require('./compliance')
 
 const HEALTH_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const HEALTH_ALERT_THRESHOLD_MS = 5 * 60 * 1000
@@ -271,6 +271,204 @@ const checkGhostedConversations = async () => {
   }
 }
 
+// Helper: get next_send_at for first day-based message after quick steps complete
+const getNextDayBasedSendAt = async (enrollment) => {
+  const { data: messages } = await supabase
+    .from('campaign_messages')
+    .select('day_number, send_time')
+    .eq('campaign_id', enrollment.campaign_id)
+    .order('day_number', { ascending: true })
+    .limit(1)
+  if (!messages || messages.length === 0) return null
+  const tz = enrollment.leads?.timezone || 'America/New_York'
+  return calculateSendTime(messages[0].day_number, messages[0].send_time || '10:00', enrollment.start_date, tz)
+}
+
+const processQuickFollowups = async () => {
+  try {
+    const now = new Date()
+
+    // Fetch enrollments where at least one quick step may still need sending
+    const { data: enrollments, error } = await supabase
+      .from('campaign_leads')
+      .select(`
+        *,
+        leads (id, first_name, last_name, phone, state, status, opted_out, timezone, first_message_sent, outbound_initiated_today),
+        campaigns (id, name, status, message_1, message_1_spintext, message_2, message_2_delay_minutes, message_2_spintext, message_3, message_3_delay_minutes, message_3_spintext, cancel_on_reply)
+      `)
+      .in('status', ['pending', 'active'])
+      .or('step_1_sent_at.is.null,step_2_sent_at.is.null,step_3_sent_at.is.null')
+
+    if (error) throw error
+
+    // Only process campaigns that have message_1 (quick follow-up campaigns)
+    const quickEnrollments = (enrollments || []).filter(e => e.campaigns?.message_1)
+    if (quickEnrollments.length === 0) return
+
+    // Batch-load phone numbers and profiles
+    const userIds = [...new Set(quickEnrollments.map(e => e.user_id).filter(Boolean))]
+    let phoneNumbersMap = {}
+    let profileMap = {}
+    if (userIds.length > 0) {
+      const [{ data: phoneNumbers }, { data: profiles }] = await Promise.all([
+        supabase.from('phone_numbers').select('user_id, phone_number, state, is_default').in('user_id', userIds).eq('is_active', true).order('created_at', { ascending: true }),
+        supabase.from('user_profiles').select('id, agency_name, compliance_footer, compliance_footer_enabled').in('id', userIds)
+      ])
+      if (phoneNumbers) {
+        for (const pn of phoneNumbers) {
+          if (!phoneNumbersMap[pn.user_id]) phoneNumbersMap[pn.user_id] = []
+          phoneNumbersMap[pn.user_id].push(pn)
+        }
+      }
+      if (profiles) {
+        for (const p of profiles) profileMap[p.id] = p
+      }
+    }
+
+    // Batch-load conversations for reply check
+    const leadIds = [...new Set(quickEnrollments.map(e => e.lead_id).filter(Boolean))]
+    let convMap = {}
+    if (leadIds.length > 0) {
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('lead_id, id, last_inbound_at')
+        .in('lead_id', leadIds)
+      if (convs) {
+        for (const c of convs) convMap[c.lead_id] = c
+      }
+    }
+
+    for (const enrollment of quickEnrollments) {
+      if (!enrollment.leads || !enrollment.campaigns) continue
+      if (enrollment.campaigns.status !== 'active') continue
+      if (!['pending', 'active'].includes(enrollment.status)) continue
+
+      const lead = enrollment.leads
+      const campaign = enrollment.campaigns
+      const conv = convMap[lead.id]
+
+      if (lead.opted_out || lead.status === 'opted_out') {
+        await supabase.from('campaign_leads').update({ status: 'opted_out' }).eq('id', enrollment.id)
+        continue
+      }
+
+      // Determine which step to attempt
+      let stepToSend = null
+      if (!enrollment.step_1_sent_at) {
+        if (new Date(enrollment.next_send_at) <= now) stepToSend = 1
+      } else if (!enrollment.step_2_sent_at && campaign.message_2 && campaign.message_2_delay_minutes) {
+        const sendAfter = new Date(new Date(enrollment.step_1_sent_at).getTime() + campaign.message_2_delay_minutes * 60000)
+        const leadReplied = conv?.last_inbound_at && new Date(conv.last_inbound_at) > new Date(enrollment.step_1_sent_at)
+        if (sendAfter <= now && !leadReplied) stepToSend = 2
+      } else if (enrollment.step_2_sent_at && !enrollment.step_3_sent_at && campaign.message_3 && campaign.message_3_delay_minutes) {
+        const sendAfter = new Date(new Date(enrollment.step_1_sent_at).getTime() + campaign.message_3_delay_minutes * 60000)
+        const leadReplied = conv?.last_inbound_at && new Date(conv.last_inbound_at) > new Date(enrollment.step_1_sent_at)
+        if (sendAfter <= now && !leadReplied) stepToSend = 3
+      }
+
+      if (!stepToSend) continue
+
+      // Compliance checks
+      const quietCheck = isWithinQuietHours(lead.state, lead.timezone)
+      if (quietCheck.blocked) {
+        console.log(`Quick follow-up step ${stepToSend} blocked (quiet hours): ${quietCheck.reason} — lead ${lead.id}`)
+        // Delay step 2/3 to next permitted window
+        if (stepToSend > 1) {
+          await supabase.from('campaign_leads')
+            .update({ next_send_at: getNextSendWindow(lead.state, lead.timezone) })
+            .eq('id', enrollment.id)
+        }
+        continue
+      }
+
+      const dailyCheck = checkSystemInitiatedLimit(lead.state, lead.outbound_initiated_today)
+      if (dailyCheck.blocked) {
+        console.log(`Quick follow-up step ${stepToSend} blocked (daily limit): ${dailyCheck.reason} — lead ${lead.id}`)
+        continue
+      }
+
+      // Build message body
+      const msgKey = stepToSend === 1 ? 'message_1' : stepToSend === 2 ? 'message_2' : 'message_3'
+      const spintextKey = `message_${stepToSend}_spintext`
+      const rawBody = campaign[spintextKey] ? spintext(campaign[msgKey]) : campaign[msgKey]
+      const firstName = lead.first_name || 'there'
+      const resolvedBody = rawBody.replace('[First Name]', firstName)
+      const userProfile = enrollment.user_id ? profileMap[enrollment.user_id] : null
+      let messageBody = buildMessageBody(resolvedBody, userProfile, lead, false)
+      if (stepToSend === 1) {
+        const agencyName = userProfile?.agency_name
+        if (!lead.first_message_sent && agencyName && !messageBody.includes(agencyName)) {
+          messageBody = `${messageBody}\n${agencyName}`
+        }
+      }
+
+      const fromNumber = pickNumberForLead(enrollment.user_id ? phoneNumbersMap[enrollment.user_id] : null, lead.state) || process.env.TWILIO_PHONE_NUMBER
+      const result = await sendSMS(lead.phone, messageBody, fromNumber)
+      if (!result.success) {
+        console.error(`Quick follow-up step ${stepToSend} failed for lead ${lead.id}:`, result.error)
+        continue
+      }
+
+      // Ensure conversation exists and log message
+      let conversation = conv
+      if (!conversation) {
+        const { data: newConv } = await supabase
+          .from('conversations')
+          .insert({ lead_id: lead.id, status: 'active', user_id: enrollment.user_id || null })
+          .select().single()
+        conversation = newConv
+      }
+      await supabase.from('messages').insert({
+        conversation_id: conversation.id,
+        user_id: enrollment.user_id || null,
+        direction: 'outbound',
+        body: messageBody,
+        sent_at: now.toISOString(),
+        twilio_sid: result.sid,
+        status: 'sent'
+      })
+
+      // Update lead
+      const leadUpdates = { updated_at: now.toISOString(), outbound_initiated_today: (lead.outbound_initiated_today || 0) + 1 }
+      if (canUpgrade(lead.status, 'contacted')) leadUpdates.status = 'contacted'
+      if (stepToSend === 1 && !lead.first_message_sent) leadUpdates.first_message_sent = true
+      await supabase.from('leads').update(leadUpdates).eq('id', lead.id)
+
+      // Update enrollment step tracking
+      const stepUpdates = {}
+      if (stepToSend === 1) {
+        stepUpdates.step_1_sent_at = now.toISOString()
+        if (campaign.message_2 && campaign.message_2_delay_minutes) {
+          stepUpdates.next_send_at = new Date(now.getTime() + campaign.message_2_delay_minutes * 60000).toISOString()
+        } else {
+          const nextDayAt = await getNextDayBasedSendAt(enrollment)
+          if (nextDayAt) stepUpdates.next_send_at = nextDayAt
+          else { stepUpdates.status = 'completed'; stepUpdates.completed_at = now.toISOString() }
+        }
+      } else if (stepToSend === 2) {
+        stepUpdates.step_2_sent_at = now.toISOString()
+        if (campaign.message_3 && campaign.message_3_delay_minutes) {
+          stepUpdates.next_send_at = new Date(new Date(enrollment.step_1_sent_at).getTime() + campaign.message_3_delay_minutes * 60000).toISOString()
+        } else {
+          const nextDayAt = await getNextDayBasedSendAt(enrollment)
+          if (nextDayAt) stepUpdates.next_send_at = nextDayAt
+          else { stepUpdates.status = 'completed'; stepUpdates.completed_at = now.toISOString() }
+        }
+      } else if (stepToSend === 3) {
+        stepUpdates.step_3_sent_at = now.toISOString()
+        const nextDayAt = await getNextDayBasedSendAt(enrollment)
+        if (nextDayAt) stepUpdates.next_send_at = nextDayAt
+        else { stepUpdates.status = 'completed'; stepUpdates.completed_at = now.toISOString() }
+      }
+
+      await supabase.from('campaign_leads').update(stepUpdates).eq('id', enrollment.id)
+      console.log(`Quick follow-up step ${stepToSend} sent to lead ${lead.id}`)
+    }
+  } catch (err) {
+    console.error('processQuickFollowups error:', err.message)
+  }
+}
+
 const isWithinBusinessHours = (sendTime) => {
   try {
     const [hours] = sendTime.split(':').map(Number)
@@ -327,7 +525,7 @@ const processScheduledMessages = async () => {
       .select(`
         *,
         leads (id, first_name, last_name, phone, state, status, opted_out, timezone, first_message_sent, outbound_initiated_today),
-        campaigns (id, name, status)
+        campaigns (id, name, status, message_1)
       `)
       .eq('status', 'pending')
       .lte('next_send_at', now.toISOString())
@@ -364,6 +562,9 @@ const processScheduledMessages = async () => {
         console.log(`Skipping enrollment ${enrollment.id} — status is '${enrollment.status}'`)
         continue
       }
+
+      // Quick follow-up campaigns: let processQuickFollowups handle until step_1 is sent
+      if (enrollment.campaigns.message_1 && !enrollment.step_1_sent_at) continue
 
       if (enrollment.leads.opted_out || enrollment.leads.status === 'opted_out') {
         await supabase
@@ -609,10 +810,12 @@ const scheduleMidnightReset = () => {
 const startScheduler = () => {
   console.log('Campaign scheduler started — master Twilio account active')
   setInterval(processScheduledMessages, 60000)
+  setInterval(processQuickFollowups, 60000)
   setInterval(checkGhostedConversations, 60000)
   setInterval(restoreCoolingNumbers, 5 * 60 * 1000) // check every 5 min
   scheduleMidnightReset()
   processScheduledMessages()
+  processQuickFollowups()
   checkGhostedConversations()
 }
 

@@ -287,13 +287,29 @@ const handleIncomingMessage = async (req, res) => {
       return res.send('<Response></Response>')
     }
 
-    const { data: pausedRows } = await supabase.from('campaign_leads')
-      .update({ status: 'paused', paused_at: new Date().toISOString() })
+    // Handle active campaign enrollments on reply
+    let needsCampaignReplyNotif = false
+    const { data: activeEnrollments } = await supabase
+      .from('campaign_leads')
+      .select('id, campaign_id, campaigns(cancel_on_reply)')
       .eq('lead_id', lead.id)
       .in('status', ['pending', 'active'])
-      .select('id')
-    if (pausedRows && pausedRows.length > 0) {
-      console.log(`Campaign paused for lead: ${lead.id} (${pausedRows.length} enrollment(s))`)
+    if (activeEnrollments && activeEnrollments.length > 0) {
+      const now = new Date().toISOString()
+      for (const enrollment of activeEnrollments) {
+        const cancelOnReply = enrollment.campaigns?.cancel_on_reply !== false
+        if (cancelOnReply) {
+          await supabase.from('campaign_leads')
+            .update({ status: 'completed', completed_at: now, cancelled_reason: 'lead_replied' })
+            .eq('id', enrollment.id)
+          if (!lead.autopilot) needsCampaignReplyNotif = true
+        } else {
+          await supabase.from('campaign_leads')
+            .update({ status: 'paused', paused_at: now })
+            .eq('id', enrollment.id)
+        }
+      }
+      console.log(`Campaign enrollments processed on reply for lead: ${lead.id} (${activeEnrollments.length} enrollment(s))`)
     }
 
     let { data: conversation } = await supabase
@@ -355,6 +371,12 @@ const handleIncomingMessage = async (req, res) => {
       const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.phone
       console.log('Creating notification for user:', userId)
       createNotification(userId, 'inbound_message', `${leadName} replied`, Body.slice(0, 100), lead.id, conversation.id)
+    }
+
+    // Campaign reply notification (autopilot off + cancel_on_reply)
+    if (needsCampaignReplyNotif) {
+      const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.phone
+      createNotification(userId, 'campaign_reply', 'Campaign reply needs follow-up', `${leadName} replied to your campaign and needs a manual response`, lead.id, conversation.id)
     }
 
     // SMS forwarding — non-blocking, never delays main flow

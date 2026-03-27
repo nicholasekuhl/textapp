@@ -15,20 +15,16 @@
     <input type="text" class="campaigns-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)">
     <button class="btn btn-primary" onclick="openCreateCampaignModal()">+ New Campaign</button>
   </div>
-  <div style="font-size:13px;color:#6b7280;margin-bottom:14px;">Create multiple campaigns and compare response rates to find the most effective outreach message.</div>
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;">Initial outreach sequences — create multiple campaigns and compare reply rates to find what works.</div>
   <div class="table-card">
     <table>
       <thead>
         <tr>
           <th onclick="sortCampaigns('name')">Name ↕</th>
-          <th>Type</th>
-          <th onclick="sortCampaigns('created_at')">Created ↕</th>
           <th>Messages</th>
-          <th onclick="sortCampaigns('status')">Status ↕</th>
           <th>Enrolled</th>
-          <th>Completed</th>
-          <th>Paused</th>
-          <th title="Leads who replied ÷ leads enrolled">Response Rate</th>
+          <th title="Leads who replied ÷ leads enrolled">Replied</th>
+          <th onclick="sortCampaigns('status')">Status ↕</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -39,26 +35,105 @@
 
 <!-- CREATE/EDIT CAMPAIGN MODAL -->
 <div class="modal-overlay" id="campaign-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:640px;">
     <div class="modal-header">
       <h2 id="campaign-modal-title">Create Campaign</h2>
       <button class="modal-close" onclick="closeCampaignModal()">×</button>
     </div>
-    <div class="tip">Click any variable below to insert it. Use <strong>{Option 1|Option 2}</strong> to randomize — the scheduler picks one variation per send.</div>
     <div class="form-group">
       <label>Campaign Name</label>
-      <input type="text" id="campaign-name" placeholder="e.g. End of Month Push">
+      <input type="text" id="campaign-name" placeholder="e.g. Follow Up Sequence">
     </div>
     <div class="form-group">
       <label>Description (optional)</label>
       <input type="text" id="campaign-description" placeholder="Internal note">
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <label style="font-size:13px;font-weight:500;color:#374151;">Message Sequence</label>
-      <button class="btn btn-secondary btn-sm" onclick="addMessageStep()">+ Add Message</button>
+
+    <!-- Message 1: Initial (required) -->
+    <div class="camp-msg-section">
+      <div class="camp-msg-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="camp-msg-label">Initial Message</span>
+          <span class="badge-required">Required</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="previewQuickMsg(1)">Preview</button>
+      </div>
+      <div id="campaign-footer-note" style="display:none;background:var(--color-primary-bg);border:1px solid var(--indigo-200);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:var(--color-primary);margin-bottom:10px;">Compliance footer is enabled — it will be automatically appended to the first message sent to each lead.</div>
+      <textarea id="msg1-body" class="step-body" rows="4" placeholder="Hi [First Name], this is [Agent Name] with [Agency Name]..." oninput="updateQuickCharCount(1)"></textarea>
+      <div class="char-count" id="msg1-char">0 / 160</div>
+      <label class="spintext-toggle"><input type="checkbox" id="msg1-spintext"> Enable spintext <span class="spintext-hint" title="Use {Option A|Option B} to randomize text — the scheduler picks one variation per send">?</span></label>
+      <div id="msg1-kw"></div>
     </div>
-    <div id="campaign-footer-note" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-bottom:10px;">Compliance footer is enabled — it will be automatically appended to the first message sent to each lead.</div>
-    <div id="message-steps"></div>
+
+    <!-- Message 2: Quick follow-up 1 (optional) -->
+    <div class="camp-msg-section">
+      <div class="camp-msg-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="camp-msg-label">Quick Follow-up 1</span>
+          <span class="badge-optional">Optional</span>
+        </div>
+      </div>
+      <label class="toggle-enable-row"><input type="checkbox" id="msg2-enabled" onchange="toggleMsg(2)"> Enable this message</label>
+      <div id="msg2-fields" style="display:none;">
+        <textarea id="msg2-body" class="step-body" rows="3" placeholder="Just following up on my last message..." oninput="updateQuickCharCount(2)"></textarea>
+        <div class="char-count" id="msg2-char">0 / 160</div>
+        <label class="spintext-toggle"><input type="checkbox" id="msg2-spintext"> Enable spintext</label>
+        <div class="delay-row">
+          <span>Send</span>
+          <input type="number" id="msg2-delay-val" class="delay-num" min="1" placeholder="30">
+          <select id="msg2-delay-unit" class="delay-unit"><option value="minutes">Minutes</option><option value="hours">Hours</option></select>
+          <span>after initial message</span>
+        </div>
+        <div class="help-text">Quiet hours still apply — if the delay falls outside permitted hours it will be sent the next morning.</div>
+        <div id="msg2-kw"></div>
+        <button class="btn btn-secondary btn-sm" onclick="previewQuickMsg(2)" style="margin-top:8px;">Preview</button>
+      </div>
+    </div>
+
+    <!-- Message 3: Quick follow-up 2 (optional, only if message 2 enabled) -->
+    <div class="camp-msg-section" id="msg3-section" style="display:none;">
+      <div class="camp-msg-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="camp-msg-label">Quick Follow-up 2</span>
+          <span class="badge-optional">Optional</span>
+        </div>
+      </div>
+      <label class="toggle-enable-row"><input type="checkbox" id="msg3-enabled" onchange="toggleMsg(3)"> Enable this message</label>
+      <div id="msg3-fields" style="display:none;">
+        <textarea id="msg3-body" class="step-body" rows="3" placeholder="Hey [First Name], wanted to check in one more time..." oninput="updateQuickCharCount(3)"></textarea>
+        <div class="char-count" id="msg3-char">0 / 160</div>
+        <label class="spintext-toggle"><input type="checkbox" id="msg3-spintext"> Enable spintext</label>
+        <div class="delay-row">
+          <span>Send</span>
+          <input type="number" id="msg3-delay-val" class="delay-num" min="1" placeholder="60">
+          <select id="msg3-delay-unit" class="delay-unit"><option value="minutes">Minutes</option><option value="hours">Hours</option></select>
+          <span>after initial message</span>
+        </div>
+        <div id="msg3-delay-error" class="form-error" style="display:none;">Must be after Follow-up 1</div>
+        <div id="msg3-kw"></div>
+        <button class="btn btn-secondary btn-sm" onclick="previewQuickMsg(3)" style="margin-top:8px;">Preview</button>
+      </div>
+    </div>
+
+    <!-- Additional day-based messages -->
+    <div class="camp-msg-section">
+      <div class="camp-msg-header">
+        <div>
+          <span class="camp-msg-label">Additional Follow-ups</span>
+          <div class="camp-msg-subtitle">Day-based messages sent on specific days after enrollment</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="addMessageStep()">+ Add Message</button>
+      </div>
+      <div class="help-text" style="margin-bottom:10px;">Each message must be at least 1 day after enrollment. For FL, OK, MD leads: note the 3 outbound message per 24-hour limit.</div>
+      <div id="message-steps"></div>
+    </div>
+
+    <!-- Reply behavior -->
+    <div class="camp-msg-section">
+      <label class="toggle-enable-row" style="margin-bottom:4px;"><input type="checkbox" id="cancel-on-reply" checked> <span style="font-weight:500;color:var(--gray-700);">Stop follow-ups when lead replies</span></label>
+      <div class="help-text">When a lead responds, remaining messages are cancelled. If autopilot is on the AI handles the conversation. If autopilot is off you will be notified to follow up.</div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveCampaign()">Save Campaign</button>
@@ -79,7 +154,7 @@
     <div id="preview-footer-note" style="display:none;font-size:12px;color:var(--color-primary);background:var(--color-primary-bg);padding:8px 12px;border-radius:var(--radius-sm);margin-bottom:12px;">Compliance footer appended (first message only)</div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="document.getElementById('preview-modal').classList.remove('open')">Close</button>
-      <button class="btn btn-secondary" onclick="previewMessageStep(currentPreviewStepId)">Re-roll</button>
+      <button class="btn btn-secondary" onclick="rerollPreview()">Re-roll</button>
     </div>
   </div>
 </div>
@@ -111,28 +186,24 @@
 <script src="/js/shared.js"></script>
 <script>
   let allCampaigns = []
-  let allLeads = []
-  let selectedLeads = new Set()
   let editingCampaignId = null
   let messageStepCount = 0
   let campaignSortKey = 'created_at'
   let currentPreviewStepId = null
   let campaignSortDir = -1
 
+  // ── Load & render ─────────────────────────────────────────────────────────
+
   const loadCampaigns = async () => {
     const tbody = document.getElementById('campaigns-tbody')
     if (tbody && !allCampaigns.length) {
       tbody.innerHTML = Array(3).fill(0).map(() => `
         <tr>
-          <td><div class="skeleton" style="height:14px;width:60%;margin-bottom:5px;"></div><div class="skeleton" style="height:11px;width:40%;"></div></td>
-          <td><div class="skeleton" style="height:20px;width:50px;border-radius:6px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:70px;"></div></td>
+          <td><div class="skeleton" style="height:14px;width:60%;margin-bottom:5px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:80px;"></div></td>
+          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
           <td><div class="skeleton" style="height:13px;width:40px;"></div></td>
           <td><div class="skeleton" style="height:22px;width:60px;border-radius:20px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:30px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:40px;"></div></td>
           <td><div class="skeleton" style="height:22px;width:30px;border-radius:6px;"></div></td>
         </tr>`).join('')
     }
@@ -144,7 +215,7 @@
     } catch (err) {
       console.error(err)
       toast.error('Failed to load campaigns', 'Please try again')
-      if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Could not load campaigns.</td></tr>`
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Could not load campaigns.</td></tr>`
     }
   }
 
@@ -165,11 +236,11 @@
     })
     const tbody = document.getElementById('campaigns-tbody')
     if (!sorted.length) {
-      tbody.innerHTML = `<tr><td colspan="10">
+      tbody.innerHTML = `<tr><td colspan="6">
         <div style="text-align:center;padding:72px 20px;">
           <div style="font-size:40px;margin-bottom:14px;">📋</div>
           <div style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No campaigns yet</div>
-          <div style="font-size:13px;color:#9ca3af;margin-bottom:20px;">Create a drip campaign to automatically follow up with leads over time.</div>
+          <div style="font-size:13px;color:#9ca3af;margin-bottom:20px;">Create a campaign to automatically follow up with leads.</div>
           <button class="btn btn-primary" style="width:auto;padding:8px 20px;" onclick="openCreateCampaignModal()">Create Campaign</button>
         </div>
       </td></tr>`
@@ -177,35 +248,30 @@
     }
     const rateOf = (c) => {
       const leads = c.campaign_leads || []
-      const enrolled = leads.length
-      if (!enrolled) return -1
+      if (!leads.length) return -1
       const replied = leads.filter(l => l.leads?.has_replied).length
-      return replied / enrolled
+      return replied / leads.length
     }
-    const bestId = sorted.reduce((best, c) => {
-      const r = rateOf(c)
-      return r > rateOf(best) ? c : best
-    }, sorted[0]).id
+    const bestId = sorted.reduce((best, c) => rateOf(c) > rateOf(best) ? c : best, sorted[0]).id
     tbody.innerHTML = sorted.map((c, idx) => {
       const leads = c.campaign_leads || []
       const enrolled = leads.length
-      const completed = leads.filter(l => l.status === 'completed').length
-      const paused = leads.filter(l => l.status === 'paused').length
       const replied = leads.filter(l => l.leads?.has_replied).length
-      const responseRate = enrolled > 0 ? Math.round((replied / enrolled) * 100) : null
-      const isBest = c.id === bestId && responseRate !== null && responseRate > 0 && sorted.length > 1
-      const steps = c.campaign_messages?.length || 0
+      const replyRate = enrolled > 0 ? Math.round((replied / enrolled) * 100) : null
+      const isBest = c.id === bestId && replyRate !== null && replyRate > 0 && sorted.length > 1
+      const quickCount = [c.message_1, c.message_2, c.message_3].filter(Boolean).length
+      const dayCount = c.campaign_messages?.length || 0
+      const msgSummary = [
+        quickCount > 0 ? `${quickCount} quick` : '',
+        dayCount > 0 ? `${dayCount} day-based` : ''
+      ].filter(Boolean).join(' + ') || '—'
       const isLast = idx >= sorted.length - 2
       return `<tr>
-        <td><div class="campaign-name-cell">${c.name}${isBest ? ' <span title="Highest response rate" style="font-size:13px;">⭐</span>' : ''}</div>${c.description ? `<div class="campaign-desc">${c.description}</div>` : ''}</td>
-        <td><span class="type-label">Workflow</span><span class="drip-badge">Drip</span></td>
-        <td style="color:#6b7280;font-size:13px;">${formatDate(c.created_at)}</td>
-        <td style="color:#6b7280;font-size:13px;">${steps} msg${steps !== 1 ? 's' : ''}</td>
+        <td><div class="campaign-name-cell">${c.name}${isBest ? ' <span title="Highest reply rate" style="font-size:13px;">⭐</span>' : ''}</div>${c.description ? `<div class="campaign-desc">${c.description}</div>` : ''}</td>
+        <td style="font-size:13px;color:var(--color-text-secondary);">${msgSummary}</td>
+        <td style="font-size:13px;font-weight:600;">${enrolled}</td>
+        <td style="font-size:13px;font-weight:600;color:${replyRate !== null && replyRate > 0 ? '#059669' : 'var(--color-text-secondary)'};">${replyRate !== null ? `${replyRate}%` : '—'}</td>
         <td><span class="status-badge status-${c.status}">${c.status}</span></td>
-        <td style="font-size:13px;font-weight:600;color:#1a1a2e;">${enrolled}</td>
-        <td style="font-size:13px;color:#059669;font-weight:600;">${completed}</td>
-        <td style="font-size:13px;color:#d97706;font-weight:600;">${paused}</td>
-        <td style="font-size:13px;font-weight:600;color:${responseRate !== null && responseRate > 0 ? '#059669' : '#9ca3af'};">${responseRate !== null ? `${responseRate}%` : '—'}</td>
         <td>
           <div class="actions-menu">
             <button class="actions-btn" onclick="toggleActionsMenu('menu-${c.id}', ${isLast})">⋯</button>
@@ -222,17 +288,58 @@
     }).join('')
   }
 
+  // ── Table actions ──────────────────────────────────────────────────────────
+
   const toggleActionsMenu = (id, isLast) => {
     document.querySelectorAll('.actions-dropdown').forEach(d => { if (d.id !== id) d.classList.remove('open') })
     const menu = document.getElementById(id)
-    if (menu) { menu.className = `actions-dropdown ${isLast ? 'up' : 'down'} ${menu.classList.contains('open') ? '' : 'open'}` }
+    if (menu) menu.className = `actions-dropdown ${isLast ? 'up' : 'down'} ${menu.classList.contains('open') ? '' : 'open'}`
   }
 
   document.addEventListener('click', (e) => { if (!e.target.closest('.actions-menu')) document.querySelectorAll('.actions-dropdown').forEach(d => d.classList.remove('open')) })
 
   const startCampaign = async (id) => { await fetch(`/campaigns/${id}/start`, { method: 'POST' }); loadCampaigns(); toast.success('Campaign active', 'Campaign is now running') }
   const pauseCampaign = async (id) => { await fetch(`/campaigns/${id}/pause`, { method: 'POST' }); loadCampaigns(); toast.info('Campaign paused', 'No new messages will be sent') }
-  const deleteCampaign = async (id) => { if (!await confirmModal('Delete campaign?', 'All campaign data will be removed. Enrolled leads already contacted will not be affected.', 'Delete', true)) return; await fetch(`/campaigns/${id}`, { method: 'DELETE' }); loadCampaigns(); toast.info('Campaign deleted', 'Campaign removed') }
+  const deleteCampaign = async (id) => {
+    if (!await confirmModal('Delete campaign?', 'All campaign data will be removed. Enrolled leads already contacted will not be affected.', 'Delete', true)) return
+    await fetch(`/campaigns/${id}`, { method: 'DELETE' })
+    loadCampaigns()
+    toast.info('Campaign deleted', 'Campaign removed')
+  }
+
+  // ── Modal open/close ───────────────────────────────────────────────────────
+
+  const openCreateCampaignModal = () => {
+    editingCampaignId = null
+    messageStepCount = 0
+    document.getElementById('campaign-modal-title').textContent = 'Create Campaign'
+    document.getElementById('campaign-name').value = ''
+    document.getElementById('campaign-description').value = ''
+    // Reset quick messages
+    document.getElementById('msg1-body').value = ''
+    document.getElementById('msg1-spintext').checked = false
+    updateQuickCharCount(1)
+    initKwChips()
+    document.getElementById('msg2-enabled').checked = false
+    document.getElementById('msg2-fields').style.display = 'none'
+    document.getElementById('msg2-body').value = ''
+    document.getElementById('msg2-delay-val').value = ''
+    document.getElementById('msg2-delay-unit').value = 'minutes'
+    document.getElementById('msg2-spintext').checked = false
+    document.getElementById('msg3-section').style.display = 'none'
+    document.getElementById('msg3-enabled').checked = false
+    document.getElementById('msg3-fields').style.display = 'none'
+    document.getElementById('msg3-body').value = ''
+    document.getElementById('msg3-delay-val').value = ''
+    document.getElementById('msg3-delay-unit').value = 'minutes'
+    document.getElementById('msg3-spintext').checked = false
+    document.getElementById('msg3-delay-error').style.display = 'none'
+    document.getElementById('cancel-on-reply').checked = true
+    document.getElementById('message-steps').innerHTML = ''
+    document.getElementById('campaign-modal').classList.add('open')
+  }
+
+  const closeCampaignModal = () => document.getElementById('campaign-modal').classList.remove('open')
 
   const editCampaign = async (id) => {
     const res = await fetch(`/campaigns/${id}`)
@@ -240,40 +347,88 @@
     const c = data.campaign
     editingCampaignId = id
     messageStepCount = 0
+    document.getElementById('campaign-modal-title').textContent = 'Edit Campaign'
     document.getElementById('campaign-name').value = c.name
     document.getElementById('campaign-description').value = c.description || ''
+
+    // Quick messages
+    document.getElementById('msg1-body').value = c.message_1 || ''
+    document.getElementById('msg1-spintext').checked = !!c.message_1_spintext
+    updateQuickCharCount(1)
+    initKwChips()
+
+    // Reset msg2/3 first
+    document.getElementById('msg2-enabled').checked = false
+    document.getElementById('msg2-fields').style.display = 'none'
+    document.getElementById('msg3-section').style.display = 'none'
+    document.getElementById('msg3-enabled').checked = false
+    document.getElementById('msg3-fields').style.display = 'none'
+
+    if (c.message_2) {
+      document.getElementById('msg2-enabled').checked = true
+      document.getElementById('msg2-fields').style.display = 'block'
+      document.getElementById('msg3-section').style.display = 'block'
+      document.getElementById('msg2-body').value = c.message_2
+      document.getElementById('msg2-spintext').checked = !!c.message_2_spintext
+      updateQuickCharCount(2)
+      const d2 = minutesToDelayUI(c.message_2_delay_minutes)
+      document.getElementById('msg2-delay-val').value = d2.val
+      document.getElementById('msg2-delay-unit').value = d2.unit
+    }
+
+    if (c.message_3) {
+      document.getElementById('msg3-enabled').checked = true
+      document.getElementById('msg3-fields').style.display = 'block'
+      document.getElementById('msg3-body').value = c.message_3
+      document.getElementById('msg3-spintext').checked = !!c.message_3_spintext
+      updateQuickCharCount(3)
+      const d3 = minutesToDelayUI(c.message_3_delay_minutes)
+      document.getElementById('msg3-delay-val').value = d3.val
+      document.getElementById('msg3-delay-unit').value = d3.unit
+    }
+
+    document.getElementById('msg3-delay-error').style.display = 'none'
+    document.getElementById('cancel-on-reply').checked = c.cancel_on_reply !== false
+
+    // Day-based messages
     document.getElementById('message-steps').innerHTML = ''
-    document.getElementById('campaign-modal-title').textContent = 'Edit Campaign'
-    c.campaign_messages.sort((a, b) => a.day_number - b.day_number).forEach(msg => {
+    ;(c.campaign_messages || []).sort((a, b) => a.day_number - b.day_number).forEach(msg => {
       messageStepCount++
       const container = document.getElementById('message-steps')
       const step = document.createElement('div')
       step.className = 'message-step'
       step.id = `step-${messageStepCount}`
-      step.innerHTML = `
-        <div class="message-step-header"><span>Message ${messageStepCount}</span><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="previewMessageStep('step-${messageStepCount}')">Preview</button><button class="btn btn-danger btn-sm" onclick="removeStep('step-${messageStepCount}')">Remove</button></div></div>
-        <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${msg.day_number}"><label>at</label><input type="time" class="step-time" value="${msg.send_time || '10:00'}"><span style="font-size:11px;color:#9ca3af;">lead's local time</span></div>
-        <textarea class="step-body" rows="3" oninput="updateCharCount(this)">${msg.message_body}</textarea>
-        <div class="char-count">${msg.message_body.length} / 160</div>
-        ${kwChipsRowHTML("this.closest('.message-step').querySelector('textarea')")}
-      `
+      step.innerHTML = buildDayStepHTML(messageStepCount, msg.day_number, msg.send_time, msg.message_body)
       container.appendChild(step)
     })
+
     document.getElementById('campaign-modal').classList.add('open')
   }
 
-  const openCreateCampaignModal = () => {
-    editingCampaignId = null
-    messageStepCount = 0
-    document.getElementById('campaign-name').value = ''
-    document.getElementById('campaign-description').value = ''
-    document.getElementById('message-steps').innerHTML = ''
-    document.getElementById('campaign-modal-title').textContent = 'Create Campaign'
-    addMessageStep()
-    document.getElementById('campaign-modal').classList.add('open')
+  // ── Quick message toggles ──────────────────────────────────────────────────
+
+  const toggleMsg = (n) => {
+    const enabled = document.getElementById(`msg${n}-enabled`).checked
+    document.getElementById(`msg${n}-fields`).style.display = enabled ? 'block' : 'none'
+    if (enabled) initKwChips()
+    if (n === 2) {
+      document.getElementById('msg3-section').style.display = enabled ? 'block' : 'none'
+      if (!enabled) {
+        document.getElementById('msg3-enabled').checked = false
+        document.getElementById('msg3-fields').style.display = 'none'
+      }
+    }
   }
 
-  const closeCampaignModal = () => document.getElementById('campaign-modal').classList.remove('open')
+  // ── Day-based message steps ────────────────────────────────────────────────
+
+  const buildDayStepHTML = (num, day, time, body) => `
+    <div class="message-step-header"><span>Day-based Message ${num}</span><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="previewMessageStep('step-${num}')">Preview</button><button class="btn btn-danger btn-sm" onclick="removeStep('step-${num}')">Remove</button></div></div>
+    <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${day || num}"><label>at</label><input type="time" class="step-time" value="${time || '10:00'}"><span style="font-size:11px;color:var(--color-text-secondary);">lead's local time</span></div>
+    <textarea class="step-body" rows="3" oninput="updateCharCount(this)">${body || ''}</textarea>
+    <div class="char-count">${body ? body.length : 0} / 160</div>
+    ${kwChipsRowHTML("this.closest('.message-step').querySelector('textarea')")}
+  `
 
   const addMessageStep = () => {
     messageStepCount++
@@ -281,13 +436,10 @@
     const step = document.createElement('div')
     step.className = 'message-step'
     step.id = `step-${messageStepCount}`
-    step.innerHTML = `
-      <div class="message-step-header"><span>Message ${messageStepCount}</span><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="previewMessageStep('step-${messageStepCount}')">Preview</button><button class="btn btn-danger btn-sm" onclick="removeStep('step-${messageStepCount}')">Remove</button></div></div>
-      <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${messageStepCount === 1 ? 1 : messageStepCount * 3}"><label>at</label><input type="time" class="step-time" value="10:00"><span style="font-size:11px;color:#9ca3af;">lead's local time</span></div>
-      <textarea class="step-body" placeholder="Hi [First Name], this is [Agent Name] with [Agency Name]..." rows="3" oninput="updateCharCount(this)"></textarea>
-      <div class="char-count">0 / 160</div>
-      ${kwChipsRowHTML("this.closest('.message-step').querySelector('textarea')")}
-    `
+    step.innerHTML = buildDayStepHTML(messageStepCount, messageStepCount, '10:00', '')
+    // Clear body since buildDayStepHTML sets it
+    step.querySelector('textarea').value = ''
+    step.querySelector('textarea').placeholder = 'Hi [First Name], just checking in...'
     container.appendChild(step)
   }
 
@@ -300,10 +452,79 @@
 
   const removeStep = (id) => document.getElementById(id)?.remove()
 
+  // ── Quick char count & delay helpers ──────────────────────────────────────
+
+  const updateQuickCharCount = (n) => {
+    const textarea = document.getElementById(`msg${n}-body`)
+    const div = document.getElementById(`msg${n}-char`)
+    if (!textarea || !div) return
+    const count = textarea.value.length
+    div.textContent = `${count} / 160`
+    div.className = 'char-count' + (count > 160 ? ' danger' : count > 130 ? ' warning' : '')
+  }
+
+  const getDelayMinutes = (valId, unitId) => {
+    const val = parseFloat(document.getElementById(valId).value)
+    if (!val || val <= 0) return null
+    return document.getElementById(unitId).value === 'hours' ? Math.round(val * 60) : Math.round(val)
+  }
+
+  const minutesToDelayUI = (minutes) => {
+    if (!minutes) return { val: '', unit: 'minutes' }
+    if (minutes >= 60 && minutes % 60 === 0) return { val: minutes / 60, unit: 'hours' }
+    return { val: minutes, unit: 'minutes' }
+  }
+
+  // ── kw chips for quick message textareas ──────────────────────────────────
+
+  const initKwChips = () => {
+    [1, 2, 3].forEach(n => {
+      const container = document.getElementById(`msg${n}-kw`)
+      if (container) container.innerHTML = kwChipsRowHTML(`document.getElementById('msg${n}-body')`)
+    })
+  }
+
+  // ── Save campaign ──────────────────────────────────────────────────────────
+
   const saveCampaign = async () => {
     const name = document.getElementById('campaign-name').value.trim()
-    const description = document.getElementById('campaign-description').value.trim()
     if (!name) return toast.error('Required', 'Please enter a campaign name')
+
+    const message_1 = document.getElementById('msg1-body').value.trim()
+    if (!message_1) return toast.error('Required', 'Initial message is required')
+
+    const message_1_spintext = document.getElementById('msg1-spintext').checked
+    const cancel_on_reply = document.getElementById('cancel-on-reply').checked
+
+    let message_2 = null, message_2_delay_minutes = null, message_2_spintext = false
+    let message_3 = null, message_3_delay_minutes = null, message_3_spintext = false
+
+    if (document.getElementById('msg2-enabled').checked) {
+      const body2 = document.getElementById('msg2-body').value.trim()
+      if (!body2) return toast.error('Incomplete', 'Quick Follow-up 1 body is required')
+      const delay2 = getDelayMinutes('msg2-delay-val', 'msg2-delay-unit')
+      if (!delay2) return toast.error('Incomplete', 'Quick Follow-up 1 delay is required')
+      message_2 = body2
+      message_2_delay_minutes = delay2
+      message_2_spintext = document.getElementById('msg2-spintext').checked
+
+      if (document.getElementById('msg3-enabled').checked) {
+        const body3 = document.getElementById('msg3-body').value.trim()
+        if (!body3) return toast.error('Incomplete', 'Quick Follow-up 2 body is required')
+        const delay3 = getDelayMinutes('msg3-delay-val', 'msg3-delay-unit')
+        if (!delay3) return toast.error('Incomplete', 'Quick Follow-up 2 delay is required')
+        if (delay3 <= delay2) {
+          document.getElementById('msg3-delay-error').textContent = `Must be after Follow-up 1 (minimum ${delay2 + 1} minutes)`
+          document.getElementById('msg3-delay-error').style.display = 'block'
+          return toast.error('Invalid delay', `Follow-up 2 delay must be greater than Follow-up 1 (${delay2} min)`)
+        }
+        document.getElementById('msg3-delay-error').style.display = 'none'
+        message_3 = body3
+        message_3_delay_minutes = delay3
+        message_3_spintext = document.getElementById('msg3-spintext').checked
+      }
+    }
+
     const steps = document.querySelectorAll('.message-step')
     const messages = []
     let valid = true
@@ -314,18 +535,39 @@
       if (!body) { valid = false; return }
       messages.push({ day_number: day, send_time: time, message_body: body })
     })
-    if (!valid) return toast.error('Incomplete', 'Please fill in all message bodies')
-    if (!messages.length) return toast.error('Required', 'Add at least one message step')
+    if (!valid) return toast.error('Incomplete', 'Please fill in all day-based message bodies')
     messages.sort((a, b) => a.day_number - b.day_number)
+
     try {
       const url = editingCampaignId ? `/campaigns/${editingCampaignId}` : '/campaigns'
       const method = editingCampaignId ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description, messages }) })
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description: document.getElementById('campaign-description').value.trim(),
+          message_1, message_1_spintext,
+          message_2, message_2_delay_minutes, message_2_spintext,
+          message_3, message_3_delay_minutes, message_3_spintext,
+          cancel_on_reply,
+          messages
+        })
+      })
       const data = await res.json()
-      if (data.success) { closeCampaignModal(); loadCampaigns(); toast.success('Campaign saved', editingCampaignId ? 'Campaign updated successfully' : 'New campaign created') }
-      else toast.error('Save failed', data.error || 'Could not save campaign')
-    } catch (err) { toast.error('Error', 'Something went wrong') }
+      if (data.success) {
+        closeCampaignModal()
+        loadCampaigns()
+        toast.success('Campaign saved', editingCampaignId ? 'Campaign updated' : 'New campaign created')
+      } else {
+        toast.error('Save failed', data.error || 'Could not save campaign')
+      }
+    } catch (err) {
+      toast.error('Error', 'Something went wrong')
+    }
   }
+
+  // ── Enroll modal ───────────────────────────────────────────────────────────
 
   const openEnrollModal = (campaignId) => {
     const select = document.getElementById('enroll-campaign-select')
@@ -354,6 +596,8 @@
     } catch (err) { toast.error('Error', 'Something went wrong') }
   }
 
+  // ── Preview ────────────────────────────────────────────────────────────────
+
   const SAMPLE_VARS = {
     '[First Name]': 'Jane', '[Last Name]': 'Smith', '[Full Name]': 'Jane Smith',
     '[Phone]': '+1 (555) 000-0001', '[Email]': 'jane.smith@email.com',
@@ -366,24 +610,10 @@
       return choices.length ? choices[Math.floor(Math.random() * choices.length)] : ''
     })
 
-  const previewMessageStep = (stepId) => {
-    const step = document.getElementById(stepId)
-    if (!step) return
-    const rawBody = step.querySelector('.step-body').value.trim()
-    if (!rawBody) return toast.error('Empty', 'Write a message before previewing')
-
-    currentPreviewStepId = stepId
-
-    const thisDay = parseInt(step.querySelector('.step-day').value)
-    const allSteps = [...document.querySelectorAll('.message-step')]
-    const minDay = Math.min(...allSteps.map(s => parseInt(s.querySelector('.step-day').value)))
-    const isFirst = thisDay <= minDay
-
-    const now = new Date()
+  const buildPreview = (rawBody, isFirst) => {
     const agentName = currentUser?.agent_name || 'Your Name'
     const agencyName = currentUser?.agency_name || 'Your Agency Name'
-    const calendlyUrl = currentUser?.calendly_url || 'https://calendly.com/your-link'
-
+    const now = new Date()
     let preview = resolveSpintext(rawBody)
     Object.entries(SAMPLE_VARS).forEach(([k, v]) => {
       preview = preview.replace(new RegExp(k.replace(/[[\]]/g, '\\$&'), 'gi'), v)
@@ -391,10 +621,9 @@
     preview = preview
       .replace(/\[Agent Name\]/gi, agentName)
       .replace(/\[Agency Name\]/gi, agencyName)
-      .replace(/\[Calendly Link\]/gi, calendlyUrl)
+      .replace(/\[Calendly Link\]/gi, currentUser?.calendly_url || 'https://calendly.com/your-link')
       .replace(/\[Date\]/gi, now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
       .replace(/\[Time\]/gi, now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
-
     if (isFirst) {
       const complianceEnabled = currentUser?.compliance_footer_enabled !== false
       const footer = complianceEnabled
@@ -402,7 +631,10 @@
         : agencyName
       if (footer) preview = `${preview}\n${footer}`
     }
+    return preview
+  }
 
+  const showPreviewModal = (preview, isFirst) => {
     const len = preview.length
     const segments = Math.ceil(len / 160)
     document.getElementById('preview-message-body').textContent = preview
@@ -411,10 +643,41 @@
     document.getElementById('preview-modal').classList.add('open')
   }
 
+  const previewQuickMsg = (n) => {
+    const rawBody = document.getElementById(`msg${n}-body`)?.value.trim()
+    if (!rawBody) return toast.error('Empty', 'Write a message before previewing')
+    currentPreviewStepId = `quick-${n}`
+    showPreviewModal(buildPreview(rawBody, n === 1), n === 1)
+  }
+
+  const previewMessageStep = (stepId) => {
+    const step = document.getElementById(stepId)
+    if (!step) return
+    const rawBody = step.querySelector('.step-body').value.trim()
+    if (!rawBody) return toast.error('Empty', 'Write a message before previewing')
+    currentPreviewStepId = stepId
+    // Day-based messages are never the initial message (message_1 always is)
+    showPreviewModal(buildPreview(rawBody, false), false)
+  }
+
+  // Re-roll re-uses the same step ID
+  const rerollPreview = () => {
+    if (!currentPreviewStepId) return
+    if (currentPreviewStepId.startsWith('quick-')) {
+      const n = parseInt(currentPreviewStepId.split('-')[1])
+      previewQuickMsg(n)
+    } else {
+      previewMessageStep(currentPreviewStepId)
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
   const init = async () => {
     const authed = await checkAuth()
     if (!authed) return
     await loadProfile()
+    initKwChips()
     loadCampaigns()
     loadCalBadge()
     loadNotifBadge()

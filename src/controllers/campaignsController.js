@@ -7,7 +7,7 @@ const getCampaigns = async (req, res) => {
       .select(`
         *,
         campaign_messages (id, day_number, send_time, message_body),
-        campaign_leads (id, status)
+        campaign_leads (id, status, leads(has_replied))
       `)
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
@@ -40,28 +40,45 @@ const getCampaign = async (req, res) => {
 
 const createCampaign = async (req, res) => {
   try {
-    const { name, description, messages } = req.body
+    const {
+      name, description, messages,
+      message_1, message_1_spintext,
+      message_2, message_2_delay_minutes, message_2_spintext,
+      message_3, message_3_delay_minutes, message_3_spintext,
+      cancel_on_reply
+    } = req.body
     if (!name) return res.status(400).json({ error: 'Campaign name is required' })
-    if (!messages || messages.length === 0) return res.status(400).json({ error: 'At least one message is required' })
+    if (!message_1) return res.status(400).json({ error: 'Initial message is required' })
 
     const { data: campaign, error: campError } = await supabase
       .from('campaigns')
-      .insert({ name, description, status: 'draft', user_id: req.user.id })
+      .insert({
+        name, description, status: 'draft', user_id: req.user.id,
+        message_1, message_1_spintext: !!message_1_spintext,
+        message_2: message_2 || null,
+        message_2_delay_minutes: message_2_delay_minutes || null,
+        message_2_spintext: !!message_2_spintext,
+        message_3: message_3 || null,
+        message_3_delay_minutes: message_3_delay_minutes || null,
+        message_3_spintext: !!message_3_spintext,
+        cancel_on_reply: cancel_on_reply !== false
+      })
       .select()
       .single()
     if (campError) throw campError
 
-    const messageRows = messages.map((msg) => ({
-      campaign_id: campaign.id,
-      day_number: msg.day_number,
-      send_time: msg.send_time || '10:00',
-      message_body: msg.message_body
-    }))
-
-    const { error: msgError } = await supabase
-      .from('campaign_messages')
-      .insert(messageRows)
-    if (msgError) throw msgError
+    if (messages && messages.length > 0) {
+      const messageRows = messages.map((msg) => ({
+        campaign_id: campaign.id,
+        day_number: msg.day_number,
+        send_time: msg.send_time || '10:00',
+        message_body: msg.message_body
+      }))
+      const { error: msgError } = await supabase
+        .from('campaign_messages')
+        .insert(messageRows)
+      if (msgError) throw msgError
+    }
 
     res.json({ success: true, campaign })
   } catch (err) {
@@ -71,33 +88,54 @@ const createCampaign = async (req, res) => {
 
 const updateCampaign = async (req, res) => {
   try {
-    const { name, description, messages } = req.body
+    const {
+      name, description, messages,
+      message_1, message_1_spintext,
+      message_2, message_2_delay_minutes, message_2_spintext,
+      message_3, message_3_delay_minutes, message_3_spintext,
+      cancel_on_reply
+    } = req.body
+
+    const updates = { name, description, updated_at: new Date().toISOString() }
+    if (message_1 !== undefined) {
+      Object.assign(updates, {
+        message_1, message_1_spintext: !!message_1_spintext,
+        message_2: message_2 || null,
+        message_2_delay_minutes: message_2_delay_minutes || null,
+        message_2_spintext: !!message_2_spintext,
+        message_3: message_3 || null,
+        message_3_delay_minutes: message_3_delay_minutes || null,
+        message_3_spintext: !!message_3_spintext,
+        cancel_on_reply: cancel_on_reply !== false
+      })
+    }
 
     const { data: campaign, error: campError } = await supabase
       .from('campaigns')
-      .update({ name, description, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', req.params.id)
       .select()
       .single()
     if (campError) throw campError
 
-    if (messages) {
+    if (messages !== undefined) {
       await supabase
         .from('campaign_messages')
         .delete()
         .eq('campaign_id', req.params.id)
 
-      const messageRows = messages.map((msg) => ({
-        campaign_id: campaign.id,
-        day_number: msg.day_number,
-        send_time: msg.send_time || '10:00',
-        message_body: msg.message_body
-      }))
-
-      const { error: msgError } = await supabase
-        .from('campaign_messages')
-        .insert(messageRows)
-      if (msgError) throw msgError
+      if (messages && messages.length > 0) {
+        const messageRows = messages.map((msg) => ({
+          campaign_id: campaign.id,
+          day_number: msg.day_number,
+          send_time: msg.send_time || '10:00',
+          message_body: msg.message_body
+        }))
+        const { error: msgError } = await supabase
+          .from('campaign_messages')
+          .insert(messageRows)
+        if (msgError) throw msgError
+      }
     }
 
     res.json({ success: true, campaign })
@@ -131,6 +169,13 @@ const enrollLeads = async (req, res) => {
       return res.status(400).json({ error: 'Start date and time is required' })
     }
 
+    const { data: campaign, error: campFetchError } = await supabase
+      .from('campaigns')
+      .select('message_1')
+      .eq('id', campaignId)
+      .single()
+    if (campFetchError) throw campFetchError
+
     const { data: messages, error: msgError } = await supabase
       .from('campaign_messages')
       .select('*')
@@ -138,7 +183,8 @@ const enrollLeads = async (req, res) => {
       .order('day_number', { ascending: true })
     if (msgError) throw msgError
 
-    if (messages.length === 0) {
+    // Must have either message_1 or at least one day-based message
+    if (!campaign.message_1 && messages.length === 0) {
       return res.status(400).json({ error: 'Campaign has no messages' })
     }
 
@@ -147,15 +193,24 @@ const enrollLeads = async (req, res) => {
       .select('id, timezone')
       .in('id', lead_ids)
 
-    const firstMessage = messages[0]
     const enrollments = leadsData.map((lead) => {
       const leadTimezone = lead.timezone || 'America/New_York'
-      const firstSendAt = calculateSendTime(
-        firstMessage.day_number,
-        firstMessage.send_time || '10:00',
-        start_date,
-        leadTimezone
-      )
+      let firstSendAt
+
+      if (campaign.message_1) {
+        // Quick-follow-up campaign: message_1 sends at the specified start_date
+        firstSendAt = new Date(start_date).toISOString()
+      } else {
+        // Legacy day-based campaign: schedule first day-based message
+        const firstMessage = messages[0]
+        firstSendAt = calculateSendTime(
+          firstMessage.day_number,
+          firstMessage.send_time || '10:00',
+          start_date,
+          leadTimezone
+        )
+      }
+
       return {
         campaign_id: campaignId,
         lead_id: lead.id,
