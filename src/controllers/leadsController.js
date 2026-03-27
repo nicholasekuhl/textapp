@@ -155,25 +155,38 @@ const parseRowWithMap = (row, columnMap, bucket, autopilot, importedAt, userId) 
     if (!header) return null
     return row[header] ?? null
   }
-  const phone = normalizePhone(get('phone'))
-  if (!phone) return null
+  const rawPhone = get('phone')
+  const phone = normalizePhone(rawPhone)
+  const raw = {
+    first_name: get('first_name') || '',
+    last_name: get('last_name') || '',
+    phone: rawPhone || '',
+    email: get('email') || '',
+    state: get('state') || '',
+    zip_code: get('zip_code') || ''
+  }
+  if (!phone) return { lead: null, reason: rawPhone ? 'invalid_phone' : 'missing_phone', raw }
   const state = normalizeState(get('state'))
   return {
-    first_name: get('first_name') || null,
-    last_name: get('last_name') || null,
-    phone,
-    email: get('email') || null,
-    state,
-    zip_code: get('zip_code') || null,
-    date_of_birth: normalizeDOB(get('date_of_birth')) || null,
-    address: get('address') || null,
-    product: get('product') || null,
-    timezone: getTimezone(state),
-    status: 'new',
-    bucket: bucket || null,
-    bucket_imported_at: importedAt || null,
-    autopilot: autopilot || false,
-    user_id: userId || null
+    lead: {
+      first_name: get('first_name') || null,
+      last_name: get('last_name') || null,
+      phone,
+      email: get('email') || null,
+      state,
+      zip_code: get('zip_code') || null,
+      date_of_birth: normalizeDOB(get('date_of_birth')) || null,
+      address: get('address') || null,
+      product: get('product') || null,
+      timezone: getTimezone(state),
+      status: 'new',
+      bucket: bucket || null,
+      bucket_imported_at: importedAt || null,
+      autopilot: autopilot || false,
+      user_id: userId || null
+    },
+    raw,
+    reason: null
   }
 }
 
@@ -182,43 +195,56 @@ const parseRow = (row, bucket, autopilot, importedAt, userId) => {
     acc[key.toLowerCase().trim()] = row[key]
     return acc
   }, {})
-  const phone = normalizePhone(
-    keys['phone'] || keys['phone number'] || keys['mobile'] || keys['cell']
-  )
-  if (!phone) return null
+  const rawPhone = keys['phone'] || keys['phone number'] || keys['mobile'] || keys['cell']
+  const phone = normalizePhone(rawPhone)
+  const raw = {
+    first_name: keys['first name'] || keys['firstname'] || keys['first_name'] || '',
+    last_name: keys['last name'] || keys['lastname'] || keys['last_name'] || '',
+    phone: rawPhone || '',
+    email: keys['email'] || keys['email address'] || '',
+    state: keys['state'] || keys['st'] || '',
+    zip_code: keys['zip'] || keys['zip code'] || keys['zipcode'] || keys['postal code'] || ''
+  }
+  if (!phone) return { lead: null, reason: rawPhone ? 'invalid_phone' : 'missing_phone', raw }
   const state = normalizeState(keys['state'] || keys['st'] || null)
   return {
-    first_name: keys['first name'] || keys['firstname'] || keys['first_name'] || null,
-    last_name: keys['last name'] || keys['lastname'] || keys['last_name'] || null,
-    phone,
-    email: keys['email'] || keys['email address'] || null,
-    state,
-    zip_code: keys['zip'] || keys['zip code'] || keys['zipcode'] || keys['postal code'] || null,
-    date_of_birth: normalizeDOB(keys['dob'] || keys['date of birth'] || keys['birthdate'] || keys['birthday'] || keys['birth date'] || null),
-    address: keys['address'] || keys['street address'] || keys['street'] || null,
-    product: keys['product'] || keys['plan'] || keys['plan type'] || keys['plan_type'] || null,
-    timezone: getTimezone(state),
-    status: 'new',
-    bucket: bucket || null,
-    bucket_imported_at: importedAt || null,
-    autopilot: autopilot || false,
-    user_id: userId || null
+    lead: {
+      first_name: keys['first name'] || keys['firstname'] || keys['first_name'] || null,
+      last_name: keys['last name'] || keys['lastname'] || keys['last_name'] || null,
+      phone,
+      email: keys['email'] || keys['email address'] || null,
+      state,
+      zip_code: keys['zip'] || keys['zip code'] || keys['zipcode'] || keys['postal code'] || null,
+      date_of_birth: normalizeDOB(keys['dob'] || keys['date of birth'] || keys['birthdate'] || keys['birthday'] || keys['birth date'] || null),
+      address: keys['address'] || keys['street address'] || keys['street'] || null,
+      product: keys['product'] || keys['plan'] || keys['plan type'] || keys['plan_type'] || null,
+      timezone: getTimezone(state),
+      status: 'new',
+      bucket: bucket || null,
+      bucket_imported_at: importedAt || null,
+      autopilot: autopilot || false,
+      user_id: userId || null
+    },
+    raw,
+    reason: null
   }
 }
 
 const processCSV = (buffer, bucket, autopilot, importedAt, userId, columnMap) => {
   return new Promise((resolve, reject) => {
-    const leads = []
+    const valid = []
+    const skipped = []
     const stream = Readable.from(buffer.toString())
     stream
       .pipe(csv())
       .on('data', (row) => {
-        const lead = columnMap
+        const result = columnMap
           ? parseRowWithMap(row, columnMap, bucket, autopilot, importedAt, userId)
           : parseRow(row, bucket, autopilot, importedAt, userId)
-        if (lead) leads.push(lead)
+        if (result.lead) valid.push(result.lead)
+        else skipped.push({ raw: result.raw, reason: result.reason })
       })
-      .on('end', () => resolve(leads))
+      .on('end', () => resolve({ valid, skipped }))
       .on('error', reject)
   })
 }
@@ -227,10 +253,15 @@ const processXLSX = (buffer, bucket, autopilot, importedAt, userId, columnMap) =
   const workbook = xlsx.read(buffer, { type: 'buffer' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const rows = xlsx.utils.sheet_to_json(sheet)
-  return rows.map(row => columnMap
-    ? parseRowWithMap(row, columnMap, bucket, autopilot, importedAt, userId)
-    : parseRow(row, bucket, autopilot, importedAt, userId)
-  ).filter(Boolean)
+  const valid = [], skipped = []
+  rows.forEach(row => {
+    const result = columnMap
+      ? parseRowWithMap(row, columnMap, bucket, autopilot, importedAt, userId)
+      : parseRow(row, bucket, autopilot, importedAt, userId)
+    if (result.lead) valid.push(result.lead)
+    else skipped.push({ raw: result.raw, reason: result.reason })
+  })
+  return { valid, skipped }
 }
 
 const uploadLeads = async (req, res) => {
@@ -248,35 +279,58 @@ const uploadLeads = async (req, res) => {
     const importedAt = new Date().toISOString()
     const columnMap = req.body.column_map ? JSON.parse(req.body.column_map) : null
 
-    let leads = []
+    let parseResult = { valid: [], skipped: [] }
     if (fileType === 'text/csv') {
-      leads = await processCSV(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
+      parseResult = await processCSV(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
     } else {
-      leads = processXLSX(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
+      parseResult = processXLSX(fileBuffer, bucket, autopilot, importedAt, userId, columnMap)
+    }
+    const parseSkipped = parseResult.skipped
+    const totalRows = parseResult.valid.length + parseSkipped.length
+
+    if (totalRows === 0) {
+      return res.status(400).json({ error: 'No rows found in file.' })
     }
 
-    if (leads.length === 0) {
-      return res.status(400).json({ error: 'No valid leads found. Make sure your file has a phone column.' })
-    }
+    // Dedup within file — keep first occurrence of each phone
+    const seenFilePhones = new Set()
+    const uniqueFileLeads = []
+    const fileDeupedLeads = []
+    parseResult.valid.forEach(l => {
+      if (seenFilePhones.has(l.phone)) fileDeupedLeads.push(l)
+      else { seenFilePhones.add(l.phone); uniqueFileLeads.push(l) }
+    })
 
     // Deduplication — check all phone numbers against existing leads for this user
-    const phoneNumbers = leads.map(l => l.phone)
-    const { data: existingLeads } = await supabase
-      .from('leads')
-      .select('phone')
-      .eq('user_id', userId)
-      .in('phone', phoneNumbers)
+    const phoneNumbers = uniqueFileLeads.map(l => l.phone)
+    let existingPhones = new Set()
+    if (phoneNumbers.length > 0) {
+      const { data: existingLeads } = await supabase
+        .from('leads')
+        .select('phone')
+        .eq('user_id', userId)
+        .in('phone', phoneNumbers)
+      existingPhones = new Set((existingLeads || []).map(l => l.phone))
+    }
+    const newLeads = uniqueFileLeads.filter(l => !existingPhones.has(l.phone))
+    const duplicateLeads = uniqueFileLeads.filter(l => existingPhones.has(l.phone))
+    const skippedDuplicates = duplicateLeads.length + fileDeupedLeads.length
 
-    const existingPhones = new Set((existingLeads || []).map(l => l.phone))
-    const newLeads = leads.filter(l => !existingPhones.has(l.phone))
-    const skippedCount = leads.length - newLeads.length
+    const skippedRows = [
+      ...parseSkipped.map(s => ({ ...s.raw, skip_reason: s.reason === 'invalid_phone' ? 'Invalid phone number' : 'Missing phone number' })),
+      ...fileDeupedLeads.map(l => ({ first_name: l.first_name || '', last_name: l.last_name || '', phone: l.phone || '', email: l.email || '', state: l.state || '', zip_code: l.zip_code || '', skip_reason: 'Duplicate within file' })),
+      ...duplicateLeads.map(l => ({ first_name: l.first_name || '', last_name: l.last_name || '', phone: l.phone || '', email: l.email || '', state: l.state || '', zip_code: l.zip_code || '', skip_reason: 'Duplicate — already in system' }))
+    ]
 
     if (newLeads.length === 0) {
       return res.json({
         success: true,
+        total_rows: totalRows,
         imported: 0,
-        skipped: skippedCount,
-        message: `Skipped all ${skippedCount} leads — all already exist in your system`
+        skipped_duplicates: skippedDuplicates,
+        skipped_invalid_phone: parseSkipped.length,
+        skipped_rows: skippedRows,
+        message: `No new leads to import — ${skippedDuplicates} duplicate${skippedDuplicates !== 1 ? 's' : ''} skipped`
       })
     }
 
@@ -379,13 +433,17 @@ const uploadLeads = async (req, res) => {
 
     const importedCount = data.length
     const parts = [`Imported ${importedCount} new lead${importedCount !== 1 ? 's' : ''}`]
-    if (skippedCount > 0) parts.push(`skipped ${skippedCount} duplicate${skippedCount !== 1 ? 's' : ''} already in your system`)
+    if (skippedDuplicates > 0) parts.push(`${skippedDuplicates} duplicate${skippedDuplicates !== 1 ? 's' : ''} skipped`)
+    if (parseSkipped.length > 0) parts.push(`${parseSkipped.length} invalid phone${parseSkipped.length !== 1 ? 's' : ''} skipped`)
     if (bucket) parts.push(`into bucket "${bucket}"`)
 
     res.json({
       success: true,
+      total_rows: totalRows,
       imported: importedCount,
-      skipped: skippedCount,
+      skipped_duplicates: skippedDuplicates,
+      skipped_invalid_phone: parseSkipped.length,
+      skipped_rows: skippedRows,
       message: parts.join(', '),
       leads: data
     })
@@ -1061,4 +1119,68 @@ const logComplianceOverride = async (req, res) => {
   }
 }
 
-module.exports = { parseHeaders, uploadLeads, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride }
+const riskCheck = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    const userId = req.user.id
+    const fileType = req.file.mimetype
+    const fileBuffer = req.file.buffer
+    const columnMap = req.body.column_map ? JSON.parse(req.body.column_map) : null
+
+    let parseResult = { valid: [], skipped: [] }
+    if (fileType === 'text/csv') {
+      parseResult = await processCSV(fileBuffer, null, false, null, userId, columnMap)
+    } else {
+      parseResult = processXLSX(fileBuffer, null, false, null, userId, columnMap)
+    }
+
+    // Detect within-file duplicates (first occurrence is primary, rest are dupes)
+    const seenInFile = new Set()
+    const withinFileDupes = new Set()
+    parseResult.valid.forEach(l => {
+      if (seenInFile.has(l.phone)) withinFileDupes.add(l.phone)
+      else seenInFile.add(l.phone)
+    })
+
+    // Check blocked and existing phones in parallel
+    const uniquePhones = [...seenInFile]
+    let blockedPhones = new Set()
+    let existingPhones = new Set()
+    if (uniquePhones.length > 0) {
+      const [blockedRes, existingRes] = await Promise.all([
+        supabase.from('leads').select('phone').eq('user_id', userId).eq('is_blocked', true).in('phone', uniquePhones),
+        supabase.from('leads').select('phone').eq('user_id', userId).in('phone', uniquePhones)
+      ])
+      blockedPhones = new Set((blockedRes.data || []).map(l => l.phone))
+      existingPhones = new Set((existingRes.data || []).map(l => l.phone))
+    }
+
+    const rows = []
+    parseResult.skipped.forEach(s => {
+      rows.push({ first_name: s.raw.first_name || '', last_name: s.raw.last_name || '', phone: s.raw.phone || '', risk: 'red', reason: s.reason === 'invalid_phone' ? 'Invalid phone number' : 'Missing phone number' })
+    })
+    const seenForOutput = new Set()
+    parseResult.valid.forEach(l => {
+      let risk = 'green', reason = 'Clean'
+      if (blockedPhones.has(l.phone)) { risk = 'red'; reason = 'Blocked in your system' }
+      else if (existingPhones.has(l.phone)) { risk = 'yellow'; reason = 'Already in your system' }
+      else if (seenForOutput.has(l.phone)) { risk = 'yellow'; reason = 'Duplicate within file' }
+      seenForOutput.add(l.phone)
+      rows.push({ first_name: l.first_name || '', last_name: l.last_name || '', phone: l.phone || '', risk, reason })
+    })
+
+    res.json({
+      rows,
+      summary: {
+        green: rows.filter(r => r.risk === 'green').length,
+        yellow: rows.filter(r => r.risk === 'yellow').length,
+        red: rows.filter(r => r.risk === 'red').length
+      }
+    })
+  } catch (err) {
+    console.error('Risk check error:', err)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { parseHeaders, uploadLeads, riskCheck, getLeads, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride }

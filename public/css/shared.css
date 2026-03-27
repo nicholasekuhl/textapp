@@ -569,6 +569,16 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
 .form-group textarea { resize: vertical; min-height: 76px; }
 .field-required-missing input, .field-required-missing select { border-color: var(--color-danger) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
 .field-required-missing label { color: var(--color-danger) !important; }
+.import-results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+.import-stat-card { background: var(--bg-card); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px; text-align: center; }
+.import-stat-card.import-stat-success { border-color: var(--green-text); background: var(--green-bg); }
+.import-stat-card.import-stat-warn { border-color: var(--amber-text); background: var(--amber-bg); }
+.import-stat-card.import-stat-danger { border-color: var(--red-text); background: var(--red-bg); }
+.import-stat-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+.import-stat-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+.import-stat-success .import-stat-num { color: var(--green-text); }
+.import-stat-warn .import-stat-num { color: var(--amber-text); }
+.import-stat-danger .import-stat-num { color: var(--red-text); }
 .form-row { display: flex; gap: 12px; }
 .form-row .form-group { flex: 1; }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--gray-50); border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid var(--border-light); }

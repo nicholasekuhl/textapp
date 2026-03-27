@@ -323,7 +323,8 @@
     </div>
     <div style="display:flex;margin-bottom:20px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
       <div id="step-ind-1" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:600;background:#EEF2FF;color:#4338ca;border-right:1px solid #e5e7eb;">1 · File &amp; Settings</div>
-      <div id="step-ind-2" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;">2 · Map Columns</div>
+      <div id="step-ind-2" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;border-right:1px solid #e5e7eb;">2 · Map Columns</div>
+      <div id="step-ind-3" style="flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;">3 · Risk Preview</div>
     </div>
     <!-- STEP 1 -->
     <div id="upload-step-1">
@@ -373,8 +374,77 @@
       <div class="status-bar" id="import-status-bar"></div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="goBackToStep1()">← Back</button>
-        <button class="btn btn-primary" id="upload-submit-btn" onclick="submitImport()">Import Leads</button>
+        <button class="btn btn-primary" id="upload-risk-btn" onclick="advanceToRiskPreview()">Analyze Risk →</button>
       </div>
+    </div>
+    <!-- STEP 3 -->
+    <div id="upload-step-3" style="display:none;">
+      <div class="import-results-grid" style="margin-bottom:16px;">
+        <div class="import-stat-card import-stat-success">
+          <div class="import-stat-num" id="risk-green">0</div>
+          <div class="import-stat-label">Clean</div>
+        </div>
+        <div class="import-stat-card import-stat-warn">
+          <div class="import-stat-num" id="risk-yellow">0</div>
+          <div class="import-stat-label">Caution</div>
+        </div>
+        <div class="import-stat-card import-stat-danger">
+          <div class="import-stat-num" id="risk-red">0</div>
+          <div class="import-stat-label">Blocked / Invalid</div>
+        </div>
+        <div class="import-stat-card">
+          <div class="import-stat-num" id="risk-total">0</div>
+          <div class="import-stat-label">Total Rows</div>
+        </div>
+      </div>
+      <div id="risk-table-container" style="max-height:280px;overflow-y:auto;border:1px solid var(--border-default);border-radius:var(--radius-md);margin-bottom:12px;font-size:13px;"></div>
+      <div class="status-bar" id="risk-status-bar"></div>
+      <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch;">
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="goBackToStep2()" style="flex:0 0 auto;">← Back</button>
+          <button class="btn btn-secondary" id="import-green-btn" onclick="submitImport('green_only')" style="flex:1;">Import Clean Only (<span id="import-green-count">0</span>)</button>
+          <button class="btn btn-primary" id="import-all-btn" onclick="submitImport('all')" style="flex:1;">Import All Valid (<span id="import-all-count">0</span>)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT RESULTS MODAL -->
+<div class="modal-overlay" id="import-results-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2>Import Complete</h2>
+      <button class="modal-close" onclick="closeImportResults()">×</button>
+    </div>
+    <div class="import-results-grid">
+      <div class="import-stat-card import-stat-success">
+        <div class="import-stat-num" id="res-imported">0</div>
+        <div class="import-stat-label">Imported</div>
+      </div>
+      <div class="import-stat-card">
+        <div class="import-stat-num" id="res-total">0</div>
+        <div class="import-stat-label">Total Rows</div>
+      </div>
+      <div class="import-stat-card import-stat-warn">
+        <div class="import-stat-num" id="res-duplicates">0</div>
+        <div class="import-stat-label">Duplicates Skipped</div>
+      </div>
+      <div class="import-stat-card import-stat-danger">
+        <div class="import-stat-num" id="res-invalid">0</div>
+        <div class="import-stat-label">Invalid Phones</div>
+      </div>
+    </div>
+    <div id="import-results-download-wrap" style="display:none;margin-top:16px;">
+      <button class="btn btn-secondary" style="width:100%;" onclick="downloadSkippedCSV()">↓ Download Skipped Rows CSV</button>
+      <p style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-top:6px;">Fix these rows and re-import to add them</p>
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:var(--bg-app);border-radius:var(--radius-md);border:1px dashed var(--border-default);">
+      <div style="font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:4px;">DNC Scrub</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);">Automatically scrub against national Do-Not-Call lists before importing. <span class="badge" style="background:var(--bg-subtle);color:var(--color-text-secondary);font-size:10px;padding:2px 6px;">Coming Soon</span></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeImportResults()">Done</button>
     </div>
   </div>
 </div>

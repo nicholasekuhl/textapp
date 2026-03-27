@@ -11,6 +11,8 @@ let selectedLeads = new Set()
 let importFile = null
 let importHeaders = []
 let importPreview = []
+let lastSkippedRows = []
+let lastRiskData = null
 let campaignSortKey = 'created_at'
 let campaignSortDir = -1
 let selectedDispColor = '#6366f1'
@@ -1047,8 +1049,7 @@ const advanceToMapping = async () => {
     renderMappingUI()
     document.getElementById('upload-step-1').style.display = 'none'
     document.getElementById('upload-step-2').style.display = ''
-    document.getElementById('step-ind-1').style.cssText += ';background:white;color:#9ca3af;'
-    document.getElementById('step-ind-2').style.cssText += ';background:#EEF2FF;color:#4338ca;font-weight:600;'
+    setStepActive(2)
     document.getElementById('upload-modal-title').textContent = 'Map Columns'
   } catch (err) {
     showStep1Status(err.message || 'Failed to read file headers', 'error')
@@ -1057,13 +1058,93 @@ const advanceToMapping = async () => {
   }
 }
 
+const setStepActive = (n) => {
+  ;[1, 2, 3].forEach(i => {
+    const el = document.getElementById(`step-ind-${i}`)
+    if (!el) return
+    if (i === n) { el.style.cssText = `flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:600;background:#EEF2FF;color:#4338ca;${i < 3 ? 'border-right:1px solid #e5e7eb;' : ''}` }
+    else { el.style.cssText = `flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;${i < 3 ? 'border-right:1px solid #e5e7eb;' : ''}` }
+  })
+}
+
 const goBackToStep1 = () => {
   document.getElementById('upload-step-2').style.display = 'none'
+  document.getElementById('upload-step-3').style.display = 'none'
   document.getElementById('upload-step-1').style.display = ''
-  document.getElementById('step-ind-1').style.cssText += ';background:#EEF2FF;color:#4338ca;font-weight:600;'
-  document.getElementById('step-ind-2').style.cssText += ';background:white;color:#9ca3af;font-weight:500;'
+  setStepActive(1)
   document.getElementById('upload-modal-title').textContent = 'Import Lead Sheet'
   showImportStatus('', '')
+}
+
+const goBackToStep2 = () => {
+  document.getElementById('upload-step-3').style.display = 'none'
+  document.getElementById('upload-step-2').style.display = ''
+  setStepActive(2)
+  document.getElementById('upload-modal-title').textContent = 'Map Columns'
+}
+
+const advanceToRiskPreview = async () => {
+  const columnMap = {}
+  document.querySelectorAll('.map-select').forEach(sel => { if (sel.value) columnMap[sel.dataset.field] = sel.value })
+  if (!columnMap.phone) return showImportStatus('Please map the Phone column — it is required', 'error')
+
+  const btn = document.getElementById('upload-risk-btn')
+  btn.disabled = true
+  btn.textContent = 'Analyzing...'
+  showImportStatus('Checking phone risk...', 'loading')
+
+  try {
+    const formData = new FormData()
+    formData.append('file', importFile)
+    formData.append('column_map', JSON.stringify(columnMap))
+    const res = await fetch('/leads/risk-check', { method: 'POST', body: formData })
+    const data = await res.json()
+    if (data.error) return showImportStatus(data.error, 'error')
+
+    lastRiskData = data
+    document.getElementById('risk-green').textContent = data.summary.green
+    document.getElementById('risk-yellow').textContent = data.summary.yellow
+    document.getElementById('risk-red').textContent = data.summary.red
+    document.getElementById('risk-total').textContent = data.rows.length
+    document.getElementById('import-green-count').textContent = data.summary.green
+    document.getElementById('import-all-count').textContent = data.summary.green + data.summary.yellow
+
+    const riskColors = { green: { bg: '#d1fae5', text: '#065f46', label: 'Clean' }, yellow: { bg: '#fef3c7', text: '#92400e', label: 'Caution' }, red: { bg: '#fee2e2', text: '#991b1b', label: 'Blocked/Invalid' } }
+    const displayed = data.rows.slice(0, 200)
+    const tableHtml = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;">Name</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;">Phone</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;">Risk</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;">Reason</th>
+        </tr></thead>
+        <tbody>${displayed.map(r => {
+          const c = riskColors[r.risk]
+          const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—'
+          return `<tr style="border-bottom:1px solid #f3f3f6;">
+            <td style="padding:7px 12px;">${name}</td>
+            <td style="padding:7px 12px;font-family:monospace;font-size:12px;">${r.phone || '—'}</td>
+            <td style="padding:7px 12px;"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${c.bg};color:${c.text};">${c.label}</span></td>
+            <td style="padding:7px 12px;font-size:12px;color:#6b7280;">${r.reason}</td>
+          </tr>`
+        }).join('')}</tbody>
+      </table>
+      ${data.rows.length > 200 ? `<div style="padding:8px 12px;font-size:12px;color:#9ca3af;text-align:center;">Showing 200 of ${data.rows.length} rows</div>` : ''}
+    `
+    document.getElementById('risk-table-container').innerHTML = tableHtml
+    document.getElementById('risk-status-bar').className = 'status-bar'
+    document.getElementById('risk-status-bar').textContent = ''
+    document.getElementById('upload-step-2').style.display = 'none'
+    document.getElementById('upload-step-3').style.display = ''
+    setStepActive(3)
+    document.getElementById('upload-modal-title').textContent = 'Risk Preview'
+  } catch (err) {
+    showImportStatus('Risk check failed', 'error')
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Analyze Risk →'
+  }
 }
 
 const openUploadModal = () => {
@@ -1085,8 +1166,8 @@ const openUploadModal = () => {
   document.getElementById('import-campaign-start').value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`
   document.getElementById('upload-step-1').style.display = ''
   document.getElementById('upload-step-2').style.display = 'none'
-  document.getElementById('step-ind-1').style.cssText = 'flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:600;background:#EEF2FF;color:#4338ca;border-right:1px solid #e5e7eb;'
-  document.getElementById('step-ind-2').style.cssText = 'flex:1;text-align:center;padding:8px 12px;font-size:12px;font-weight:500;color:#9ca3af;'
+  document.getElementById('upload-step-3').style.display = 'none'
+  setStepActive(1)
   document.getElementById('upload-modal-title').textContent = 'Import Lead Sheet'
   document.getElementById('upload-modal').classList.add('open')
 }
@@ -1103,7 +1184,26 @@ modalDropZone.addEventListener('dragover', (e) => { e.preventDefault(); modalDro
 modalDropZone.addEventListener('dragleave', () => modalDropZone.classList.remove('dragover'))
 modalDropZone.addEventListener('drop', (e) => { e.preventDefault(); modalDropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) { importFile = e.dataTransfer.files[0]; document.getElementById('modal-file-name').textContent = importFile.name } })
 
-const submitImport = async () => {
+const closeImportResults = () => {
+  document.getElementById('import-results-modal').classList.remove('open')
+  loadLeads()
+}
+
+const downloadSkippedCSV = () => {
+  if (!lastSkippedRows.length) return
+  const headers = ['first_name', 'last_name', 'phone', 'email', 'state', 'zip_code', 'skip_reason']
+  const rows = lastSkippedRows.map(r => headers.map(h => `"${String(r[h] || '').replace(/"/g, '""')}"`).join(','))
+  const csv = [headers.join(','), ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'skipped_leads.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const submitImport = async (riskFilter = 'all') => {
   const columnMap = {}
   document.querySelectorAll('.map-select').forEach(sel => { if (sel.value) columnMap[sel.dataset.field] = sel.value })
   if (!columnMap.phone) return showImportStatus('Please map the Phone column — it is required', 'error')
@@ -1115,24 +1215,45 @@ const submitImport = async () => {
   formData.append('file', importFile)
   formData.append('bucket', bucket)
   formData.append('autopilot', autopilot.toString())
+  formData.append('risk_filter', riskFilter)
   if (campaignId) formData.append('campaign_id', campaignId)
   if (campaignStartDate) formData.append('campaign_start_date', new Date(campaignStartDate).toISOString())
   const dispositionTagId = document.getElementById('import-disposition').value
   if (dispositionTagId) formData.append('disposition_tag_id', dispositionTagId)
   formData.append('column_map', JSON.stringify(columnMap))
-  showImportStatus('Importing leads...', 'loading')
-  document.getElementById('upload-submit-btn').disabled = true
+
+  const riskStatusEl = document.getElementById('risk-status-bar')
+  riskStatusEl.className = 'status-bar loading'
+  riskStatusEl.textContent = 'Importing leads...'
+  const importAllBtn = document.getElementById('import-all-btn')
+  const importGreenBtn = document.getElementById('import-green-btn')
+  if (importAllBtn) importAllBtn.disabled = true
+  if (importGreenBtn) importGreenBtn.disabled = true
+
   try {
     const res = await fetch('/leads/upload', { method: 'POST', body: formData })
     const data = await res.json()
     if (data.success) {
-      let html = `<span style="color:#059669;font-weight:600;">✓ Imported ${data.imported} lead${data.imported !== 1 ? 's' : ''}</span>`
-      if (data.skipped > 0) html += `<span style="color:#6b7280;"> &nbsp;·&nbsp; </span><span style="color:#d97706;">${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped</span>`
-      showImportStatus(html, 'success', true)
-      setTimeout(() => { closeUploadModal(); loadLeads() }, 2000)
-    } else showImportStatus(data.error || 'Import failed', 'error')
-  } catch (err) { showImportStatus('Something went wrong', 'error') }
-  finally { document.getElementById('upload-submit-btn').disabled = false }
+      closeUploadModal()
+      lastSkippedRows = data.skipped_rows || []
+      document.getElementById('res-imported').textContent = data.imported ?? 0
+      document.getElementById('res-total').textContent = data.total_rows ?? 0
+      document.getElementById('res-duplicates').textContent = data.skipped_duplicates ?? 0
+      document.getElementById('res-invalid').textContent = data.skipped_invalid_phone ?? 0
+      const dlWrap = document.getElementById('import-results-download-wrap')
+      dlWrap.style.display = lastSkippedRows.length > 0 ? 'block' : 'none'
+      document.getElementById('import-results-modal').classList.add('open')
+    } else {
+      riskStatusEl.className = 'status-bar error'
+      riskStatusEl.textContent = data.error || 'Import failed'
+    }
+  } catch (err) {
+    riskStatusEl.className = 'status-bar error'
+    riskStatusEl.textContent = 'Something went wrong'
+  } finally {
+    if (importAllBtn) importAllBtn.disabled = false
+    if (importGreenBtn) importGreenBtn.disabled = false
+  }
 }
 
 // Page-level drag-and-drop — opens upload modal with the dropped file
