@@ -439,7 +439,9 @@ async function saveBracket(){
   const status=document.getElementById('save-status');status.textContent='Saving…'
   try{
     const res=await fetch('/bracket/save',{method:'POST',headers:{'Content-Type':'application/json','x-bracket-token':adminToken},body:JSON.stringify({state:getState()})})
-    if(res.status===401){isAdmin=false;adminToken=null;localStorage.removeItem('bracket_token');applyAdminMode();status.textContent='Session expired';return}
+    if(res.status===401){isAdmin=false;adminToken=null;localStorage.removeItem('bracket_token');applyAdminMode();status.textContent='Session expired — log in again';return}
+    const data=await res.json()
+    if(!res.ok||data.error){status.textContent='❌ '+(data.error||'Save failed');setTimeout(()=>status.textContent='',6000);return}
     status.textContent='✓ Saved';setTimeout(()=>status.textContent='',2500)
   }catch(e){status.textContent='Save failed'}
 }

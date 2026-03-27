@@ -5,7 +5,7 @@ const supabase = require('../db')
 
 const ADMIN_PASSWORD = process.env.BRACKET_ADMIN_PASSWORD || 'changeme'
 // Simple signed token — no JWT library needed
-const TOKEN_SECRET = process.env.SUPABASE_KEY || 'fallback-secret'
+const TOKEN_SECRET = process.env.BRACKET_ADMIN_PASSWORD || 'fallback-secret'
 
 function makeToken() {
   const payload = `bracket-admin:${Date.now()}`
@@ -72,7 +72,10 @@ router.post('/save', requireAdmin, async (req, res) => {
       .from('bracket_state')
       .upsert({ id: 1, state, updated_at: new Date().toISOString() })
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase save error:', error.message)
+      return res.status(500).json({ error: error.message })
+    }
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
