@@ -199,8 +199,8 @@
   <div class="modal">
     <h2 id="slot-modal-title">Edit Slot</h2>
     <div class="modal-section" id="slot-r3-picker" style="display:none">
-      <h3>Pick team for this R3 slot</h3>
-      <p style="font-size:10px;color:var(--text3);margin-bottom:8px">Select from R2 participants — or type a name manually below</p>
+      <h3 id="slot-picker-title">Pick team</h3>
+      <p style="font-size:10px;color:var(--text3);margin-bottom:8px" id="slot-picker-sub">Select from available teams</p>
       <select id="slot-r3-select" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:10px">
         <option value="">— pick a team —</option>
       </select>
@@ -305,47 +305,89 @@ function applyAdminMode(){
 }
 
 // ── Slot Settings Modal ───────────────────────────────────────────────────
-let _editCtx = null  // {ri, mi, side}
+let _editCtx = null  // {ri, mi, side} or {type:'seed',idx} or {type:'final',match,side}
 
-function openSlotModal(ri, mi, side) {
-  const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
-  _editCtx = {ri, mi, side}
-  document.getElementById('slot-modal-title').textContent = `Edit: ${so.name||'Empty slot'}`
-  document.getElementById('slot-name-input').value = so.name || ''
-  const name = so.name || ''
+// Collect candidate teams for a given context
+function getCandidates(ctx) {
+  if (ctx.ri === 2) {
+    // R3 slots: pick from R2 participants + anyone already in R3
+    const pool = []
+    bracket[1].forEach(m=>{ if(m.a.name&&!pool.includes(m.a.name)) pool.push(m.a.name); if(m.b.name&&!pool.includes(m.b.name)) pool.push(m.b.name) })
+    bracket[2].forEach(m=>{ if(m.a.name&&!pool.includes(m.a.name)) pool.push(m.a.name); if(m.b.name&&!pool.includes(m.b.name)) pool.push(m.b.name) })
+    return pool.filter(Boolean).sort()
+  }
+  if (ctx.type === 'seed') {
+    // Seeding: pick from R3 participants
+    const pool = []
+    bracket[2].forEach(m=>{ if(m.a.name&&!pool.includes(m.a.name)) pool.push(m.a.name); if(m.b.name&&!pool.includes(m.b.name)) pool.push(m.b.name) })
+    seedingTeams.forEach(t=>{ if(t&&!pool.includes(t)) pool.push(t) })
+    return pool.filter(Boolean).sort()
+  }
+  if (ctx.type === 'final') {
+    // Finals: pick from seeding teams
+    const pool = [...seedingTeams.filter(Boolean)]
+    // Also include anyone already in finals
+    ;[finals.top.a,finals.top.b,finals.third.a,finals.third.b].forEach(t=>{ if(t&&!pool.includes(t)) pool.push(t) })
+    return pool.filter(Boolean).sort()
+  }
+  return []
+}
+
+function getCurrentName(ctx) {
+  if (ctx.ri !== undefined) return (ctx.side===0 ? bracket[ctx.ri][ctx.mi].a : bracket[ctx.ri][ctx.mi].b).name || ''
+  if (ctx.type === 'seed') return seedingTeams[ctx.idx] || ''
+  if (ctx.type === 'final') {
+    const m = ctx.match === 'top' ? finals.top : finals.third
+    return (ctx.side === 0 ? m.a : m.b) || ''
+  }
+  return ''
+}
+
+function openSlotModal(ri, mi, side) { _openModal({ri, mi, side}) }
+function openSeedModal(idx)           { _openModal({type:'seed', idx}) }
+function openFinalModal(match, side)  { _openModal({type:'final', match, side}) }
+
+function _openModal(ctx) {
+  _editCtx = ctx
+  const name = getCurrentName(ctx)
+  const showPicker = ctx.ri === 2 || ctx.type === 'seed' || ctx.type === 'final'
+  const isRegularSlot = ctx.ri !== undefined && ctx.ri < 2
+
+  // Title
+  const titles = { seed: `Edit seed ${ctx.idx!==undefined?ctx.idx+1:''}`, final: 'Edit finalist slot' }
+  document.getElementById('slot-modal-title').textContent =
+    ctx.type ? titles[ctx.type] : `Edit: ${name||'Empty slot'}`
+
+  // Picker labels
+  const pickerTitles = { 2:'Pick R3 team', seed:'Pick seeding team', final:'Pick finalist' }
+  const pickerSubs   = { 2:'From R2 participants', seed:'From R3 participants', final:'From seeding round' }
+  const key = ctx.type || ctx.ri
+  document.getElementById('slot-picker-title').textContent = pickerTitles[key] || 'Pick team'
+  document.getElementById('slot-picker-sub').textContent   = pickerSubs[key]   || ''
+
+  // Name input
+  document.getElementById('slot-name-input').value = name
+
+  // AV fields
   document.getElementById('slot-av-r1').value = getAV(name,'r1') || ''
   document.getElementById('slot-av-r2').value = getAV(name,'r2') || ''
   document.getElementById('slot-av-r3').value = getAV(name,'r3') || ''
 
-  // R3 slots (excluding bye slot): show team picker populated from R2 participants
+  // Picker
   const pickerSection = document.getElementById('slot-r3-picker')
   const select = document.getElementById('slot-r3-select')
-  if (ri === 2) {
+  if (showPicker) {
     pickerSection.style.display = 'block'
-    // Collect all unique team names from R2 matches
-    const r2teams = []
-    bracket[1].forEach(m => {
-      if (m.a.name && !r2teams.includes(m.a.name)) r2teams.push(m.a.name)
-      if (m.b.name && !r2teams.includes(m.b.name)) r2teams.push(m.b.name)
-    })
-    // Also include any teams already manually placed in R3
-    bracket[2].forEach(m => {
-      if (m.a.name && !r2teams.includes(m.a.name)) r2teams.push(m.a.name)
-      if (m.b.name && !m.b.bye && m.b.name && !r2teams.includes(m.b.name)) r2teams.push(m.b.name)
-    })
-    r2teams.sort()
+    const candidates = getCandidates(ctx)
     select.innerHTML = '<option value="">— pick a team —</option>'
-    r2teams.forEach(t => {
+    candidates.forEach(t => {
       const opt = document.createElement('option')
-      opt.value = t; opt.textContent = t
-      if (t === so.name) opt.selected = true
+      opt.value=t; opt.textContent=t; if(t===name) opt.selected=true
       select.appendChild(opt)
     })
-    // When picker changes, update the name input
     select.onchange = () => {
       if (select.value) {
         document.getElementById('slot-name-input').value = select.value
-        // Auto-fill known AV scores for this team
         document.getElementById('slot-av-r1').value = getAV(select.value,'r1') || ''
         document.getElementById('slot-av-r2').value = getAV(select.value,'r2') || ''
         document.getElementById('slot-av-r3').value = getAV(select.value,'r3') || ''
@@ -355,9 +397,14 @@ function openSlotModal(ri, mi, side) {
     pickerSection.style.display = 'none'
   }
 
+  // AV section — hide for seeding/finals (AV already entered in earlier rounds)
+  document.getElementById('slot-av-section').style.display = isRegularSlot ? 'block' : 'none'
+  // Danger zone — only for real bracket slots
+  document.getElementById('slot-danger-section').style.display = isRegularSlot || ctx.ri===2 ? 'block' : 'none'
+
   document.getElementById('slot-modal').classList.remove('hidden')
   setTimeout(()=>{
-    if (ri === 2) document.getElementById('slot-r3-select').focus()
+    if (showPicker) document.getElementById('slot-r3-select').focus()
     else document.getElementById('slot-name-input').focus()
   }, 50)
 }
@@ -366,44 +413,69 @@ function closeSlotModal(){document.getElementById('slot-modal').classList.add('h
 
 function saveSlotModal(){
   if (!_editCtx) return
-  const {ri,mi,side}=_editCtx
+  const ctx = _editCtx
+  const newName = document.getElementById('slot-name-input').value.trim()
+
+  if (ctx.type === 'seed') {
+    // Seeding slot
+    seedingTeams[ctx.idx] = newName
+    closeSlotModal(); scheduleSave(); render(); renderLeaderboard(); return
+  }
+
+  if (ctx.type === 'final') {
+    // Finals slot
+    const m = ctx.match === 'top' ? finals.top : finals.third
+    if (ctx.side === 0) m.a = newName; else m.b = newName
+    // Clear winner if name changed
+    if (m.winner !== null) { m.winner=null; if(ctx.match==='top') finals.champion=''; else finals.thirdPlace='' }
+    closeSlotModal(); scheduleSave(); render(); renderLeaderboard(); return
+  }
+
+  // Regular bracket slot (R1/R2/R3)
+  const {ri,mi,side}=ctx
   const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
   const oldName = so.name||''
-  const newName = document.getElementById('slot-name-input').value.trim() || oldName
+  if (!newName && !oldName) { closeSlotModal(); return }
+  const finalName = newName || oldName
 
-  // Migrate AV scores if name changed
-  if (newName !== oldName && oldName && avScores[oldName]) {
-    avScores[newName] = avScores[oldName]; delete avScores[oldName]
+  if (finalName !== oldName && oldName && avScores[oldName]) {
+    avScores[finalName] = avScores[oldName]; delete avScores[oldName]
   }
-  if (!avScores[newName]) avScores[newName] = {}
-
-  so.name = newName
-  if (ri===0) teams[mi*2+side] = newName
+  if (!avScores[finalName]) avScores[finalName] = {}
+  so.name = finalName
+  if (ri===0) teams[mi*2+side] = finalName
 
   const r1v=parseFloat(document.getElementById('slot-av-r1').value)||0
   const r2v=parseFloat(document.getElementById('slot-av-r2').value)||0
   const r3v=parseFloat(document.getElementById('slot-av-r3').value)||0
-  setAV(newName,'r1',r1v)
-  setAV(newName,'r2',r2v)
-  setAV(newName,'r3',r3v)
+  setAV(finalName,'r1',r1v); setAV(finalName,'r2',r2v); setAV(finalName,'r3',r3v)
 
   closeSlotModal(); scheduleSave(); render(); renderLeaderboard()
 }
 
 function clearSlotFromModal(){
   if (!_editCtx) return
-  const {ri,mi,side}=_editCtx
+  const ctx = _editCtx
+  const name = getCurrentName(ctx)
+  if (!confirm(`Clear "${name||'this slot'}"?`)) return
+
+  if (ctx.type === 'seed') {
+    seedingTeams[ctx.idx] = ''
+    closeSlotModal(); scheduleSave(); render(); return
+  }
+  if (ctx.type === 'final') {
+    const m = ctx.match==='top' ? finals.top : finals.third
+    if (ctx.side===0) m.a=''; else m.b=''
+    if (m.winner!==null){m.winner=null;if(ctx.match==='top')finals.champion='';else finals.thirdPlace=''}
+    closeSlotModal(); scheduleSave(); render(); return
+  }
+
+  const {ri,mi,side}=ctx
   const so = side===0 ? bracket[ri][mi].a : bracket[ri][mi].b
-  const name = so.name
-  if (!confirm(`Clear "${name||'this slot'}" from the bracket? This will remove them from all downstream rounds.`)) return
-  // Delete AV
   if (name && avScores[name]) delete avScores[name]
-  // Clear slot
   so.name=''
   if (ri===0) teams[mi*2+side]=`Team ${mi*2+side+1}`
-  // Clear winner if this was the winner
   if (bracket[ri][mi].winner===side) { bracket[ri][mi].winner=null; clearDown(ri,mi) }
-  // Also sweep all rounds for this name
   if (name) sweepName(name)
   closeSlotModal(); scheduleSave(); render(); renderLeaderboard()
 }
@@ -795,8 +867,14 @@ function render(){
   GL.forEach((g,i)=>{
     if(i===2||i===4){const d=document.createElement('hr');d.className='seed-divider';sp.appendChild(d)}
     const row=document.createElement('div');row.className='seed-row '+g.cls
-    const name=seedingTeams[i]||'—',r3av=seedingTeams[i]?getAV(seedingTeams[i],'r3'):0
-    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name}</div>${r3av>0?`<div class="seed-av">R3: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
+    const name=seedingTeams[i]||'',r3av=name?getAV(name,'r3'):0
+    row.innerHTML=`<span class="seed-rank">${g.r}</span><div class="seed-info"><div class="seed-name">${name||'—'}</div>${r3av>0?`<div class="seed-av">R3: $${r3av.toLocaleString()}</div>`:''}</div><span class="seed-badge ${g.badge}">${g.txt}</span>`
+    if(isAdmin){
+      const gear=document.createElement('div');gear.className='slot-gear';gear.textContent='⚙'
+      gear.style.marginLeft='6px';gear.style.flexShrink='0'
+      gear.addEventListener('click',e=>{e.stopPropagation();openSeedModal(i)})
+      row.appendChild(gear)
+    }
     sp.appendChild(row)
   })
 
@@ -805,34 +883,60 @@ function render(){
   // Finals
   const fc=document.createElement('div');fc.className='round-col finals'
 
+  function makeFinalSlot(matchKey, side, name, placeholder) {
+    const el=document.createElement('div');el.className='slot';
+    if(!name) el.classList.add('empty')
+    const nm=document.createElement('span');nm.className='sname';nm.textContent=name||placeholder;el.appendChild(nm)
+    if(isAdmin){
+      const gear=document.createElement('div');gear.className='slot-gear';gear.textContent='⚙'
+      gear.addEventListener('click',e=>{e.stopPropagation();openFinalModal(matchKey,side)})
+      el.appendChild(gear)
+    }
+    return el
+  }
+
+  // 1st/2nd place
   const topCard=document.createElement('div');topCard.className='final-card'
   topCard.innerHTML='<h3>🥇 1st &amp; 2nd Place Match</h3>'
+  topCard.appendChild(makeFinalSlot('top',0,finals.top.a,'Seed 1 — TBD'))
+  topCard.appendChild(makeFinalSlot('top',1,finals.top.b,'Seed 2 — TBD'))
+  // Winner/runner-up result rows — click to mark winner
   ;['a','b'].forEach((s,i)=>{
-    const el=document.createElement('div');el.className='slot'+(isAdmin?' clickable':'')
-    const name=finals.top[s];if(!name)el.classList.add('empty');if(finals.top.winner===i)el.classList.add('winner')
-    const nm=document.createElement('span');nm.className='sname';nm.textContent=name||`Seed ${i+1} — TBD`;el.appendChild(nm)
-    if(isAdmin)el.addEventListener('click',()=>clickFinal('top',i))
-    topCard.appendChild(el)
+    const el=topCard.querySelector('.slot:nth-child('+(i+2)+')')
+    if(isAdmin&&finals.top[s]) el.addEventListener('click',()=>clickFinal('top',i))
+    if(finals.top.winner===i) el.classList.add('winner')
   })
   const cr=document.createElement('div');cr.className='final-result'+(finals.champion?' gold':'');cr.textContent=finals.champion?'🏆 '+finals.champion:'Champion —';topCard.appendChild(cr)
   if(finals.top.winner!==null){const sr=document.createElement('div');sr.className='final-result silver';sr.textContent='🥈 '+(finals.top.winner===0?finals.top.b:finals.top.a);topCard.appendChild(sr)}
   fc.appendChild(topCard)
 
+  // 3rd place
   const thCard=document.createElement('div');thCard.className='final-card'
   thCard.innerHTML='<h3>🥉 3rd Place Match</h3>'
+  thCard.appendChild(makeFinalSlot('third',0,finals.third.a,'Seed 3 — TBD'))
+  thCard.appendChild(makeFinalSlot('third',1,finals.third.b,'Seed 4 — TBD'))
   ;['a','b'].forEach((s,i)=>{
-    const el=document.createElement('div');el.className='slot'+(isAdmin?' clickable':'')
-    const name=finals.third[s];if(!name)el.classList.add('empty');if(finals.third.winner===i)el.classList.add('winner')
-    const nm=document.createElement('span');nm.className='sname';nm.textContent=name||`Seed ${i+3} — TBD`;el.appendChild(nm)
-    if(isAdmin)el.addEventListener('click',()=>clickFinal('third',i))
-    thCard.appendChild(el)
+    const el=thCard.querySelector('.slot:nth-child('+(i+2)+')')
+    if(isAdmin&&finals.third[s]) el.addEventListener('click',()=>clickFinal('third',i))
+    if(finals.third.winner===i) el.classList.add('winner')
   })
   const tr=document.createElement('div');tr.className='final-result'+(finals.thirdPlace?' bronze':'');tr.textContent=finals.thirdPlace?'🥉 '+finals.thirdPlace:'3rd Place —';thCard.appendChild(tr)
   fc.appendChild(thCard)
 
+  // Eliminated
   const elimCard=document.createElement('div');elimCard.className='final-card'
   elimCard.innerHTML='<h3>❌ Eliminated — 5th &amp; 6th</h3>'
-  ;[4,5].forEach(i=>{const el=document.createElement('div');el.className='elim-slot';el.textContent=seedingTeams[i]||(i===4?'5th seed':'6th seed');elimCard.appendChild(el)})
+  ;[4,5].forEach(i=>{
+    const el=document.createElement('div');el.className='elim-slot'
+    el.style.display='flex';el.style.alignItems='center';el.style.justifyContent='space-between'
+    const span=document.createElement('span');span.textContent=seedingTeams[i]||(i===4?'5th seed':'6th seed');el.appendChild(span)
+    if(isAdmin){
+      const gear=document.createElement('div');gear.className='slot-gear';gear.textContent='⚙'
+      gear.addEventListener('click',e=>{e.stopPropagation();openSeedModal(i)})
+      el.appendChild(gear)
+    }
+    elimCard.appendChild(el)
+  })
   fc.appendChild(elimCard)
 
   wrap.appendChild(fc)
