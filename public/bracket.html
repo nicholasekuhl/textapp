@@ -62,10 +62,10 @@
   .rtitle{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
   .rsub{font-size:9px;color:var(--text3);margin-top:2px}
   .match-wrap{display:flex;flex-direction:column;justify-content:center;position:relative}
-  .match-num{font-size:9px;color:var(--text3);text-align:right;padding:0 2px 1px}
+  .match-num{font-size:11px;color:var(--text3);text-align:right;padding:0 2px 1px}
   .ref-lbl{font-size:8px;color:var(--amber)}
 
-  .slot{display:flex;align-items:center;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 7px;margin:1px 0;background:var(--bg2);gap:5px;overflow:hidden;transition:background .12s,border-color .12s}
+  .slot{display:flex;align-items:center;height:36px;border:1px solid var(--border);border-radius:4px;padding:0 7px;margin:1px 0;background:var(--bg2);gap:5px;overflow:hidden;transition:background .12s,border-color .12s}
   .slot.clickable{cursor:pointer}
   .slot.clickable:hover{background:var(--bg3);border-color:var(--border2)}
   .slot.winner{background:var(--green-bg);border-color:var(--green-bd)}
@@ -358,7 +358,7 @@ function editName(ri, mi, side, el, nm) {
 }
 
 // ── Render ────────────────────────────────────────────────────────────────
-const COL_H   = 840
+const COL_H   = 1760
 const R_TITLE = ['Round 1','Round 2','Round 3']
 const R_SUB   = ['22 matches — all 44 teams','11 matches','5 matches + Highest AV bye']
 const M_OFF   = [1, 23, 34]
