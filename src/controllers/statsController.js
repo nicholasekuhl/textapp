@@ -404,4 +404,45 @@ const getTwilioDelivery = async (req, res) => {
   }
 }
 
-module.exports = { getDeliveryStats, getOverview, getMessageStats, getCampaignStats, getLeadFunnel, getActivityStats, getSoldStats, getTwilioDelivery }
+const getStateStats = async (req, res) => {
+  try {
+    const { range = '30d' } = req.query
+    const userId = req.user.id
+    const days = getDays(range)
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+
+    const { data: leads, error } = await supabase
+      .from('leads')
+      .select('state, is_sold, created_at')
+      .eq('user_id', userId)
+      .not('state', 'is', null)
+      .neq('state', '')
+      .gte('created_at', since.toISOString())
+
+    if (error) throw error
+
+    const map = {}
+    for (const lead of leads || []) {
+      const s = (lead.state || '').trim().toUpperCase()
+      if (!s) continue
+      if (!map[s]) map[s] = { state: s, total_leads: 0, total_sold: 0 }
+      map[s].total_leads++
+      if (lead.is_sold) map[s].total_sold++
+    }
+
+    const states = Object.values(map).map(s => ({
+      ...s,
+      conversion_rate: s.total_leads > 0
+        ? Math.round((s.total_sold / s.total_leads) * 1000) / 10
+        : 0
+    })).sort((a, b) => b.total_leads - a.total_leads)
+
+    res.json({ states })
+  } catch (err) {
+    console.error('getStateStats error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { getDeliveryStats, getOverview, getMessageStats, getCampaignStats, getLeadFunnel, getActivityStats, getSoldStats, getTwilioDelivery, getStateStats }
