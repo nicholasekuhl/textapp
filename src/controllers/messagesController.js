@@ -201,15 +201,14 @@ const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
   }
 }
 
-const handleIncomingMessage = async (req, res) => {
+const processInboundMessage = async (body) => {
   try {
-    const { From, Body } = req.body
-    const toNumber = req.body.To || req.body.to
+    const { From, Body } = body
+    const toNumber = body.To || body.to
 
     if (!toNumber) {
-      console.log('Full webhook body:', JSON.stringify(req.body))
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      console.log('Full webhook body:', JSON.stringify(body))
+      return
     }
 
     // Look up which user owns this number via phone_numbers table
@@ -232,8 +231,7 @@ const handleIncomingMessage = async (req, res) => {
 
     if (!userId) {
       console.log(`Incoming message to unrecognized number ${toNumber} — ignoring`)
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      return
     }
 
     if (['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'].includes(Body.trim().toUpperCase())) {
@@ -247,14 +245,12 @@ const handleIncomingMessage = async (req, res) => {
           .update({ status: 'paused', paused_at: now })
           .eq('lead_id', stoppedLead.id).in('status', ['pending', 'active'])
       }
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      return
     }
 
     let { data: lead } = await supabase.from('leads').select('*').eq('phone', From).eq('user_id', userId).single()
     if (!lead) {
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      return
     }
 
     console.log('Inbound message received for lead:', lead.id)
@@ -283,8 +279,7 @@ const handleIncomingMessage = async (req, res) => {
         })
         await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', blockedConv.id)
       }
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      return
     }
 
     // Handle active campaign enrollments on reply
@@ -395,8 +390,7 @@ const handleIncomingMessage = async (req, res) => {
 
     // Stop AI if already handed off
     if (conversation.needs_agent_review) {
-      res.set('Content-Type', 'text/xml')
-      return res.send('<Response></Response>')
+      return
     }
 
     if (lead.autopilot && profile) {
@@ -446,8 +440,7 @@ const handleIncomingMessage = async (req, res) => {
               notes: 'AI response queued — outside quiet hours'
             })
             console.log(`AI response queued until ${nextWindow} for lead ${lead.id} (${quietCheck.reason})`)
-            res.set('Content-Type', 'text/xml')
-            return res.send('<Response></Response>')
+            return
           }
 
           // Delay scales with message length to feel more human
@@ -505,13 +498,20 @@ const handleIncomingMessage = async (req, res) => {
         }
       }
     }
-
-    res.set('Content-Type', 'text/xml')
-    res.send('<Response></Response>')
   } catch (err) {
     console.error('Incoming message error:', err)
-    res.set('Content-Type', 'text/xml')
-    res.send('<Response></Response>')
+  }
+}
+
+const handleIncomingMessage = async (req, res) => {
+  // Respond to Twilio IMMEDIATELY — prevents retries and 15s timeout errors
+  res.set('Content-Type', 'text/xml')
+  res.send('<Response></Response>')
+
+  try {
+    await processInboundMessage(req.body)
+  } catch (err) {
+    console.error('Inbound processing error:', err.message)
   }
 }
 

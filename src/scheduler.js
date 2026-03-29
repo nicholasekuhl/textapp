@@ -647,70 +647,90 @@ const processScheduledMessages = async () => {
       }
 
       const fromNumber = pickNumberForLead(enrollment.user_id ? phoneNumbersMap[enrollment.user_id] : null, enrollment.leads.state) || process.env.TWILIO_PHONE_NUMBER
-      const result = await sendSMS(enrollment.leads.phone, messageBody, fromNumber)
+      messagesSent++
+      smsQueue.add({
+        phone: enrollment.leads.phone,
+        message: messageBody,
+        leadId: enrollment.leads.id,
+        conversationId: null,
+        userId: enrollment.user_id || null,
+        fromNumber,
+        enrollmentId: enrollment.id,
+        currentStep: enrollment.current_step,
 
-      if (result.success) {
-        messagesSent++
-        let { data: conversation } = await supabase
-          .from('conversations')
-          .select('*')
-          .eq('lead_id', enrollment.leads.id)
-          .single()
+        sendFn: async (job) => {
+          const result = await sendSMS(job.phone, job.message, job.fromNumber)
+          if (!result.success) throw new Error(result.error || 'sendSMS failed')
+          job._twilioSid = result.sid
+        },
 
-        if (!conversation) {
-          const { data: newConv } = await supabase
+        onSuccess: async (job) => {
+          const sentAt = new Date().toISOString()
+
+          let { data: conversation } = await supabase
             .from('conversations')
-            .insert({ lead_id: enrollment.leads.id, status: 'active', user_id: enrollment.user_id || null })
-            .select()
+            .select('*')
+            .eq('lead_id', job.leadId)
             .single()
-          conversation = newConv
-        }
 
-        await supabase
-          .from('messages')
-          .insert({
+          if (!conversation) {
+            const { data: newConv } = await supabase
+              .from('conversations')
+              .insert({ lead_id: job.leadId, status: 'active', user_id: job.userId })
+              .select().single()
+            conversation = newConv
+          }
+
+          if (!conversation?.id) {
+            console.error(`[scheduler] No conversation for lead ${job.leadId} — skipping DB log`)
+            return
+          }
+
+          await supabase.from('messages').insert({
             conversation_id: conversation.id,
-            user_id: enrollment.user_id || null,
+            user_id: job.userId,
             direction: 'outbound',
-            body: messageBody,
-            sent_at: new Date().toISOString(),
-            twilio_sid: result.sid,
+            body: job.message,
+            sent_at: sentAt,
+            twilio_sid: job._twilioSid,
             status: 'sent'
           })
 
-        const leadUpdates = { updated_at: new Date().toISOString() }
-        if (canUpgrade(enrollment.leads.status, 'contacted')) leadUpdates.status = 'contacted'
-        if (!enrollment.leads.first_message_sent) leadUpdates.first_message_sent = true
-        // Increment system-initiated counter (used for FL/OK/MD daily limit)
-        leadUpdates.outbound_initiated_today = (enrollment.leads.outbound_initiated_today || 0) + 1
-        await supabase.from('leads').update(leadUpdates).eq('id', enrollment.leads.id)
-        if (!enrollment.leads.first_message_sent) enrollment.leads.first_message_sent = true
+          const leadUpdates = { updated_at: sentAt }
+          if (canUpgrade(enrollment.leads.status, 'contacted')) leadUpdates.status = 'contacted'
+          if (!enrollment.leads.first_message_sent) leadUpdates.first_message_sent = true
+          leadUpdates.outbound_initiated_today = (enrollment.leads.outbound_initiated_today || 0) + 1
+          await supabase.from('leads').update(leadUpdates).eq('id', job.leadId)
 
-        const nextStep = enrollment.current_step + 1
-        const isLastStep = nextStep >= messages.length
+          const nextStep = job.currentStep + 1
+          const isLastStep = nextStep >= messages.length
+          if (isLastStep) {
+            await supabase.from('campaign_leads').update({
+              status: 'completed',
+              current_step: nextStep,
+              completed_at: sentAt
+            }).eq('id', job.enrollmentId)
+          } else {
+            const nextMessage = messages[nextStep]
+            const leadTimezone = enrollment.leads.timezone || 'America/New_York'
+            const nextSendAt = calculateSendTime(
+              nextMessage.day_number,
+              nextMessage.send_time || '10:00',
+              enrollment.start_date,
+              leadTimezone
+            )
+            await supabase.from('campaign_leads').update({
+              current_step: nextStep,
+              next_send_at: nextSendAt
+            }).eq('id', job.enrollmentId)
+          }
+          console.log('[scheduler] Day-based send queued successfully for lead', job.leadId)
+        },
 
-        if (isLastStep) {
-          await supabase
-            .from('campaign_leads')
-            .update({ status: 'completed', current_step: nextStep, completed_at: new Date().toISOString() })
-            .eq('id', enrollment.id)
-        } else {
-          const nextMessage = messages[nextStep]
-          const leadTimezone = enrollment.leads.timezone || 'America/New_York'
-          const nextSendAt = calculateSendTime(
-            nextMessage.day_number,
-            nextMessage.send_time || '10:00',
-            enrollment.start_date,
-            leadTimezone
-          )
-          await supabase
-            .from('campaign_leads')
-            .update({ current_step: nextStep, next_send_at: nextSendAt })
-            .eq('id', enrollment.id)
-        }
-      } else {
-        errorsCount++
-      }
+        onFailure: async (job, err) => {
+          console.error('[scheduler] Day-based send failed for lead', job.leadId, err?.message)
+        },
+      })
     }
 
     // Process one-off scheduled messages
@@ -832,16 +852,60 @@ const scheduleMidnightReset = () => {
   }, msUntilMidnight)
 }
 
+// ─── Concurrency guards — prevent overlapping scheduler ticks ─────────────────
+let isProcessingScheduled = false
+let isProcessingGhosted = false
+let isProcessingQuickFollowups = false
+
+const guardedProcessScheduledMessages = async () => {
+  if (isProcessingScheduled) {
+    console.log('[scheduler] processScheduledMessages already running — skipping tick')
+    return
+  }
+  isProcessingScheduled = true
+  try {
+    await processScheduledMessages()
+  } finally {
+    isProcessingScheduled = false
+  }
+}
+
+const guardedCheckGhostedConversations = async () => {
+  if (isProcessingGhosted) {
+    console.log('[scheduler] checkGhostedConversations already running — skipping tick')
+    return
+  }
+  isProcessingGhosted = true
+  try {
+    await checkGhostedConversations()
+  } finally {
+    isProcessingGhosted = false
+  }
+}
+
+const guardedProcessQuickFollowups = async () => {
+  if (isProcessingQuickFollowups) {
+    console.log('[scheduler] processQuickFollowups already running — skipping tick')
+    return
+  }
+  isProcessingQuickFollowups = true
+  try {
+    await processQuickFollowups()
+  } finally {
+    isProcessingQuickFollowups = false
+  }
+}
+
 const startScheduler = () => {
   console.log('Campaign scheduler started — master Twilio account active')
-  setInterval(processScheduledMessages, 60000)
-  // setInterval(processQuickFollowups, 60000) // TEMP DISABLED
-  setInterval(checkGhostedConversations, 60000)
-  setInterval(restoreCoolingNumbers, 5 * 60 * 1000) // check every 5 min
+  setInterval(guardedProcessScheduledMessages, 60000)
+  setInterval(guardedCheckGhostedConversations, 60000)
+  setInterval(guardedProcessQuickFollowups, 60000)
+  setInterval(restoreCoolingNumbers, 5 * 60 * 1000)
   scheduleMidnightReset()
-  processScheduledMessages()
-  processQuickFollowups()
-  checkGhostedConversations()
+  guardedProcessScheduledMessages()
+  guardedProcessQuickFollowups()
+  guardedCheckGhostedConversations()
 }
 
 module.exports = { startScheduler }

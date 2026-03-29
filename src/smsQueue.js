@@ -17,7 +17,7 @@
  *   // Do:         smsQueue.add({ phone, message, leadId, conversationId, userId })
  */
 
-const RATE_PER_SECOND = 3;       // SMS sends per second (safe for a single long code)
+const RATE_PER_SECOND = 10;      // SMS sends per second (safe for 10DLC A2P registered numbers)
 const DRAIN_INTERVAL_MS = 1000;  // Check queue every 1 second
 const MAX_RETRIES = 3;           // Max attempts per job before giving up
 const BACKOFF_BASE_MS = 2000;    // 2s, 4s, 8s backoff between retries
@@ -129,6 +129,12 @@ function start() {
   if (isRunning) return;
   isRunning = true;
   setInterval(drain, DRAIN_INTERVAL_MS);
+  // Log queue depth every 30s when non-empty so Railway logs show blast progress
+  setInterval(() => {
+    if (queue.length > 0) {
+      console.log(`[smsQueue] Queue depth: ${queue.length} | Stats: ${JSON.stringify(stats)}`);
+    }
+  }, 30000);
   console.log(`[smsQueue] Started — draining at ${RATE_PER_SECOND} SMS/sec`);
 }
 

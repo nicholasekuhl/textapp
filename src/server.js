@@ -66,7 +66,8 @@ app.get('/health/scheduler', async (_req, res) => {
 
     const ageMs = Date.now() - new Date(data.last_heartbeat).getTime()
     const status = ageMs < 3 * 60 * 1000 ? 'healthy' : 'down'
-    res.json({ status, last_heartbeat: data.last_heartbeat, age_seconds: Math.round(ageMs / 1000), messages_sent_last_run: data.messages_sent_last_run, errors_last_run: data.errors_last_run })
+    const queueStats = smsQueue.getStats()
+    res.json({ status, last_heartbeat: data.last_heartbeat, age_seconds: Math.round(ageMs / 1000), messages_sent_last_run: data.messages_sent_last_run, errors_last_run: data.errors_last_run, sms_queue: queueStats })
   } catch (err) {
     res.json({ status: 'unknown', error: err.message })
   }
@@ -75,8 +76,25 @@ app.get('/health/scheduler', async (_req, res) => {
 startScheduler()
 smsQueue.start()
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`TextApp server running on port ${PORT}`)
+})
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received — draining queue and shutting down gracefully')
+  server.close(() => {
+    console.log('HTTP server closed')
+  })
+  let waited = 0
+  const checkDrain = setInterval(() => {
+    const { inQueue } = smsQueue.getStats()
+    waited += 500
+    if (inQueue === 0 || waited >= 30000) {
+      clearInterval(checkDrain)
+      console.log(`Queue drained, exiting. Remaining: ${inQueue}`)
+      process.exit(0)
+    }
+  }, 500)
 })
 
 const bracketRouter = require('./routes/bracket')
