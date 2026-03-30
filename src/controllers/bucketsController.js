@@ -4,11 +4,15 @@ const HEX_RE = /^#[0-9a-f]{6}$/i
 
 const getBuckets = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('buckets').select('*').eq('user_id', req.user.id)
-      .order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+    const [{ data, error }, { data: leadRows }] = await Promise.all([
+      supabase.from('buckets').select('*').eq('user_id', req.user.id)
+        .order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('leads').select('bucket_id').eq('user_id', req.user.id).not('bucket_id', 'is', null)
+    ])
     if (error) throw error
-    res.json({ buckets: data })
+    const countMap = {}
+    for (const r of leadRows || []) countMap[r.bucket_id] = (countMap[r.bucket_id] || 0) + 1
+    res.json({ buckets: (data || []).map(b => ({ ...b, lead_count: countMap[b.id] || 0 })) })
   } catch (err) { res.status(500).json({ error: err.message }) }
 }
 

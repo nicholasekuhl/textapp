@@ -142,17 +142,12 @@ const renderBucketPills = () => {
   // Render folders with their child buckets
   for (const folder of folders) {
     const childBuckets = allBuckets.filter(b => b.parent_id === folder.id)
-    const folderLeadCount = allLeads.filter(l => childBuckets.some(b => b.id === l.bucket_id)).length
-    const isActiveFolder = activeFolderId === folder.id
     const isCollapsed = collapsedFolders[folder.id]
     const chevron = isCollapsed ? '▶' : '▼'
-    const folderBg = isActiveFolder ? '#6366f1' : '#f0f0ff'
-    const folderColor = isActiveFolder ? 'white' : '#6366f1'
 
     html += `<div style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;">
-      <div class="bucket-tab" style="background:${folderBg};color:${folderColor};border-color:#c7d2fe;" onclick="selectFolder('${folder.id}')">
-        📂 ${folder.name} <span class="count" style="opacity:0.8">${folderLeadCount}</span>
-        <span style="font-size:9px;margin-left:4px;opacity:0.7;" onclick="toggleFolderCollapse('${folder.id}',event)">${chevron}</span>
+      <div class="bucket-tab" style="background:#f1f5f9;color:#374151;border-color:#e2e8f0;" onclick="toggleFolderCollapse('${folder.id}',event)">
+        📂 ${folder.name} <span style="font-size:9px;margin-left:4px;opacity:0.6;">${chevron}</span>
       </div>`
 
     if (!isCollapsed) {
@@ -2396,12 +2391,17 @@ const init = async () => {
       else if (c.engagement_status === 'ghosted_mid' && c.lead_id && !ghostedMap[c.lead_id]) ghostedMap[c.lead_id] = 'ghosted_mid'
     })
   }).catch(() => {})
+  // Apply URL params before loadLeads so filterLeads picks them up
+  const params = new URLSearchParams(window.location.search)
+  const bucketIdParam = params.get('bucket_id')
+  const stateParam = params.get('state')
+  if (bucketIdParam) activeBucket = bucketIdParam
+  if (stateParam) { const el = document.getElementById('sf-state'); if (el) el.value = stateParam }
+
   loadLeads()
   loadCalBadge()
   loadNotifBadge()
   setInterval(loadNotifBadge, 30000)
-
-  const params = new URLSearchParams(window.location.search)
 }
 
 document.addEventListener('DOMContentLoaded', init)
