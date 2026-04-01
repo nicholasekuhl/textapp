@@ -119,7 +119,7 @@ const pickNumberForLead = (phoneNumbers, leadState) => {
 
   // Filter out cooling/flagged numbers and those at daily limit
   const available = phoneNumbers.filter(pn => {
-    if (pn.status === 'cooling' || pn.status === 'flagged' || pn.status === 'retired') return false
+    if (pn.status === 'flagged' || pn.status === 'retired') return false
     if (pn.daily_limit != null && pn.sent_today != null && pn.sent_today >= pn.daily_limit) return false
     return true
   })
@@ -173,7 +173,7 @@ const selectBestNumber = async (userId, leadState) => {
       .eq('user_id', userId)
       .eq('is_active', true)
       .eq('state', normState)
-      .not('status', 'in', '("cooling","flagged","retired")')
+      .not('status', 'in', '("flagged","retired")')
       .lt('sent_today', supabase.raw('daily_limit'))
       .order('sent_today', { ascending: true })
       .limit(1)
@@ -186,7 +186,7 @@ const selectBestNumber = async (userId, leadState) => {
     .select('phone_number, id, sent_today, daily_limit, state, status, cooloff_until')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .not('status', 'in', '("cooling","flagged","retired")')
+    .not('status', 'in', '("flagged","retired")')
     .lt('sent_today', supabase.raw('daily_limit'))
     .order('sent_today', { ascending: true })
     .limit(1)

@@ -847,18 +847,6 @@ const resetDailySendCounts = async () => {
   }
 }
 
-const restoreCoolingNumbers = async () => {
-  try {
-    await supabase
-      .from('phone_numbers')
-      .update({ status: 'active', cooloff_until: null })
-      .eq('status', 'cooling')
-      .lt('cooloff_until', new Date().toISOString())
-    console.log('Cooling numbers restored to active')
-  } catch (err) {
-    console.error('restoreCoolingNumbers error:', err.message)
-  }
-}
 
 const scheduleMidnightReset = () => {
   const now = new Date()
@@ -919,7 +907,7 @@ const startScheduler = () => {
   setInterval(guardedProcessScheduledMessages, 60000)
   setInterval(guardedCheckGhostedConversations, 60000)
   setInterval(guardedProcessQuickFollowups, 60000)
-  setInterval(restoreCoolingNumbers, 5 * 60 * 1000)
+
   scheduleMidnightReset()
   guardedProcessScheduledMessages()
   guardedProcessQuickFollowups()

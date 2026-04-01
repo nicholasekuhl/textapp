@@ -909,22 +909,11 @@ const handleStatusCallback = async (req, res) => {
 
           const violationRate = Math.min(((recentViolations || 0) / 100) * 100, 100)
 
-          let newStatus = pn.status || 'active'
           const statusUpdate = {
             violation_count: newCount,
             violation_rate: violationRate
           }
 
-          if (violationRate >= 15) {
-            newStatus = 'flagged'
-            console.log(`Number ${fromNumber} flagged — violation rate ${violationRate}%. Consider replacement.`)
-          } else if (violationRate >= 10) {
-            newStatus = 'cooling'
-            statusUpdate.cooloff_until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            console.log(`Number ${fromNumber} cooling off for 24h — violation rate ${violationRate}%`)
-          }
-
-          statusUpdate.status = newStatus
           await supabase.from('phone_numbers').update(statusUpdate).eq('id', pn.id)
         }
       }
