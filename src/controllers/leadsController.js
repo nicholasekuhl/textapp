@@ -153,7 +153,6 @@ const parseHeaders = async (req, res) => {
 }
 
 const parseRowWithMap = (row, columnMap, bucket, autopilot, importedAt, userId) => {
-  // columnMap: { app_field: 'CSV Header Name', ... }
   const get = (field) => {
     const header = columnMap[field]
     if (!header) return null
@@ -297,7 +296,6 @@ const uploadLeads = async (req, res) => {
       return res.status(400).json({ error: 'No rows found in file.' })
     }
 
-    // Dedup within file — keep first occurrence of each phone
     const seenFilePhones = new Set()
     const uniqueFileLeads = []
     const fileDeupedLeads = []
@@ -306,7 +304,6 @@ const uploadLeads = async (req, res) => {
       else { seenFilePhones.add(l.phone); uniqueFileLeads.push(l) }
     })
 
-    // Deduplication — check all phone numbers against existing leads for this user
     const phoneNumbers = uniqueFileLeads.map(l => l.phone)
     let existingPhones = new Set()
     if (phoneNumbers.length > 0) {
@@ -341,7 +338,6 @@ const uploadLeads = async (req, res) => {
 
     if (bucketId) newLeads.forEach(l => { l.bucket_id = bucketId })
 
-    // Insert in batches of 100 to avoid Supabase payload limits
     const BATCH_SIZE = 100
     const insertedLeads = []
     for (let i = 0; i < newLeads.length; i += BATCH_SIZE) {
@@ -406,7 +402,6 @@ const uploadLeads = async (req, res) => {
             updated_at: campaignStartDate
           }).in('id', data.map(l => l.id))
 
-          // Load phone numbers and user profile once for immediate sends
           const [{ data: userPhoneNumbers }, { data: userProfile }] = await Promise.all([
             supabase.from('phone_numbers')
               .select('phone_number, state, is_default, sent_today, daily_limit, status')
@@ -418,7 +413,6 @@ const uploadLeads = async (req, res) => {
               .single()
           ])
 
-          // Queue initial send immediately for each lead
           for (const lead of data) {
             const quietCheck = isWithinQuietHours(lead.state, lead.timezone)
             if (quietCheck.blocked) {
@@ -644,7 +638,6 @@ const getLeads = async (req, res) => {
     if (error) throw error
     if (countErr) throw countErr
 
-    // Fetch appointments only for the leads in this page
     const leadIds = (data || []).map(l => l.id)
     const { data: upcomingAppts } = leadIds.length ? await supabase
       .from('appointments')
@@ -666,44 +659,39 @@ const getLeads = async (req, res) => {
   }
 }
 
+// CHANGED: uses COUNT queries via Promise.all instead of fetching all lead rows
 const getLeadStats = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('leads')
-      .select('status, autopilot')
-      .eq('user_id', req.user.id)
-    if (error) throw error
-    const stats = {
-      total: data.length,
-      new: data.filter(l => l.status === 'new').length,
-      contacted: data.filter(l => l.status === 'contacted').length,
-      booked: data.filter(l => l.status === 'booked').length,
-      autopilot: data.filter(l => l.autopilot).length
-    }
-    res.json(stats)
+    const uid = req.user.id
+    const [total, newLeads, contacted, booked, autopilot] = await Promise.all([
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('status', 'new'),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('status', 'contacted'),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('status', 'booked'),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('autopilot', true),
+    ])
+    res.json({
+      total: total.count || 0,
+      new: newLeads.count || 0,
+      contacted: contacted.count || 0,
+      booked: booked.count || 0,
+      autopilot: autopilot.count || 0,
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 }
 
+// CHANGED: queries buckets table directly instead of scanning all leads
 const getBuckets = async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('leads')
-      .select('bucket, bucket_imported_at')
+      .from('buckets')
+      .select('*')
       .eq('user_id', req.user.id)
-      .not('bucket', 'is', null)
-      .order('bucket_imported_at', { ascending: false })
+      .order('created_at', { ascending: false })
     if (error) throw error
-    const seen = new Set()
-    const buckets = []
-    for (const row of data) {
-      if (!seen.has(row.bucket)) {
-        seen.add(row.bucket)
-        buckets.push(row)
-      }
-    }
-    res.json({ buckets })
+    res.json({ buckets: data || [] })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -1068,7 +1056,6 @@ const bulkAction = async (req, res) => {
     const userId = req.user.id
     const now = new Date().toISOString()
 
-    // Verify all leads belong to this user
     const { data: owned, error: verifyErr } = await supabase
       .from('leads').select('id, bucket_id').eq('user_id', userId).in('id', lead_ids)
     if (verifyErr) throw verifyErr
@@ -1093,7 +1080,6 @@ const bulkAction = async (req, res) => {
         .delete()
         .in('lead_id', validIds)
         .eq('disposition_tag_id', disposition_id)
-      // Clear disposition_tag_id on lead if it matched this tag
       await supabase.from('leads')
         .update({ disposition_tag_id: null, updated_at: now })
         .in('id', validIds)
@@ -1149,7 +1135,6 @@ const bulkAction = async (req, res) => {
     if (action === 'sold') {
       const { sold_plan_type, commission } = payload
       const soldBucketId = await getOrCreateSoldBucket(userId)
-      // Group leads by their current bucket_id so we can set previous_bucket_id correctly
       const bucketGroups = new Map()
       for (const l of owned) {
         const key = l.bucket_id || null
@@ -1370,7 +1355,6 @@ const riskCheck = async (req, res) => {
       parseResult = processXLSX(fileBuffer, null, false, null, userId, columnMap)
     }
 
-    // Detect within-file duplicates (first occurrence is primary, rest are dupes)
     const seenInFile = new Set()
     const withinFileDupes = new Set()
     parseResult.valid.forEach(l => {
@@ -1378,7 +1362,6 @@ const riskCheck = async (req, res) => {
       else seenInFile.add(l.phone)
     })
 
-    // Check blocked and existing phones in parallel
     const uniquePhones = [...seenInFile]
     let blockedPhones = new Set()
     let existingPhones = new Set()

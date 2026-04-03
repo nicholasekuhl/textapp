@@ -26,7 +26,8 @@ const getConversations = async (req, res) => {
       conversations = conversations.filter(c => !c.leads?.is_blocked)
     }
 
-    // Fetch only the last message per conversation (much more efficient than full join)
+    // Fetch only the last message per conversation
+    // .limit() prevents a full table scan when message count is large
     if (conversations.length > 0) {
       const convIds = conversations.map(c => c.id)
       const { data: lastMsgs } = await supabase
@@ -34,6 +35,8 @@ const getConversations = async (req, res) => {
         .select('conversation_id, body, direction, sent_at, is_ai')
         .in('conversation_id', convIds)
         .order('sent_at', { ascending: false })
+        .limit(convIds.length * 5) // cap — we only need the most recent 1 per convo
+
       const lastMsgMap = {}
       for (const m of lastMsgs || []) {
         if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m
