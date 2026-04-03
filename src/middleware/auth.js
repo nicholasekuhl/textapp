@@ -1,4 +1,5 @@
 const supabase = require('../db')
+const jwt = require('jsonwebtoken')
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -15,50 +16,62 @@ const tryRefresh = async (refreshToken, res) => {
   return data.user
 }
 
+const verifyToken = (token) => {
+  try {
+    const secret = process.env.SUPABASE_JWT_SECRET
+    if (!secret) return null
+    const decoded = jwt.verify(token, secret)
+    return { id: decoded.sub, email: decoded.email }
+  } catch {
+    return null
+  }
+}
+
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.cookies?.session
     const refreshToken = req.cookies?.refresh
 
-    // Neither cookie present — definitely not logged in
     if (!token && !refreshToken) return res.status(401).json({ error: 'Not authenticated' })
 
-    let user = null
+    let userId = null
+    let userEmail = null
 
     if (token) {
-      const { data: userData, error: userError } = await supabase.auth.getUser(token)
-      if (!userError) user = userData.user
+      const decoded = verifyToken(token)
+      if (decoded) {
+        userId = decoded.id
+        userEmail = decoded.email
+      }
     }
 
-    // Access token missing or expired — try refresh token before giving up
-    if (!user) {
-      user = await tryRefresh(refreshToken, res)
+    // Access token missing or expired — try refresh
+    if (!userId) {
+      const user = await tryRefresh(refreshToken, res)
       if (!user) return res.status(401).json({ error: 'Session expired. Please log in again.' })
+      userId = user.id
+      userEmail = user.email
     }
-
-    if (!user) return res.status(401).json({ error: 'Invalid session' })
 
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
     if (profileError || !profile) {
       return res.status(401).json({ error: 'Profile not found. Please complete setup.' })
     }
-
     if (!profile.tos_agreed) {
       return res.status(403).json({ error: 'tos_required' })
     }
-
     if (profile.is_suspended) {
       res.clearCookie('session')
       res.clearCookie('refresh')
       return res.status(403).json({ error: 'suspended', message: 'Your account has been suspended. Contact support for assistance.' })
     }
 
-    req.user = { id: user.id, email: user.email, profile }
+    req.user = { id: userId, email: userEmail, profile }
     next()
   } catch (err) {
     console.error('Auth middleware error:', err.message)
@@ -66,7 +79,7 @@ const authMiddleware = async (req, res, next) => {
   }
 }
 
-// Same as authMiddleware but skips the tos_agreed check — used for the agree-tos endpoint itself
+// Same as authMiddleware but skips the tos_agreed check
 const authMiddlewareNoTos = async (req, res, next) => {
   try {
     const token = req.cookies?.session
@@ -74,24 +87,33 @@ const authMiddlewareNoTos = async (req, res, next) => {
 
     if (!token && !refreshToken) return res.status(401).json({ error: 'Not authenticated' })
 
-    let user = null
+    let userId = null
+    let userEmail = null
 
     if (token) {
-      const { data: userData, error: userError } = await supabase.auth.getUser(token)
-      if (!userError) user = userData.user
+      const decoded = verifyToken(token)
+      if (decoded) {
+        userId = decoded.id
+        userEmail = decoded.email
+      }
     }
 
-    if (!user) {
-      user = await tryRefresh(refreshToken, res)
+    if (!userId) {
+      const user = await tryRefresh(refreshToken, res)
       if (!user) return res.status(401).json({ error: 'Session expired. Please log in again.' })
+      userId = user.id
+      userEmail = user.email
     }
 
-    if (!user) return res.status(401).json({ error: 'Invalid session' })
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
 
-    const { data: profile, error: profileError } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
     if (profileError || !profile) return res.status(401).json({ error: 'Profile not found. Please complete setup.' })
 
-    req.user = { id: user.id, email: user.email, profile }
+    req.user = { id: userId, email: userEmail, profile }
     next()
   } catch (err) {
     console.error('Auth middleware error:', err.message)
