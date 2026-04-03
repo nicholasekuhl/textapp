@@ -510,6 +510,11 @@ const renderLeads = (leads) => {
 let _statsCache = null
 let _statsCacheAt = 0
 const STATS_CACHE_TTL = 60000
+const CACHE_TTL = 5 * 60 * 1000
+let _bucketsCache = null, _bucketsCacheAt = 0
+let _campaignsCache = null, _campaignsCacheAt = 0
+let _dispositionsCache = null, _dispositionsCacheAt = 0
+let _templatesCache = null, _templatesCacheAt = 0
 
 const updateStats = (leads) => {
   // Only update from local data if we don't have a server stats cache
@@ -549,7 +554,33 @@ const applyLeadStats = (stats) => {
   set('stat-autopilot', stats.autopilot)
 }
 
+// ===== AUX DATA LOADERS WITH CACHE =====
+const loadBuckets = async () => {
+  const now = Date.now()
+  if (_bucketsCache && now - _bucketsCacheAt < CACHE_TTL) { allBuckets = _bucketsCache; return }
+  try {
+    const res = await fetch('/buckets')
+    const data = await res.json()
+    allBuckets = data.buckets || []
+    _bucketsCache = allBuckets
+    _bucketsCacheAt = Date.now()
+  } catch (err) { console.error(err) }
+}
+
+const loadCampaigns = async () => {
+  const now = Date.now()
+  if (_campaignsCache && now - _campaignsCacheAt < CACHE_TTL) { allCampaigns = _campaignsCache; return }
+  try {
+    const res = await fetch('/campaigns')
+    const data = await res.json()
+    allCampaigns = data.campaigns || []
+    _campaignsCache = allCampaigns
+    _campaignsCacheAt = Date.now()
+  } catch (err) { console.error(err) }
+}
+
 // ===== LOAD LEADS =====
+let leadsLoaded = false
 const loadLeads = async () => {
   if (isLoadingLeads) return
   isLoadingLeads = true
@@ -586,19 +617,17 @@ const loadLeads = async () => {
       </div>`).join('')
   }
   try {
-    const [leadsRes, bucketsRes] = await Promise.all([
+    const [leadsRes] = await Promise.all([
       fetch(`/leads?page=1&limit=${LEADS_PER_PAGE}`),
-      fetch('/buckets')
+      loadBuckets()
     ])
     const leadsData = await leadsRes.json()
-    const bucketsData = await bucketsRes.json()
     if (leadsData.leads) {
       allLeads = leadsData.leads
       totalLeads = leadsData.total || leadsData.leads.length
       hasMoreLeads = allLeads.length < totalLeads
       updateCampaignFilter()
     }
-    if (bucketsData.buckets) allBuckets = bucketsData.buckets
     renderBucketPills()
     filterLeads()
     renderLoadMoreButton()
@@ -609,6 +638,7 @@ const loadLeads = async () => {
     if (grid) grid.innerHTML = '<div style="text-align:center;padding:48px 20px;color:#9ca3af;font-size:14px;">Could not load leads.</div>'
   } finally {
     isLoadingLeads = false
+    leadsLoaded = true
   }
 }
 
@@ -970,7 +1000,13 @@ const toggleAutopilot = async (leadId, value) => {
   try {
     await fetch(`/leads/${leadId}/autopilot`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autopilot: value }) })
     toast.info(value ? 'Autopilot on' : 'Autopilot off', value ? 'AI will respond to this lead' : 'AI responses paused for this lead')
-  } catch (err) { console.error(err) }
+  } catch (err) {
+    console.error(err)
+    if (lead) lead.autopilot = !value
+    if (label) { label.textContent = !value ? 'Autopilot ON' : 'Autopilot'; label.className = `autopilot-label ${!value ? 'on' : ''}` }
+    updateStats(allLeads)
+    toast.error('Error', 'Could not update autopilot')
+  }
 }
 
 const saveNotes = async (leadId, notes) => {
@@ -1170,10 +1206,14 @@ const editLeadProduct = async (leadId, el) => {
 }
 
 const loadDispositionTags = async () => {
+  const now = Date.now()
+  if (_dispositionsCache && now - _dispositionsCacheAt < CACHE_TTL) { allDispositionTags = _dispositionsCache; return }
   try {
     const res = await fetch('/dispositions')
     const data = await res.json()
     allDispositionTags = data.tags || []
+    _dispositionsCache = allDispositionTags
+    _dispositionsCacheAt = Date.now()
   } catch (err) { console.error(err) }
 }
 
@@ -1811,10 +1851,14 @@ const saveCreateLead = async () => {
 
 // ===== TEMPLATES =====
 const loadTemplates = async () => {
+  const now = Date.now()
+  if (_templatesCache && now - _templatesCacheAt < CACHE_TTL) { allTemplates = _templatesCache; return }
   try {
     const res = await fetch('/templates')
     const data = await res.json()
     allTemplates = data.templates || []
+    _templatesCache = allTemplates
+    _templatesCacheAt = Date.now()
   } catch (err) { console.error(err) }
 }
 
@@ -2373,13 +2417,24 @@ const saveScheduleFollowup = async () => {
 const init = async () => {
   const authed = await checkAuth()
   if (!authed) return
-  try {
-    const res = await fetch('/campaigns')
-    const data = await res.json()
-    allCampaigns = data.campaigns || []
-  } catch (e) {}
-  await Promise.all([loadDispositionTags(), loadTemplates(), loadProfile()])
-  // Load conversation maps for lead card badges
+
+  // Apply URL params before loadLeads so filterLeads picks them up
+  const params = new URLSearchParams(window.location.search)
+  const bucketIdParam = params.get('bucket_id')
+  const stateParam = params.get('state')
+  if (bucketIdParam) activeBucket = bucketIdParam
+  if (stateParam) { const el = document.getElementById('sf-state'); if (el) el.value = stateParam }
+
+  // Phase 1: show leads immediately (leads+buckets fetched in parallel inside loadLeads)
+  loadLeads()
+
+  // Phase 2: load aux data in background, re-render cards when ready
+  Promise.all([loadCampaigns(), loadDispositionTags(), loadTemplates(), loadProfile()]).then(() => {
+    updateCampaignFilter()
+    if (!isLoadingLeads) filterLeads()
+  })
+
+  // Load conversation maps for lead card badges (fire-and-forget)
   fetch('/conversations').then(r => r.json()).then(d => {
     unreadConvMap = {}
     hotLeadMap = {}
@@ -2391,14 +2446,7 @@ const init = async () => {
       else if (c.engagement_status === 'ghosted_mid' && c.lead_id && !ghostedMap[c.lead_id]) ghostedMap[c.lead_id] = 'ghosted_mid'
     })
   }).catch(() => {})
-  // Apply URL params before loadLeads so filterLeads picks them up
-  const params = new URLSearchParams(window.location.search)
-  const bucketIdParam = params.get('bucket_id')
-  const stateParam = params.get('state')
-  if (bucketIdParam) activeBucket = bucketIdParam
-  if (stateParam) { const el = document.getElementById('sf-state'); if (el) el.value = stateParam }
 
-  loadLeads()
   loadCalBadge()
   loadNotifBadge()
   setInterval(loadNotifBadge, 30000)

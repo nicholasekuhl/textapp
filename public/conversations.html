@@ -1144,9 +1144,9 @@
   const init = async () => {
     const authed = await checkAuth()
     if (!authed) return
-    // Load disposition tags and templates
+    // Load disposition tags, templates, buckets, and profile in parallel
     try {
-      const [dtRes, tRes, bRes] = await Promise.all([fetch('/dispositions'), fetch('/templates'), fetch('/buckets')])
+      const [dtRes, tRes, bRes] = await Promise.all([fetch('/dispositions'), fetch('/templates'), fetch('/buckets'), loadProfile()])
       const dtData = await dtRes.json()
       const tData = await tRes.json()
       const bData = await bRes.json()
@@ -1154,7 +1154,6 @@
       allTemplates = tData.templates || []
       allBuckets = bData.buckets || []
     } catch (e) {}
-    await loadProfile()
     await loadConversations()
     startPolling()
     // Infinite scroll on conversation list
