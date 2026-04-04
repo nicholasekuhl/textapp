@@ -19,9 +19,8 @@ const tryRefresh = async (refreshToken, res) => {
 const verifyToken = (token) => {
   try {
     const secret = process.env.SUPABASE_JWT_SECRET
-    console.log('JWT secret present:', !!secret, 'length:', secret?.length)
     if (!secret) return null
-    const decoded = jwt.verify(token, secret)
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256', 'RS256', 'ES256'] })
     return { id: decoded.sub, email: decoded.email }
   } catch (err) {
     console.log('JWT verify error:', err.message)
