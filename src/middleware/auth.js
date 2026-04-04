@@ -39,6 +39,7 @@ const authMiddleware = async (req, res, next) => {
 
     if (token) {
       const decoded = verifyToken(token)
+      console.log('JWT:', decoded ? 'LOCAL SUCCESS' : 'FAILED - using Supabase fallback')
       if (decoded) {
         userId = decoded.id
         userEmail = decoded.email
