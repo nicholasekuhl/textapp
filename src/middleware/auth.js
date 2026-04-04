@@ -19,10 +19,12 @@ const tryRefresh = async (refreshToken, res) => {
 const verifyToken = (token) => {
   try {
     const secret = process.env.SUPABASE_JWT_SECRET
+    console.log('JWT secret present:', !!secret, 'length:', secret?.length)
     if (!secret) return null
     const decoded = jwt.verify(token, secret)
     return { id: decoded.sub, email: decoded.email }
-  } catch {
+  } catch (err) {
+    console.log('JWT verify error:', err.message)
     return null
   }
 }
