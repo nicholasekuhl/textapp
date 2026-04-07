@@ -623,17 +623,40 @@ const getLeads = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200)
     const offset = (page - 1) * limit
 
-    const [{ data, error }, { count, error: countErr }] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('*, campaign_leads(status), lead_dispositions(disposition_tag_id)')
+    // Handle campaign_id filter first (requires async lookup)
+    let enrolledIds = null
+    if (req.query.campaign_id) {
+      const { data: enrolled } = await supabase
+        .from('campaign_leads')
+        .select('lead_id')
+        .eq('campaign_id', req.query.campaign_id)
         .eq('user_id', req.user.id)
+      enrolledIds = (enrolled || []).map(e => e.lead_id)
+      if (enrolledIds.length === 0) return res.json({ leads: [], total: 0, page, limit })
+    }
+
+    const applyQueryFilters = (q) => {
+      q = q.eq('user_id', req.user.id)
+      if (req.query.search) {
+        const s = req.query.search
+        q = q.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`)
+      }
+      if (req.query.status) q = q.eq('status', req.query.status)
+      if (req.query.state) q = q.eq('state', req.query.state)
+      if (req.query.bucket_id) q = q.eq('bucket_id', req.query.bucket_id)
+      if (req.query.autopilot) q = q.eq('autopilot', req.query.autopilot === 'true')
+      if (req.query.is_sold) q = q.eq('is_sold', req.query.is_sold === 'true')
+      if (req.query.date_from) q = q.gte('created_at', req.query.date_from)
+      if (req.query.date_to) q = q.lte('created_at', req.query.date_to + 'T23:59:59Z')
+      if (enrolledIds) q = q.in('id', enrolledIds)
+      return q
+    }
+
+    const [{ data, error }, { count, error: countErr }] = await Promise.all([
+      applyQueryFilters(supabase.from('leads').select('*, campaign_leads(status), lead_dispositions(disposition_tag_id)'))
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1),
-      supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', req.user.id)
+      applyQueryFilters(supabase.from('leads').select('*', { count: 'exact', head: true }))
     ])
     if (error) throw error
     if (countErr) throw countErr

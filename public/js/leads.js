@@ -4,6 +4,8 @@ let currentLeadsPage = 1
 let totalLeads = 0
 let isLoadingLeads = false
 let hasMoreLeads = false
+let isSearchActive = false
+let searchDebounceTimer = null
 let allLeads = []
 let allCampaigns = []
 let unreadConvMap = {}
@@ -253,7 +255,61 @@ const filterLeads = () => {
   updateActiveFilterPills()
 }
 
-const applyFilters = () => { filterLeads(); updateFilterBadge() }
+const serverSearchLeads = async (query) => {
+  isSearchActive = true
+  const grid = document.getElementById('leads-grid')
+  grid.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af;font-size:13px;">Searching...</div>`
+  try {
+    const res = await fetch('/leads?search=' + encodeURIComponent(query) + '&limit=200&page=1')
+    const data = await res.json()
+    const leads = data.leads || []
+    const countEl = document.getElementById('leads-count')
+    if (countEl) countEl.textContent = leads.length + ' result' + (leads.length !== 1 ? 's' : '') + ' for "' + query + '"'
+    allLeads = leads
+    renderLeads(leads)
+    const btn = document.getElementById('load-more-btn')
+    if (btn) btn.style.display = 'none'
+  } catch (err) { console.error('Search error:', err) }
+}
+
+const applyFilters = async () => {
+  isSearchActive = true
+  currentLeadsPage = 1
+  const params = new URLSearchParams()
+  params.set('limit', '200')
+  params.set('page', '1')
+  const search = document.getElementById('sf-search')?.value?.trim()
+  if (search) params.set('search', search)
+  const status = document.getElementById('sf-status')?.value
+  if (status) params.set('status', status)
+  const state = document.getElementById('sf-state')?.value
+  if (state) params.set('state', state)
+  const bucket = document.getElementById('sf-bucket')?.value || activeBucket
+  if (bucket) params.set('bucket_id', bucket)
+  const campaign = document.getElementById('sf-campaign')?.value || activeCampaignQuickFilter
+  if (campaign) params.set('campaign_id', campaign)
+  const autopilot = document.getElementById('sf-autopilot')?.value
+  if (autopilot) params.set('autopilot', autopilot)
+  const sold = document.getElementById('sf-sold')?.value
+  if (sold) params.set('is_sold', sold)
+  const dateFrom = document.getElementById('sf-date-from')?.value
+  if (dateFrom) params.set('date_from', dateFrom)
+  const dateTo = document.getElementById('sf-date-to')?.value
+  if (dateTo) params.set('date_to', dateTo)
+  const grid = document.getElementById('leads-grid')
+  grid.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af;font-size:13px;">Filtering...</div>`
+  try {
+    const res = await fetch('/leads?' + params.toString())
+    const data = await res.json()
+    allLeads = data.leads || []
+    const countEl = document.getElementById('leads-count')
+    if (countEl) countEl.textContent = 'Showing ' + allLeads.length + ' of ' + (data.total || allLeads.length) + ' leads'
+    renderLeads(allLeads)
+    const btn = document.getElementById('load-more-btn')
+    if (btn) btn.style.display = 'none'
+  } catch (err) { console.error('Filter error:', err) }
+  updateFilterBadge()
+}
 
 const resetFilters = () => {
   const ids = ['sf-search', 'sf-status', 'sf-state', 'sf-campaign', 'sf-bucket', 'sf-timezone', 'sf-autopilot', 'sf-sold', 'sf-date-from', 'sf-date-to']
@@ -268,7 +324,10 @@ const resetFilters = () => {
   document.getElementById('campaign-quick-input').value = ''
   document.getElementById('campaign-clear-btn').style.display = 'none'
   renderBucketPills()
-  filterLeads()
+  isSearchActive = false
+  currentLeadsPage = 1
+  allLeads = []
+  loadMoreLeads()
   updateFilterBadge()
 }
 
@@ -2500,6 +2559,24 @@ const init = async () => {
       else if (c.engagement_status === 'ghosted_mid' && c.lead_id && !ghostedMap[c.lead_id]) ghostedMap[c.lead_id] = 'ghosted_mid'
     })
   }).catch(() => {})
+
+  // Debounced server-side search
+  const searchInput = document.getElementById('sf-search')
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      clearTimeout(searchDebounceTimer)
+      const q = this.value.trim()
+      if (q.length === 0) {
+        isSearchActive = false
+        currentLeadsPage = 1
+        allLeads = []
+        loadMoreLeads()
+        return
+      }
+      if (q.length < 2) return
+      searchDebounceTimer = setTimeout(() => serverSearchLeads(q), 400)
+    })
+  }
 
   loadCalBadge()
   loadNotifBadge()
