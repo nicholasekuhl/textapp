@@ -253,7 +253,7 @@
       const data = await res.json()
       allConversations = data.conversations || []
       convPage = 1
-      convHasMore = (allConversations.length === 50)
+      convHasMore = data.hasMore === true || (data.total > (data.page * data.limit))
       filterConversations(document.getElementById('conv3-search')?.value || '')
     } catch (err) {
       console.error(err)
@@ -270,7 +270,7 @@
       const res = await fetch(`/conversations?page=${convPage}&limit=50&show_blocked=${showBlocked}`)
       const data = await res.json()
       const newConvs = data.conversations || []
-      convHasMore = newConvs.length === 50
+      convHasMore = data.hasMore === true || (data.total > (data.page * data.limit))
       const existingIds = new Set(allConversations.map(c => c.id))
       newConvs.filter(c => !existingIds.has(c.id)).forEach(c => allConversations.push(c))
       allConversations.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))

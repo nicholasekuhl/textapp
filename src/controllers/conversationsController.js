@@ -60,7 +60,7 @@ const getConversations = async (req, res) => {
       conversations = conversations.filter(c => c.updated_at >= sevenDaysAgo)
     }
 
-    res.json({ conversations, total: count, page, limit })
+    res.json({ conversations, total: count, page, limit, hasMore: offset + limit < (count || 0) })
   } catch (err) {
     console.error('Conversations getConversations error:', err.message)
     res.status(500).json({ error: err.message })
