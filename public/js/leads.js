@@ -492,6 +492,15 @@ const renderLeads = (leads) => {
                 ${lead.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? `<span class="tag" style="font-size:10px;background:${bk.color}18;color:${bk.color};border:1px solid ${bk.color}30;" title="Bucket: ${bk.name}">📁 ${bk.name}</span>` : '' })() : ''}
                 ${lead.product ? `<span class="tag tag-plan" style="cursor:pointer;" onclick="editLeadProduct('${lead.id}', this)" title="Click to edit">${lead.product}</span>` : ''}
                 ${campProgress}
+                ${lead.pipeline_stage ? (() => {
+                  const PIPELINE_COLORS = { replied: '#6366f1', household_confirmed: '#3b82f6', income_provided: '#0ea5e9', medical_shared: '#8b5cf6', budget_provided: '#f59e0b', appointment_scheduled: '#10b981', sold: '#22c55e' }
+                  const PIPELINE_LABELS = { replied: 'Replied', household_confirmed: 'Household', income_provided: 'Income', medical_shared: 'Medical', budget_provided: 'Budget', appointment_scheduled: 'Appt Set', sold: 'Sold' }
+                  const color = PIPELINE_COLORS[lead.pipeline_stage] || '#6366f1'
+                  const label = PIPELINE_LABELS[lead.pipeline_stage] || lead.pipeline_stage
+                  const opacity = lead.pipeline_ghosted ? '0.5' : '1'
+                  const ghostSuffix = lead.pipeline_ghosted ? ' (ghosted)' : ''
+                  return `<span class="tag" style="font-size:10px;background:${color}18;color:${color};border:1px solid ${color}40;opacity:${opacity};" title="Pipeline stage">◈ ${label}${ghostSuffix}</span>`
+                })() : ''}
               </div>
             </div>
           </div>

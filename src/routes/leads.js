@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const multer = require('multer')
-const { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride } = require('../controllers/leadsController')
+const { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getPipelineLeads, updatePipelineStage } = require('../controllers/leadsController')
 const storage = multer.memoryStorage()
 const upload = multer({
   storage,
@@ -20,6 +20,7 @@ const upload = multer({
 })
 
 router.get('/', getLeads)
+router.get('/pipeline', getPipelineLeads)
 router.get('/stats', getLeadStats)
 router.get('/buckets', getBuckets)
 router.get('/export', exportLeads)
@@ -36,6 +37,7 @@ router.patch('/:id/block', blockLead)
 router.patch('/:id/unblock', unblockLead)
 router.patch('/:id/bucket', updateLeadBucket)
 router.patch('/:id/commission-status', updateCommissionStatus)
+router.patch('/:id/pipeline-stage', updatePipelineStage)
 router.patch('/:id/sold', markSold)
 router.patch('/:id/unsold', unmarkSold)
 router.patch('/:id/skip-today', skipToday)

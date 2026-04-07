@@ -893,6 +893,49 @@ const resetDailySendCounts = async () => {
 }
 
 
+const checkPipelineGhosts = async () => {
+  try {
+    const now = new Date()
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString()
+
+    // Find leads with a pipeline stage that haven't advanced in 24 hours
+    const { data: stalled } = await supabase
+      .from('leads')
+      .select('id, pipeline_stage, pipeline_stage_set_at, user_id')
+      .not('pipeline_stage', 'is', null)
+      .eq('pipeline_ghosted', false)
+      .neq('pipeline_stage', 'sold')
+      .lte('pipeline_stage_set_at', oneDayAgo)
+
+    if (!stalled || stalled.length === 0) return
+
+    // Check each lead for recent inbound since stage was set
+    for (const lead of stalled) {
+      const { data: recentInbound } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('lead_id', lead.id)
+        .eq('direction', 'inbound')
+        .gte('sent_at', lead.pipeline_stage_set_at)
+        .limit(1)
+
+      // If no inbound since stage was set — mark as ghosted
+      if (!recentInbound || recentInbound.length === 0) {
+        await supabase.from('leads')
+          .update({
+            pipeline_ghosted: true,
+            pipeline_ghosted_at: now.toISOString()
+          })
+          .eq('id', lead.id)
+      }
+    }
+
+    console.log('[pipeline] Ghost check complete,', stalled.length, 'leads checked')
+  } catch (err) {
+    console.error('checkPipelineGhosts:', err.message)
+  }
+}
+
 const scheduleMidnightReset = () => {
   const now = new Date()
   const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0))
@@ -952,11 +995,13 @@ const startScheduler = () => {
   setInterval(guardedProcessScheduledMessages, 90000)   // every 90 seconds
   setInterval(guardedCheckGhostedConversations, 120000) // every 2 minutes
   setInterval(guardedProcessQuickFollowups, 60000)
+  setInterval(checkPipelineGhosts, 120000)              // every 2 minutes
 
   scheduleMidnightReset()
   guardedProcessScheduledMessages()
   guardedProcessQuickFollowups()
   guardedCheckGhostedConversations()
+  checkPipelineGhosts()
 }
 
 module.exports = { startScheduler }

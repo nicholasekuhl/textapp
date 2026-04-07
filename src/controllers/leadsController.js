@@ -1416,4 +1416,120 @@ const riskCheck = async (req, res) => {
   }
 }
 
-module.exports = { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getOrCreateOptOutBucket }
+const PIPELINE_STAGES = [
+  'replied',
+  'household_confirmed',
+  'income_provided',
+  'medical_shared',
+  'budget_provided',
+  'appointment_scheduled',
+  'sold'
+]
+
+const updatePipelineStage = async (req, res) => {
+  try {
+    const { pipeline_stage } = req.body
+    if (!PIPELINE_STAGES.includes(pipeline_stage)) {
+      return res.status(400).json({ error: 'Invalid pipeline stage' })
+    }
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('leads')
+      .update({
+        pipeline_stage,
+        pipeline_stage_set_at: now,
+        pipeline_ghosted: false,
+        pipeline_ghosted_at: null,
+        updated_at: now
+      })
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single()
+    if (error) throw error
+    res.json({ success: true, lead: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const getPipelineLeads = async (req, res) => {
+  try {
+    const { range = '30d', from, to } = req.query
+    let since
+
+    if (range === 'custom' && from) {
+      since = new Date(from).toISOString()
+    } else {
+      const days = range === 'today' ? 1
+        : range === '7d' ? 7
+        : range === '30d' ? 30
+        : range === '60d' ? 60 : 90
+      since = new Date()
+      since.setDate(since.getDate() - days)
+      since = since.toISOString()
+    }
+
+    let query = supabase
+      .from('leads')
+      .select('id, first_name, last_name, phone, state, zip_code, status, pipeline_stage, pipeline_stage_set_at, pipeline_ghosted, pipeline_ghosted_at, notes, updated_at')
+      .eq('user_id', req.user.id)
+      .not('pipeline_stage', 'is', null)
+      .gte('pipeline_stage_set_at', since)
+      .order('pipeline_stage_set_at', { ascending: false })
+
+    if (range === 'custom' && to) {
+      query = query.lte('pipeline_stage_set_at', new Date(to + 'T23:59:59Z').toISOString())
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    // Group by stage
+    const grouped = {}
+    PIPELINE_STAGES.forEach(s => { grouped[s] = [] })
+    for (const lead of data || []) {
+      if (grouped[lead.pipeline_stage]) grouped[lead.pipeline_stage].push(lead)
+    }
+
+    // Fetch last message preview for each lead
+    const leadIds = (data || []).map(l => l.id)
+    let lastMsgMap = {}
+    if (leadIds.length > 0) {
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('lead_id, id')
+        .in('lead_id', leadIds)
+      if (convs && convs.length > 0) {
+        const convIds = convs.map(c => c.id)
+        const convLeadMap = {}
+        convs.forEach(c => { convLeadMap[c.id] = c.lead_id })
+        const { data: lastMsgs } = await supabase
+          .from('messages')
+          .select('conversation_id, body, sent_at')
+          .in('conversation_id', convIds)
+          .order('sent_at', { ascending: false })
+        if (lastMsgs) {
+          for (const m of lastMsgs) {
+            const leadId = convLeadMap[m.conversation_id]
+            if (leadId && !lastMsgMap[leadId]) lastMsgMap[leadId] = m.body
+          }
+        }
+      }
+    }
+
+    // Attach last message preview
+    for (const stage of PIPELINE_STAGES) {
+      grouped[stage] = grouped[stage].map(l => ({
+        ...l,
+        last_message: lastMsgMap[l.id] || null
+      }))
+    }
+
+    res.json({ stages: grouped, total: data?.length || 0 })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getOrCreateOptOutBucket, getPipelineLeads, updatePipelineStage }

@@ -398,6 +398,7 @@ const renderSidebar = () => {
   <nav class="sidebar-nav">
     <a href="/leads.html" class="sidebar-nav-item${a('/leads.html')}">${SVG_LEADS}Leads</a>
     <a href="/buckets.html" class="sidebar-nav-item${a('/buckets.html')}">${SVG_BUCKETS}Buckets</a>
+    <a href="/pipeline.html" class="sidebar-nav-item${a('/pipeline.html')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Pipeline</a>
     <a href="/conversations.html" class="sidebar-nav-item${a('/conversations.html')}">${SVG_CONV}Conversations</a>
     <a href="/campaigns.html" class="sidebar-nav-item${a('/campaigns.html')}">${SVG_CAMP}Campaigns</a>
     <a href="/stats.html" class="sidebar-nav-item${a('/stats.html')}">${SVG_STATS}Stats</a>

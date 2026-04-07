@@ -4,6 +4,7 @@ const { createNotification } = require('../notifications')
 const { spintext } = require('../spintext')
 const { isWithinQuietHours, getNextSendWindow } = require('../compliance')
 const { getOrCreateOptOutBucket } = require('./leadsController')
+const { detectPipelineStage, extractLeadDataFromHistory, generateNoteSummary, STAGE_ORDER } = require('../pipeline')
 
 const isPositiveEngagement = (history) => {
   const recentInbound = history.filter(m => m.role === 'user').slice(-5)
@@ -502,6 +503,58 @@ const processInboundMessage = async (body) => {
             await supabase.from('conversations')
               .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
               .eq('id', conversation.id)
+
+            // ─── PIPELINE STAGE DETECTION ────────────────────────────────────
+            try {
+              const { data: allMessages } = await supabase
+                .from('messages')
+                .select('direction, body')
+                .eq('conversation_id', conversation.id)
+                .order('sent_at', { ascending: true })
+
+              const newStage = detectPipelineStage(lead, allMessages || [])
+              const pipelineUpdates = {}
+
+              // Only advance stage, never go backward
+              if (newStage) {
+                const currentOrder = STAGE_ORDER.indexOf(lead.pipeline_stage)
+                const newOrder = STAGE_ORDER.indexOf(newStage)
+                if (newOrder > currentOrder) {
+                  pipelineUpdates.pipeline_stage = newStage
+                  pipelineUpdates.pipeline_stage_set_at = new Date().toISOString()
+                  pipelineUpdates.pipeline_ghosted = false
+                  pipelineUpdates.pipeline_ghosted_at = null
+                }
+              }
+
+              // Extract any new structured data
+              const extracted = extractLeadDataFromHistory(lead, allMessages || [])
+              if (extracted) Object.assign(pipelineUpdates, extracted)
+
+              // Append AI note if stage changed or new data extracted
+              const stageChanged = newStage && newStage !== lead.pipeline_stage
+              if (stageChanged || extracted) {
+                const summary = generateNoteSummary(
+                  { ...lead, ...pipelineUpdates },
+                  pipelineUpdates.pipeline_stage || lead.pipeline_stage || newStage
+                )
+                const timestamp = new Date().toLocaleString('en-US', {
+                  month: 'short', day: 'numeric',
+                  hour: 'numeric', minute: '2-digit', hour12: true
+                })
+                const noteEntry = '[Auto ' + timestamp + '] ' + summary
+                pipelineUpdates.notes = lead.notes
+                  ? lead.notes + '\n' + noteEntry
+                  : noteEntry
+              }
+
+              if (Object.keys(pipelineUpdates).length > 0) {
+                await supabase.from('leads').update(pipelineUpdates).eq('id', lead.id)
+              }
+            } catch (pipelineErr) {
+              console.error('Pipeline detection error:', pipelineErr.message)
+            }
+            // ─────────────────────────────────────────────────────────────────
 
             // Check if conversation just confirmed an appointment
             const { data: conv } = await supabase.from('conversations').select('appointment_confirmed').eq('id', conversation.id).single()
