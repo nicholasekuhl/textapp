@@ -9,7 +9,7 @@ const getConversations = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200)
     const offset = (page - 1) * limit
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('conversations')
       .select(`
         *, from_number,
@@ -18,6 +18,10 @@ const getConversations = async (req, res) => {
       .eq('user_id', req.user.id)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    if (req.query.lead_id) query = query.eq('lead_id', req.query.lead_id)
+
+    const { data, error, count } = await query
     if (error) throw error
 
     let conversations = data || []
@@ -226,6 +230,59 @@ const deleteConversation = async (req, res) => {
   }
 }
 
+const searchConversations = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim()
+    if (!q) return res.json({ conversations: [] })
+
+    const { data: leads, error: leadsErr } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%`)
+
+    if (leadsErr) throw leadsErr
+
+    const leadIds = (leads || []).map(l => l.id)
+    if (!leadIds.length) return res.json({ conversations: [] })
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        *, from_number,
+        leads (id, first_name, last_name, phone, status, timezone, autopilot, disposition_tag_id, notes, email, state, zip_code, date_of_birth, product, address, bucket_id, is_blocked, is_cold, created_at)
+      `)
+      .eq('user_id', req.user.id)
+      .in('lead_id', leadIds)
+      .order('updated_at', { ascending: false })
+      .limit(50)
+
+    if (error) throw error
+
+    const conversations = data || []
+    if (conversations.length > 0) {
+      const convIds = conversations.map(c => c.id)
+      const { data: lastMsgs } = await supabase
+        .from('messages')
+        .select('conversation_id, body, direction, sent_at, is_ai')
+        .in('conversation_id', convIds)
+        .order('sent_at', { ascending: false })
+        .limit(convIds.length * 5)
+
+      const lastMsgMap = {}
+      for (const m of lastMsgs || []) {
+        if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m
+      }
+      conversations.forEach(c => { c.last_message = lastMsgMap[c.id] || null })
+    }
+
+    res.json({ conversations })
+  } catch (err) {
+    console.error('searchConversations error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
 module.exports = {
   getConversations,
   getConversation,
@@ -235,5 +292,6 @@ module.exports = {
   createScheduledMessage,
   getConversationMessages,
   markConversationRead,
-  deleteConversation
+  deleteConversation,
+  searchConversations
 }

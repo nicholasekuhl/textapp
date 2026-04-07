@@ -102,6 +102,25 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
   const agentFirstName = profile?.agent_nickname || agentName.split(' ')[0]
   const fullText = history.map(m => m.content).join(' ').toLowerCase()
 
+  // TRIGGER 0: Soft decline / not interested
+  const softDeclinePhrases = [
+    "i'm all set", "im all set", "all set thanks",
+    "not interested", "no thank you", "no thanks",
+    "not looking anymore", "found something",
+    "already have coverage", "already covered",
+    "went with someone else", "not right now",
+    "maybe later", "don't need it",
+    "dont need it", "i'm good", "im good",
+    "good for now", "not anymore",
+    "no longer interested", "never mind",
+    "nevermind", "already enrolled",
+    "got covered", "got a plan"
+  ]
+  const isSoftDecline = softDeclinePhrases.some(p => msg.includes(p))
+  if (isSoftDecline) {
+    return { triggered: true, reason: 'soft_decline', message: null }
+  }
+
   // TRIGGER 1: Appointment confirmed
   if (conversation.appointment_confirmed) {
     return {
@@ -168,6 +187,28 @@ const checkHandoffTriggers = (conversation, lastInboundMessage, history, profile
 
 const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
   try {
+    if (handoff.reason === 'soft_decline') {
+      console.log('Soft decline detected for lead:', lead.id, '— stopping all outreach')
+      await Promise.all([
+        supabase.from('conversations').update({
+          needs_agent_review: false,
+          handoff_reason: 'soft_decline',
+          status: 'closed',
+          updated_at: new Date().toISOString()
+        }).eq('id', conversation.id),
+        supabase.from('leads').update({
+          is_cold: true,
+          autopilot: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', lead.id),
+        supabase.from('campaign_leads').update({
+          status: 'completed',
+          cancelled_reason: 'lead_declined'
+        }).eq('lead_id', lead.id).in('status', ['pending', 'active'])
+      ])
+      return
+    }
+
     await supabase.from('conversations').update({
       needs_agent_review: true,
       handoff_reason: handoff.reason,

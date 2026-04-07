@@ -1960,13 +1960,14 @@ const switchDetailTab = (tab) => {
   })
   document.querySelectorAll('.lead-detail-panel').forEach(p => p.classList.remove('active'))
   document.getElementById(`detail-panel-${tab}`)?.classList.add('active')
+  if (tab === 'sms') loadDetailSMS(detailLeadId)
 }
 
 const loadDetailSMS = async (leadId) => {
   try {
-    const res = await fetch('/conversations')
+    const res = await fetch(`/conversations?lead_id=${leadId}&limit=1`)
     const data = await res.json()
-    const conv = (data.conversations || []).find(c => c.lead_id === leadId)
+    const conv = (data.conversations || [])[0]
     const container = document.getElementById('detail-sms-list')
     if (!conv) { container.innerHTML = `<div style="text-align:center;padding:32px;color:#d1d5db;font-size:13px;">No messages yet</div>`; return }
     const res2 = await fetch(`/conversations/${conv.id}`)
