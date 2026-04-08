@@ -447,7 +447,10 @@ const processQuickFollowups = async () => {
 
           const leadUpdates = { updated_at: sentAt, outbound_initiated_today: (lead.outbound_initiated_today || 0) + 1 }
           if (canUpgrade(lead.status, 'contacted')) leadUpdates.status = 'contacted'
-          if (job.stepToSend === 1 && !lead.first_message_sent) leadUpdates.first_message_sent = true
+          if (job.stepToSend === 1 && !lead.first_message_sent) {
+            leadUpdates.first_message_sent = true
+            leadUpdates.first_message_sent_at = sentAt
+          }
           await supabase.from('leads').update(leadUpdates).eq('id', job.leadId)
 
           const stepUpdates = {}
@@ -713,7 +716,10 @@ const processScheduledMessages = async () => {
 
           const leadUpdates = { updated_at: sentAt }
           if (canUpgrade(enrollment.leads.status, 'contacted')) leadUpdates.status = 'contacted'
-          if (!enrollment.leads.first_message_sent) leadUpdates.first_message_sent = true
+          if (!enrollment.leads.first_message_sent) {
+            leadUpdates.first_message_sent = true
+            leadUpdates.first_message_sent_at = sentAt
+          }
           leadUpdates.outbound_initiated_today = (enrollment.leads.outbound_initiated_today || 0) + 1
           await supabase.from('leads').update(leadUpdates).eq('id', job.leadId)
 
