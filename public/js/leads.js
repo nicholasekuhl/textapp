@@ -1855,6 +1855,7 @@ const openEnrollModalForLead = (leadId) => { selectedLeads.clear(); selectedLead
 // ===== BUCKET CRUD =====
 const openNewBucketModal = (id, name, color) => {
   editingBucketId = id || null
+  window._creatingFolder = false
   const titleEl = document.getElementById('new-bucket-modal-title')
   const nameEl = document.getElementById('new-bucket-name')
   const saveBtn = document.getElementById('save-bucket-btn')
@@ -1902,11 +1903,13 @@ const saveBucket = async () => {
       if (idx !== -1) allBuckets[idx] = data.bucket
       toast.success('Bucket renamed', name)
     } else {
-      const res = await fetch('/buckets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) })
+      const isFolder = !!window._creatingFolder
+      const res = await fetch('/buckets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color, is_folder: isFolder, parent_id: null }) })
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
       allBuckets.push(data.bucket)
-      toast.success('Bucket created', name)
+      window._creatingFolder = false
+      toast.success(isFolder ? 'Folder created' : 'Bucket created', name)
     }
     renderBucketPills()
     updateCampaignFilter()
@@ -2758,6 +2761,38 @@ const init = async () => {
   loadCalBadge()
   loadNotifBadge()
   setInterval(loadNotifBadge, 30000)
+}
+
+function toggleNewBucketDropdown(e) {
+  e.stopPropagation()
+  const dd = document.getElementById('new-bucket-dropdown')
+  if (!dd) return
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none'
+}
+
+function closeNewBucketDropdown() {
+  const dd = document.getElementById('new-bucket-dropdown')
+  if (dd) dd.style.display = 'none'
+}
+
+document.addEventListener('click', () => closeNewBucketDropdown())
+
+function openNewFolderModal() {
+  window._creatingFolder = true
+  const titleEl = document.getElementById('new-bucket-modal-title')
+  const nameEl = document.getElementById('new-bucket-name')
+  const saveBtn = document.getElementById('save-bucket-btn')
+  if (titleEl) titleEl.textContent = 'New Folder'
+  if (nameEl) nameEl.value = ''
+  if (saveBtn) saveBtn.textContent = 'Create Folder'
+  const swatchContainer = document.getElementById('bucket-color-swatches')
+  if (swatchContainer) {
+    swatchContainer.innerHTML = BUCKET_COLORS.map(c =>
+      `<div class="color-swatch${c === '#6366f1' ? ' selected' : ''}" style="background:${c};" data-color="${c}" onclick="selectBucketColor('${c}')"></div>`
+    ).join('')
+  }
+  document.getElementById('new-bucket-modal')?.classList.add('open')
+  setTimeout(() => document.getElementById('new-bucket-name')?.focus(), 50)
 }
 
 function debounceScroll(fn, delay) {
