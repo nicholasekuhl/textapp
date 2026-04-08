@@ -5,16 +5,16 @@ const HEX_RE = /^#[0-9a-f]{6}$/i
 const getBuckets = async (req, res) => {
   try {
     const showArchived = req.query.archived === 'true'
-    const [{ data, error }, { data: leadRows }] = await Promise.all([
+    const [{ data, error }, { data: countRows, error: countError }] = await Promise.all([
       supabase.from('buckets').select('*').eq('user_id', req.user.id)
         .eq('is_archived', showArchived)
         .order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
-      supabase.from('leads').select('bucket_id').eq('user_id', req.user.id).not('bucket_id', 'is', null)
+      supabase.from('leads').select('bucket_id, count:id.count()').eq('user_id', req.user.id).not('bucket_id', 'is', null)
     ])
     if (error) throw error
+    if (countError) console.error('bucketsController count error:', countError.message)
     const countMap = {}
-    for (const r of leadRows || []) countMap[r.bucket_id] = (countMap[r.bucket_id] || 0) + 1
-    console.log('[bucketsController] leadRows:', leadRows?.length, 'countMap:', JSON.stringify(countMap))
+    for (const r of countRows || []) countMap[r.bucket_id] = parseInt(r.count) || 0
     res.json({ buckets: (data || []).map(b => ({ ...b, lead_count: countMap[b.id] || 0 })) })
   } catch (err) { res.status(500).json({ error: err.message }) }
 }
