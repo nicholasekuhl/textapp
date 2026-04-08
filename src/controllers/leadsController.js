@@ -669,15 +669,14 @@ const getLeadStats = async (req, res) => {
 // CHANGED: queries buckets table directly instead of scanning all leads
 const getBuckets = async (req, res) => {
   try {
-    const [{ data, error }, { data: countRows, error: countError }] = await Promise.all([
+    const [{ data, error }, { data: leadRows }] = await Promise.all([
       supabase.from('buckets').select('*').eq('user_id', req.user.id)
         .order('created_at', { ascending: false }),
-      supabase.from('leads').select('bucket_id, count:id.count()').eq('user_id', req.user.id).not('bucket_id', 'is', null)
+      supabase.from('leads').select('bucket_id').eq('user_id', req.user.id).not('bucket_id', 'is', null).limit(5000)
     ])
     if (error) throw error
-    if (countError) console.error('leadsController getBuckets count error:', countError.message)
     const countMap = {}
-    for (const r of countRows || []) countMap[r.bucket_id] = parseInt(r.count) || 0
+    for (const r of leadRows || []) countMap[r.bucket_id] = (countMap[r.bucket_id] || 0) + 1
     res.json({ buckets: (data || []).map(b => ({ ...b, lead_count: countMap[b.id] || 0 })) })
   } catch (err) {
     res.status(500).json({ error: err.message })
