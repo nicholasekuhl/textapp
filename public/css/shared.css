@@ -88,6 +88,114 @@
 }
 
 /* =============================================
+   DARK MODE
+   ============================================= */
+[data-theme="dark"] {
+  /* Surfaces */
+  --bg-app: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-subtle: #13151f;
+  --border-default: #2a2d3a;
+  --border-light: #222535;
+
+  /* Typography */
+  --color-text-primary: #e8eaf0;
+  --color-text-secondary: #9ca3af;
+  --color-text-tertiary: #6b7280;
+
+  /* Neutrals inverted */
+  --gray-50: #1a1d27;
+  --gray-100: #222535;
+  --gray-200: #2a2d3a;
+  --gray-300: #3d4152;
+  --gray-400: #6b7280;
+  --gray-500: #9ca3af;
+  --gray-600: #c4c9d4;
+  --gray-700: #e8eaf0;
+  --gray-900: #e8eaf0;
+
+  /* Keep brand colors same */
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+
+  /* Semantic backgrounds inverted */
+  --green-bg: #052e1c;
+  --green-text: #6ee7b7;
+  --amber-bg: #2d1f02;
+  --amber-text: #fbbf24;
+  --red-bg: #2d0a0a;
+  --red-text: #f87171;
+  --blue-bg: #0a1929;
+  --blue-text: #60a5fa;
+}
+
+[data-theme="dark"] .modal {
+  background: #1a1d27;
+  color: #e8eaf0;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #13151f;
+  color: #e8eaf0;
+  border-color: #2a2d3a;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #6b7280;
+}
+
+[data-theme="dark"] .sidebar {
+  background: #13151f;
+  border-color: #2a2d3a;
+}
+
+[data-theme="dark"] .nav-item:hover {
+  background: #222535;
+}
+
+[data-theme="dark"] .nav-item.active {
+  background: #1e2035;
+}
+
+[data-theme="dark"] .lead-card,
+[data-theme="dark"] .conv3-item,
+[data-theme="dark"] .stat-card {
+  background: #1a1d27;
+  border-color: #2a2d3a;
+}
+
+[data-theme="dark"] .conv3-item:hover,
+[data-theme="dark"] .lead-card:hover {
+  background: #1f2235;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #222535;
+  color: #e8eaf0;
+  border-color: #2a2d3a;
+}
+
+[data-theme="dark"] .btn-ghost {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background: #222535;
+}
+
+[data-theme="dark"] table th {
+  background: #13151f;
+  color: #9ca3af;
+}
+
+[data-theme="dark"] table td {
+  border-color: #2a2d3a;
+}
+
+/* =============================================
    BASE RESET
    ============================================= */
 * { margin: 0; padding: 0; box-sizing: border-box; }

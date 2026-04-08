@@ -406,6 +406,15 @@ const renderSidebar = () => {
     <a href="/settings.html" class="sidebar-nav-item${a('/settings.html')}">${SVG_SETTINGS}Settings</a>
     <a href="/admin.html" id="admin-nav-link" class="sidebar-nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}Admin</a>
   </nav>
+  <div onclick="toggleDarkMode()" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;border-top:1px solid var(--border-default);margin-top:auto;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;">🌙</span>
+      <span style="font-size:13px;color:var(--color-text-secondary);font-weight:500;">Dark Mode</span>
+    </div>
+    <div id="dark-mode-switch" style="width:36px;height:20px;background:var(--gray-300);border-radius:10px;position:relative;transition:background 0.2s;">
+      <div id="dark-mode-knob" style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+    </div>
+  </div>
   <div class="sidebar-bottom">
     <div class="notif-wrap" id="notif-wrap">
       <button class="notif-btn" onclick="toggleNotifPanel(event)" title="Notifications" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:#6b7280;display:flex;align-items:center;position:relative;">
@@ -438,7 +447,33 @@ const renderSidebar = () => {
 </div>`
 }
 
-document.addEventListener('DOMContentLoaded', renderSidebar)
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  setDarkMode(!isDark)
+}
+
+function setDarkMode(dark) {
+  const html = document.documentElement
+  const sw = document.getElementById('dark-mode-switch')
+  const knob = document.getElementById('dark-mode-knob')
+  if (dark) {
+    html.setAttribute('data-theme', 'dark')
+    if (sw) sw.style.background = '#6366f1'
+    if (knob) knob.style.transform = 'translateX(16px)'
+    localStorage.setItem('theme', 'dark')
+  } else {
+    html.removeAttribute('data-theme')
+    if (sw) sw.style.background = 'var(--gray-300)'
+    if (knob) knob.style.transform = 'translateX(0)'
+    localStorage.setItem('theme', 'light')
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderSidebar()
+  const savedTheme = localStorage.getItem('theme')
+  if (savedTheme === 'dark') setDarkMode(true)
+})
 
 // ─── CONFETTI ────────────────────────────────────────────────────────────────
 
