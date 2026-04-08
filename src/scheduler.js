@@ -23,7 +23,7 @@ const calculateSendTime = (dayNumber, sendTime, startDate, timezone) => {
   try {
     const [hours, minutes] = sendTime.split(':').map(Number)
     const base = new Date(startDate)
-    base.setDate(base.getDate() + (dayNumber - 1))
+    base.setDate(base.getDate() + dayNumber)
     const year = base.getFullYear()
     const month = String(base.getMonth() + 1).padStart(2, '0')
     const day = String(base.getDate()).padStart(2, '0')
@@ -36,7 +36,7 @@ const calculateSendTime = (dayNumber, sendTime, startDate, timezone) => {
     return new Date(new Date(localStr).getTime() + offset).toISOString()
   } catch (err) {
     const fallback = new Date(startDate)
-    fallback.setDate(fallback.getDate() + (dayNumber - 1))
+    fallback.setDate(fallback.getDate() + dayNumber)
     fallback.setHours(10, 0, 0, 0)
     return fallback.toISOString()
   }

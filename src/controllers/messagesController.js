@@ -189,21 +189,26 @@ const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
   try {
     if (handoff.reason === 'soft_decline') {
       console.log('Soft decline detected for lead:', lead.id, '— stopping all outreach')
+      const now = new Date().toISOString()
+      const optOutBucketId = await getOrCreateOptOutBucket(lead.user_id)
       await Promise.all([
         supabase.from('conversations').update({
           needs_agent_review: false,
           handoff_reason: 'soft_decline',
           status: 'closed',
-          updated_at: new Date().toISOString()
+          updated_at: now
         }).eq('id', conversation.id),
         supabase.from('leads').update({
+          opted_out: true,
+          status: 'opted_out',
           is_cold: true,
           autopilot: false,
-          updated_at: new Date().toISOString()
+          opted_out_at: now,
+          updated_at: now,
+          ...(optOutBucketId ? { bucket_id: optOutBucketId } : {})
         }).eq('id', lead.id),
         supabase.from('campaign_leads').update({
-          status: 'completed',
-          cancelled_reason: 'lead_declined'
+          status: 'cancelled'
         }).eq('lead_id', lead.id).in('status', ['pending', 'active'])
       ])
       return
@@ -284,7 +289,7 @@ const processInboundMessage = async (body) => {
       const { data: stoppedLead } = await supabase.from('leads').select('id').eq('phone', From).eq('user_id', userId).single()
       if (stoppedLead) {
         await supabase.from('campaign_leads')
-          .update({ status: 'paused', paused_at: now })
+          .update({ status: 'cancelled' })
           .eq('lead_id', stoppedLead.id).in('status', ['pending', 'active'])
       }
       return
@@ -859,7 +864,7 @@ ${calendlyUrl ? 'Booking link: ' + calendlyUrl : ''}
 STYLE:
 Keep messages short. 1 to 2 sentences max.
 No emojis. Ever.
-No dashes of any kind, use commas instead.
+ABSOLUTE RULE: Never use any dash character in any message. No hyphen (-), no em dash (—), no en dash (–). Not ever, not once. Use a comma or period instead. Violating this rule is not acceptable.
 No exclamations. No "Great!" "Perfect!" "Awesome!" or any filler words.
 No agent first name. Use "our benefits specialist" or "the advisor" instead.
 Write like a real person sending a quick text. Casual, direct, no fluff.

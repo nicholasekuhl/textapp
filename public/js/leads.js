@@ -133,7 +133,7 @@ const toggleFolderCollapse = (folderId, e) => {
 }
 
 const renderBucketPill = (b, extraStyle = '') => {
-  const count = allLeads.filter(l => l.bucket_id === b.id).length
+  const count = b.lead_count || 0
   const isActive = activeBucket === b.id
   const bucketColor = b.color
   const bg = isActive ? bucketColor : bucketColor + '18'
@@ -163,10 +163,16 @@ const renderBucketPills = () => {
     const chevron = isCollapsed ? '▶' : '▼'
     const directBuckets = allBuckets.filter(b => !b.is_folder && b.parent_id === folder.id)
     const subFolders = depth1Folders.filter(s => s.parent_id === folder.id)
+    // Folder count = sum of all descendant bucket lead_counts
+    const allDescendantBuckets = [
+      ...directBuckets,
+      ...subFolders.flatMap(s => allBuckets.filter(b => !b.is_folder && b.parent_id === s.id))
+    ]
+    const folderCount = allDescendantBuckets.reduce((sum, b) => sum + (b.lead_count || 0), 0)
 
     html += `<div style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;">
       <div class="bucket-tab" style="background:#f1f5f9;color:#374151;border-color:#e2e8f0;" onclick="toggleFolderCollapse('${folder.id}',event)">
-        📂 ${folder.name} <span style="font-size:9px;margin-left:4px;opacity:0.6;">${chevron}</span>
+        📂 ${folder.name} <span class="count" style="opacity:0.7;margin-left:2px;">${folderCount}</span> <span style="font-size:9px;margin-left:2px;opacity:0.5;">${chevron}</span>
       </div>`
 
     if (!isCollapsed) {
@@ -179,9 +185,10 @@ const renderBucketPills = () => {
         const subCollapsed = collapsedFolders[sub.id]
         const subChevron = subCollapsed ? '▶' : '▼'
         const subBuckets = allBuckets.filter(b => !b.is_folder && b.parent_id === sub.id)
+        const subCount = subBuckets.reduce((sum, b) => sum + (b.lead_count || 0), 0)
         html += `<div style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;margin-left:6px;">
           <div class="bucket-tab" style="background:#f8fafc;color:#374151;border-color:#e2e8f0;font-size:11px;" onclick="toggleFolderCollapse('${sub.id}',event)">
-            📁 ${sub.name} <span style="font-size:9px;margin-left:4px;opacity:0.6;">${subChevron}</span>
+            📁 ${sub.name} <span class="count" style="opacity:0.7;margin-left:2px;">${subCount}</span> <span style="font-size:9px;margin-left:2px;opacity:0.5;">${subChevron}</span>
           </div>`
         if (!subCollapsed) {
           for (const b of subBuckets) {

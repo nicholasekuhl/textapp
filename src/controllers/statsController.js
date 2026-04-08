@@ -245,16 +245,16 @@ const getCampaignStats = async (req, res) => {
 const getLeadFunnel = async (req, res) => {
   try {
     const userId = req.user.id
-    const { data: leads, error } = await supabase
-      .from('leads')
-      .select('status, is_sold, is_blocked, has_replied, first_message_sent')
-      .eq('user_id', userId)
+    const [{ data: leads, error }, { data: repliedConvs }] = await Promise.all([
+      supabase.from('leads').select('status, is_sold, is_blocked, first_message_sent').eq('user_id', userId),
+      supabase.from('conversations').select('lead_id').eq('user_id', userId).not('last_inbound_at', 'is', null)
+    ])
 
     if (error) throw error
 
     const total = leads?.length || 0
     const contacted = leads?.filter(l => l.first_message_sent || l.status !== 'new').length || 0
-    const replied = leads?.filter(l => l.has_replied).length || 0
+    const replied = new Set((repliedConvs || []).map(c => c.lead_id)).size
     const sold = leads?.filter(l => l.is_sold).length || 0
     const blocked = leads?.filter(l => l.is_blocked).length || 0
 
@@ -275,7 +275,7 @@ const getActivityStats = async (req, res) => {
 
     const { data: msgs, error } = await supabase
       .from('messages')
-      .select('id, direction, status, sent_at, lead_id, body')
+      .select('id, direction, status, sent_at, conversation_id, body')
       .eq('user_id', userId)
       .gte('sent_at', since.toISOString())
       .order('sent_at', { ascending: false })
@@ -287,7 +287,7 @@ const getActivityStats = async (req, res) => {
       activity: (msgs || []).map(m => ({
         id: m.id,
         type: m.direction === 'inbound' ? 'reply' : 'sent',
-        lead_id: m.lead_id,
+        conversation_id: m.conversation_id,
         status: m.status,
         preview: m.body ? m.body.substring(0, 80) : null,
         at: m.sent_at,
