@@ -349,7 +349,7 @@ const processInboundMessage = async (body) => {
       console.log(`Campaign enrollments processed on reply for lead: ${lead.id} (${activeEnrollments.length} enrollment(s))`)
     }
 
-    const { data: conversation } = await supabase
+    let { data: conversation } = await supabase
       .from('conversations')
       .upsert({ lead_id: lead.id, user_id: userId, status: 'active' }, { onConflict: 'lead_id,user_id', ignoreDuplicates: false })
       .select('*').single()
@@ -925,10 +925,16 @@ Never ask for availability again after appointment is confirmed.`
 
     console.log('BEFORE - System prompt chars:', systemPrompt.length, 'approx tokens:', Math.round(systemPrompt.length / 4))
 
-    const rawMessages = history.length > 0 ? history : [{ role: 'user', content: inboundBody }]
-    const cappedMessages = rawMessages.length > 12
+    let rawMessages = history.length > 0 ? history : [{ role: 'user', content: inboundBody }]
+    let cappedMessages = rawMessages.length > 12
       ? [...rawMessages.slice(0, 2), ...rawMessages.slice(-10)]
       : rawMessages
+
+    // Anthropic requires the last message to be from 'user' — trim any trailing assistant messages
+    while (cappedMessages.length > 0 && cappedMessages[cappedMessages.length - 1].role === 'assistant') {
+      cappedMessages = cappedMessages.slice(0, -1)
+    }
+    if (cappedMessages.length === 0) cappedMessages = [{ role: 'user', content: inboundBody }]
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',

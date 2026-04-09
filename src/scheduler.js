@@ -408,6 +408,20 @@ const processQuickFollowups = async () => {
 
       const fromNumber = pickNumberForLead(enrollment.user_id ? phoneNumbersMap[enrollment.user_id] : null, lead.state) || process.env.TWILIO_PHONE_NUMBER
 
+      // Atomic guard for step 1 — prevents duplicate sends when two scheduler instances run concurrently
+      if (stepToSend === 1) {
+        const { data: claimed } = await supabase
+          .from('campaign_leads')
+          .update({ step_1_sent_at: new Date().toISOString() })
+          .eq('id', enrollment.id)
+          .is('step_1_sent_at', null)
+          .select('id')
+        if (!claimed || claimed.length === 0) {
+          console.log(`[quickFollowups] Step 1 already claimed for enrollment ${enrollment.id} — skipping to prevent duplicate`)
+          continue
+        }
+      }
+
       // Enqueue — don't block the scheduler loop waiting on Twilio
       smsQueue.add({
         phone: lead.phone,
