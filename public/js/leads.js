@@ -591,14 +591,6 @@ const renderLeads = (leads) => {
                 ${apptBadge}
               </div>
               ${lead.is_sold ? `<div class="sold-info">${lead.sold_at ? 'Sold ' + new Date(lead.sold_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Sold'}${lead.sold_plan_type ? ' · ' + lead.sold_plan_type : ''}${lead.sold_premium ? ' · $' + parseFloat(lead.sold_premium).toFixed(0) + '/mo' : ''}</div>` : ''}
-              <div class="lead-meta">
-                <span>📞 ${lead.phone} <button class="copy-btn" onclick="copyToClipboard('${lead.phone}', this)" title="Copy phone">${COPY_SVG}</button></span>
-                ${lead.email ? `<span>✉️ ${lead.email} <button class="copy-btn" onclick="copyToClipboard('${lead.email}', this)" title="Copy email">${COPY_SVG}</button></span>` : ''}
-                ${(lead.state || lead.zip_code) ? `<span>📍 ${[lead.state, lead.zip_code].filter(Boolean).join(' ')}</span>` : ''}
-                ${lead.date_of_birth ? `<span>🎂 ${lead.date_of_birth}</span>` : ''}
-                ${localTime ? `<span>🕐 ${localTime} local</span>` : ''}
-                ${lastContactHtml(lead)}
-              </div>
               <div class="lead-tags">
                 <span class="tag tag-${lead.status}">${lead.status}</span>
                 ${lead.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? `<span class="tag" style="font-size:10px;background:${bk.color}18;color:${bk.color};border:1px solid ${bk.color}30;" title="Bucket: ${bk.name}">📁 ${bk.name}</span>` : '' })() : ''}
@@ -632,8 +624,20 @@ const renderLeads = (leads) => {
             </div>
           </div>
         </div>
-        <div class="lead-card-bottom">
-          <textarea class="notes-input" placeholder="Add notes..." onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+        <div class="lead-card-body">
+          <div class="lead-card-body-left">
+            <div style="font-size:12px;color:var(--gray-500);display:flex;flex-direction:column;gap:4px;">
+              <span>📞 ${lead.phone} <button class="copy-btn" onclick="copyToClipboard('${lead.phone}', this)" title="Copy phone">${COPY_SVG}</button></span>
+              ${lead.email ? `<span>✉️ ${lead.email} <button class="copy-btn" onclick="copyToClipboard('${lead.email}', this)" title="Copy email">${COPY_SVG}</button></span>` : ''}
+              ${(lead.state || lead.zip_code) ? `<span>📍 ${[lead.state, lead.zip_code].filter(Boolean).join(' ')}</span>` : ''}
+              ${lead.date_of_birth ? `<span>🎂 ${lead.date_of_birth}</span>` : ''}
+              ${localTime ? `<span>🕐 ${localTime} local</span>` : ''}
+              ${lastContactHtml(lead)}
+            </div>
+          </div>
+          <div class="lead-card-body-right">
+            <textarea class="notes-input" placeholder="Add notes..." onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+          </div>
         </div>
         <div class="lead-qa-note-editor" id="qa-note-${lead.id}">
           <textarea class="lead-qa-note-input" id="qa-note-input-${lead.id}" placeholder="Type a note… Enter to save, Shift+Enter for newline" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveQuickNote('${lead.id}')}">${lead.notes || ''}</textarea>
