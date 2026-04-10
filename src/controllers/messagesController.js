@@ -618,8 +618,20 @@ const sendManualMessage = async (req, res) => {
     if (lead.opted_out) return res.status(403).json({ error: 'Lead has opted out. Message not sent.' })
 
     const fromNumber = await getNumberForLead(req.user.id, lead.state)
-    const processedBody = spintext(body).replace(/\[First Name\]/g, lead.first_name || 'there')
-    const finalBody = buildMessageBody(processedBody, req.user.profile, lead, false)
+    const profile = req.user.profile || {}
+    const processedBody = spintext(body)
+      .replace(/\[First Name\]/gi, lead.first_name || '')
+      .replace(/\[Last Name\]/gi, lead.last_name || '')
+      .replace(/\[Full Name\]/gi, [lead.first_name, lead.last_name].filter(Boolean).join(' '))
+      .replace(/\[Phone\]/gi, lead.phone || '')
+      .replace(/\[Email\]/gi, lead.email || '')
+      .replace(/\[State\]/gi, lead.state || '')
+      .replace(/\[Zip\]/gi, lead.zip_code || '')
+      .replace(/\[DOB\]/gi, lead.date_of_birth || '')
+      .replace(/\[Agent Name\]/gi, profile.agent_name || '')
+      .replace(/\[Agency Name\]/gi, profile.agency_name || '')
+      .replace(/\[Calendly Link\]/gi, profile.calendly_url || '')
+    const finalBody = buildMessageBody(processedBody, profile, lead, false)
     const result = await sendSMS(lead.phone, finalBody, fromNumber)
     if (!result.success) return res.status(500).json({ error: result.error })
 

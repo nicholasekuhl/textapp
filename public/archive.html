@@ -49,9 +49,32 @@
         <h1>📦 Archive</h1>
         <p>Archived buckets are hidden from Leads view. You can unarchive or enroll them in a campaign at any time.</p>
       </div>
+      <button class="btn btn-secondary" onclick="openNewFolderModal()">+ New Folder</button>
     </div>
     <div id="archive-content">
       <div class="loading-state">Loading archived buckets…</div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW FOLDER MODAL -->
+<div class="modal-overlay" id="new-folder-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>New Archived Folder</h2>
+      <button class="modal-close" onclick="closeNewFolderModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Folder name</label>
+      <input type="text" id="new-folder-name" class="form-control" placeholder="e.g. Old Leads Q1" maxlength="60">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div id="new-folder-color-picker" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeNewFolderModal()">Cancel</button>
+      <button class="btn btn-primary" id="new-folder-confirm-btn" onclick="createArchivedFolder()">Create in Archive</button>
     </div>
   </div>
 </div>
@@ -85,6 +108,9 @@
   let allCampaigns = []
   let assignTargetBucketId = null
   let assignTargetLeadCount = 0
+
+  const FOLDER_COLORS = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#06b6d4','#f97316','#64748b']
+  let newFolderSelectedColor = FOLDER_COLORS[0]
 
   const fmtDate = (iso) => {
     if (!iso) return '—'
@@ -237,17 +263,78 @@
     const btn = document.getElementById('assign-confirm-btn')
     btn.disabled = true
     btn.textContent = 'Enrolling…'
+    const bucketId = assignTargetBucketId
     try {
-      const res = await fetch(`/campaigns/${campaignId}/enroll-bucket/${assignTargetBucketId}`, { method: 'POST' })
+      const res = await fetch(`/campaigns/${campaignId}/enroll-bucket/${bucketId}`, { method: 'POST' })
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
+
+      // Auto-unarchive the bucket — assigning a campaign = intent to reactivate
+      await fetch(`/buckets/${bucketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unarchive' })
+      })
+
       closeAssignModal()
-      toast.success('Enrolled', `${data.count} lead${data.count !== 1 ? 's' : ''} added to campaign`)
+      archivedBuckets = archivedBuckets.filter(b => b.id !== bucketId)
+      renderArchive()
+      toast.success('Campaign assigned', `${data.count} lead${data.count !== 1 ? 's' : ''} enrolled — bucket moved back to your leads`)
     } catch (err) {
       toast.error('Error', err.message)
     } finally {
       btn.disabled = false
       btn.textContent = 'Enroll Leads'
+    }
+  }
+
+  // ── New Archived Folder ───────────────────────────────────────────────────────
+
+  const openNewFolderModal = () => {
+    newFolderSelectedColor = FOLDER_COLORS[0]
+    document.getElementById('new-folder-name').value = ''
+    const picker = document.getElementById('new-folder-color-picker')
+    picker.innerHTML = FOLDER_COLORS.map(c =>
+      `<button type="button" style="width:28px;height:28px;border-radius:50%;background:${c};border:3px solid ${c === newFolderSelectedColor ? '#1e293b' : 'transparent'};cursor:pointer;outline:none;" onclick="selectFolderColor('${c}',this)"></button>`
+    ).join('')
+    document.getElementById('new-folder-modal').classList.add('open')
+    setTimeout(() => document.getElementById('new-folder-name').focus(), 50)
+  }
+
+  const closeNewFolderModal = () => {
+    document.getElementById('new-folder-modal').classList.remove('open')
+  }
+
+  const selectFolderColor = (color, btn) => {
+    newFolderSelectedColor = color
+    document.querySelectorAll('#new-folder-color-picker button').forEach(b => {
+      b.style.border = `3px solid ${b === btn ? '#1e293b' : 'transparent'}`
+    })
+  }
+
+  const createArchivedFolder = async () => {
+    const name = document.getElementById('new-folder-name').value.trim()
+    if (!name) return toast.error('Required', 'Enter a folder name')
+    const btn = document.getElementById('new-folder-confirm-btn')
+    btn.disabled = true
+    btn.textContent = 'Creating…'
+    try {
+      const res = await fetch('/buckets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color: newFolderSelectedColor, is_folder: true, is_archived: true })
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      closeNewFolderModal()
+      archivedBuckets.unshift({ ...data.bucket, lead_count: 0 })
+      renderArchive()
+      toast.success('Folder created', `"${name}" added to archive`)
+    } catch (err) {
+      toast.error('Error', err.message)
+    } finally {
+      btn.disabled = false
+      btn.textContent = 'Create in Archive'
     }
   }
 

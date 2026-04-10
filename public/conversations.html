@@ -146,6 +146,7 @@
   let allTemplates = []
   let allBuckets = []
   let activeConvId = null
+  let currentLead = null
   let lastMessageTimestamp = null
   let lastUpdatedTime = null
   let lastUpdatedDisplayInterval = null
@@ -623,6 +624,7 @@
       const data = await res.json()
       const conv = data.conversation
       const lead = conv.leads
+      currentLead = lead || null
       const name = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(' ') : 'Unknown'
       const initials = lead ? getInitials(lead.first_name, lead.last_name) : '?'
       const isAutopilot = lead?.autopilot || false
@@ -997,8 +999,9 @@
 
   const sendConvMessage = async (convId, leadId) => {
     const input = document.getElementById('conv-input')
-    const body = input?.value.trim()
-    if (!body) return
+    const rawBody = input?.value.trim()
+    if (!rawBody) return
+    const body = resolveVariables(rawBody, currentLead, currentUser)
 
     // Check quiet hours before sending
     try {
@@ -1168,6 +1171,26 @@
     input.value = template.body
     input.focus()
     input.style.height = '84px'
+  }
+
+  const resolveVariables = (text, lead, profile) => {
+    const now = new Date()
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    return text
+      .replace(/\[First Name\]/gi, lead?.first_name || '')
+      .replace(/\[Last Name\]/gi, lead?.last_name || '')
+      .replace(/\[Full Name\]/gi, [lead?.first_name, lead?.last_name].filter(Boolean).join(' '))
+      .replace(/\[Phone\]/gi, lead?.phone || '')
+      .replace(/\[Email\]/gi, lead?.email || '')
+      .replace(/\[State\]/gi, lead?.state || '')
+      .replace(/\[Zip\]/gi, lead?.zip_code || '')
+      .replace(/\[DOB\]/gi, lead?.date_of_birth || '')
+      .replace(/\[Agent Name\]/gi, profile?.agent_name || '')
+      .replace(/\[Agency Name\]/gi, profile?.agency_name || '')
+      .replace(/\[Calendly Link\]/gi, profile?.calendly_url || '')
+      .replace(/\[Date\]/gi, dateStr)
+      .replace(/\[Time\]/gi, timeStr)
   }
 
   const insertVarAtCursor = (textarea, text) => {

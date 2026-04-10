@@ -20,7 +20,7 @@ const getBuckets = async (req, res) => {
 
 const createBucket = async (req, res) => {
   try {
-    const { name, color = '#6366f1', parent_id = null, is_folder = false, sort_order = 0 } = req.body
+    const { name, color = '#6366f1', parent_id = null, is_folder = false, sort_order = 0, is_archived = false } = req.body
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' })
     if (!HEX_RE.test(color)) return res.status(400).json({ error: 'Invalid color — must be a 6-digit hex color' })
 
@@ -46,6 +46,7 @@ const createBucket = async (req, res) => {
 
     const insert = { user_id: req.user.id, name: name.trim(), color, is_folder: !!is_folder, sort_order, depth }
     if (parent_id) insert.parent_id = parent_id
+    if (is_archived) { insert.is_archived = true; insert.archived_at = new Date().toISOString() }
 
     const { data, error } = await supabase
       .from('buckets').insert(insert)
