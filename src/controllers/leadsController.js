@@ -610,6 +610,9 @@ const getLeads = async (req, res) => {
 
     const applyQueryFilters = (q) => {
       q = q.eq('user_id', req.user.id)
+      // Exclude opted-out leads from all views except bucket-scoped views
+      // (opted-out leads live in the Opted Out bucket, visible there naturally)
+      if (!req.query.bucket_id) q = q.eq('opted_out', false)
       if (req.query.search) {
         const s = req.query.search
         q = q.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`)
