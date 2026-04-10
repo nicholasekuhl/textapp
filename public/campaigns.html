@@ -36,7 +36,7 @@
 
 <!-- CREATE/EDIT CAMPAIGN MODAL -->
 <div class="modal-overlay" id="campaign-modal">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal" style="max-width:750px;">
     <div class="modal-header">
       <h2 id="campaign-modal-title">Create Campaign</h2>
       <button class="modal-close" onclick="closeCampaignModal()">×</button>
@@ -60,7 +60,7 @@
         <button class="btn btn-secondary btn-sm" onclick="previewQuickMsg(1)">Preview</button>
       </div>
       <div id="campaign-footer-note" style="display:none;background:var(--color-primary-bg);border:1px solid var(--indigo-200);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:var(--color-primary);margin-bottom:10px;">Compliance footer is enabled — it will be automatically appended to the first message sent to each lead.</div>
-      <textarea id="msg1-body" class="step-body" rows="4" placeholder="Hi [First Name], this is [Agent Name] with [Agency Name]..." oninput="updateQuickCharCount(1)"></textarea>
+      <textarea id="msg1-body" class="step-body" rows="6" placeholder="Hi [First Name], this is [Agent Name] with [Agency Name]..." oninput="updateQuickCharCount(1)"></textarea>
       <div class="char-count" id="msg1-char">0 / 160</div>
       <label class="spintext-toggle"><input type="checkbox" id="msg1-spintext"> Enable spintext <span class="spintext-hint" title="Use {Option A|Option B} to randomize text — the scheduler picks one variation per send">?</span></label>
       <div id="msg1-kw"></div>
@@ -81,7 +81,7 @@
       </div>
       <label class="toggle-enable-row"><input type="checkbox" id="msg2-enabled" onchange="toggleMsg(2)"> Enable this message</label>
       <div id="msg2-fields" style="display:none;">
-        <textarea id="msg2-body" class="step-body" rows="3" placeholder="Just following up on my last message..." oninput="updateQuickCharCount(2)"></textarea>
+        <textarea id="msg2-body" class="step-body" rows="6" placeholder="Just following up on my last message..." oninput="updateQuickCharCount(2)"></textarea>
         <div class="char-count" id="msg2-char">0 / 160</div>
         <label class="spintext-toggle"><input type="checkbox" id="msg2-spintext"> Enable spintext</label>
         <div class="delay-row">
@@ -106,7 +106,7 @@
       </div>
       <label class="toggle-enable-row"><input type="checkbox" id="msg3-enabled" onchange="toggleMsg(3)"> Enable this message</label>
       <div id="msg3-fields" style="display:none;">
-        <textarea id="msg3-body" class="step-body" rows="3" placeholder="Hey [First Name], wanted to check in one more time..." oninput="updateQuickCharCount(3)"></textarea>
+        <textarea id="msg3-body" class="step-body" rows="6" placeholder="Hey [First Name], wanted to check in one more time..." oninput="updateQuickCharCount(3)"></textarea>
         <div class="char-count" id="msg3-char">0 / 160</div>
         <label class="spintext-toggle"><input type="checkbox" id="msg3-spintext"> Enable spintext</label>
         <div class="delay-row">
@@ -445,7 +445,7 @@
   const buildDayStepHTML = (num, day, time, body) => `
     <div class="message-step-header"><span>Day-based Message ${num}</span><div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-sm" onclick="previewMessageStep('step-${num}')">Preview</button><button class="btn btn-danger btn-sm" onclick="removeStep('step-${num}')">Remove</button></div></div>
     <div class="day-input"><label>Send on day</label><input type="number" class="step-day" min="1" value="${day || num}"><label>at</label><input type="time" class="step-time" value="${time || '10:00'}"><span style="font-size:11px;color:var(--color-text-secondary);">lead's local time</span></div>
-    <textarea class="step-body" rows="3" oninput="updateCharCount(this)">${body || ''}</textarea>
+    <textarea class="step-body" rows="6" oninput="updateCharCount(this)">${body || ''}</textarea>
     <div class="char-count">${body ? body.length : 0} / 160</div>
     ${kwChipsRowHTML("this.closest('.message-step').querySelector('textarea')")}
   `

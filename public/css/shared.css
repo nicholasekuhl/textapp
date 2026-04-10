@@ -679,6 +679,7 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
   border-color: var(--indigo-400); box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
 .form-group textarea { resize: vertical; min-height: 76px; }
+.step-body { width: 100%; box-sizing: border-box; resize: vertical; }
 .field-required-missing input, .field-required-missing select { border-color: var(--color-danger) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
 .field-required-missing label { color: var(--color-danger) !important; }
 .import-results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
