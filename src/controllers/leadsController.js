@@ -276,6 +276,16 @@ const uploadLeads = async (req, res) => {
     const bucket = req.body.bucket || null
     const bucketId = req.body.bucket_id || null
     const autopilot = req.body.autopilot === 'true'
+
+    // RULE: Folders are organizational containers only — leads must never be assigned to a folder.
+    // DB audit: SELECT COUNT(*) FROM leads WHERE bucket_id IN (SELECT id FROM buckets WHERE is_folder = true)
+    if (bucketId) {
+      const { data: bucketCheck } = await supabase
+        .from('buckets').select('is_folder').eq('id', bucketId).eq('user_id', userId).single()
+      if (bucketCheck?.is_folder) {
+        return res.status(400).json({ error: 'Cannot assign leads to a folder. Please select a bucket.' })
+      }
+    }
     const campaignId = req.body.campaign_id || null
     const campaignStartDate = new Date().toISOString()
     const dispositionTagId = req.body.disposition_tag_id || null
@@ -1034,6 +1044,13 @@ const updateProduct = async (req, res) => {
 const updateLeadBucket = async (req, res) => {
   try {
     const { bucket_id } = req.body
+    if (bucket_id) {
+      const { data: bucket } = await supabase
+        .from('buckets').select('is_folder').eq('id', bucket_id).eq('user_id', req.user.id).single()
+      if (bucket?.is_folder) {
+        return res.status(400).json({ error: 'Cannot assign leads to a folder. Please select a bucket.' })
+      }
+    }
     const { data, error } = await supabase
       .from('leads')
       .update({ bucket_id: bucket_id || null, updated_at: new Date().toISOString() })
@@ -1125,6 +1142,13 @@ const bulkAction = async (req, res) => {
 
     if (action === 'bucket') {
       const { bucket_id } = payload
+      if (bucket_id) {
+        const { data: bucket } = await supabase
+          .from('buckets').select('is_folder').eq('id', bucket_id).eq('user_id', userId).single()
+        if (bucket?.is_folder) {
+          return res.status(400).json({ error: 'Cannot assign leads to a folder. Please select a bucket.' })
+        }
+      }
       await supabase.from('leads')
         .update({ bucket_id: bucket_id || null, updated_at: now })
         .in('id', validIds)

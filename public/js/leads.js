@@ -653,7 +653,7 @@ const renderLeads = (leads) => {
             </button>
             <div id="bucket-dd-${lead.id}" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:200;min-width:160px;max-height:200px;overflow-y:auto;padding:4px 0;">
               <div onclick="event.stopPropagation();moveToBucket('${lead.id}',null)" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#6b7280;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">— No bucket</div>
-              ${allBuckets.map(bk => `<div onclick="event.stopPropagation();moveToBucket('${lead.id}','${bk.id}')" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#374151;display:flex;align-items:center;gap:8px;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bk.color};flex-shrink:0;"></span>${bk.name}</div>`).join('')}
+              ${allBuckets.filter(bk => !bk.is_folder).map(bk => `<div onclick="event.stopPropagation();moveToBucket('${lead.id}','${bk.id}')" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#374151;display:flex;align-items:center;gap:8px;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bk.color};flex-shrink:0;"></span>${bk.name}</div>`).join('')}
             </div>
           </div>
           <div class="qa-sep"></div>
@@ -867,7 +867,7 @@ const updateCampaignFilter = () => {
   }
   const bucketEl = document.getElementById('sf-bucket')
   if (bucketEl) {
-    bucketEl.innerHTML = '<option value="">All buckets</option>' + allBuckets.map(b => `<option value="${b.id}">${b.name}</option>`).join('')
+    bucketEl.innerHTML = '<option value="">All buckets</option>' + allBuckets.filter(b => !b.is_folder).map(b => `<option value="${b.id}">${b.name}</option>`).join('')
   }
   renderMsOptions('disposition')
   renderMsOptions('exclude-disposition')
@@ -954,7 +954,7 @@ const toggleBulkDropdown = (ddId, type) => {
         allCampaigns.map(c => `<button class="bulk-dd-item" onclick="confirmBulkCampaign('${c.id}','${c.name.replace(/'/g, "\\'")}')" >⚡ ${c.name}</button>`).join('')
     }
   } else if (type === 'bucket') {
-    const bucketPills = allBuckets.map(b => `<button class="bulk-dd-pill" style="background:${b.color};" onclick="confirmBulkBucket('${b.id}','${b.name.replace(/'/g, "\\'")}')" >📁 ${b.name}</button>`).join('')
+    const bucketPills = allBuckets.filter(b => !b.is_folder).map(b => `<button class="bulk-dd-pill" style="background:${b.color};" onclick="confirmBulkBucket('${b.id}','${b.name.replace(/'/g, "\\'")}')" >📁 ${b.name}</button>`).join('')
     dd.innerHTML = `<div class="bulk-dd-label">Move ${n} lead${n !== 1 ? 's' : ''} to:</div><div class="bulk-dd-pills">` +
       `<button class="bulk-dd-pill" style="background:#9ca3af;" onclick="confirmBulkBucket(null,'No bucket')">— No bucket</button>` +
       bucketPills + '</div>'
