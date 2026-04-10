@@ -106,19 +106,27 @@ const getOverview = async (req, res) => {
     const prevSince = new Date(since)
     prevSince.setDate(prevSince.getDate() - days)
 
-    const [{ data: msgs }, { data: prevMsgs }, { data: leads, error: leadsError }, { data: campaigns }, { data: inboundLeads }] = await Promise.all([
-      supabase.from('messages').select('status').eq('user_id', userId).eq('direction', 'outbound').gte('sent_at', since.toISOString()),
-      supabase.from('messages').select('id').eq('user_id', userId).eq('direction', 'outbound').gte('sent_at', prevSince.toISOString()).lt('sent_at', since.toISOString()),
+    const [
+      { count: totalSent },
+      { count: delivered },
+      { count: prevSentCount },
+      { data: leads, error: leadsError },
+      { data: campaigns },
+      { data: inboundLeads }
+    ] = await Promise.all([
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('direction', 'outbound').gte('sent_at', since.toISOString()),
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('direction', 'outbound').eq('status', 'delivered').gte('sent_at', since.toISOString()),
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('direction', 'outbound').gte('sent_at', prevSince.toISOString()).lt('sent_at', since.toISOString()),
       supabase.from('leads').select('id, created_at').eq('user_id', userId),
       supabase.from('campaigns').select('id, status').eq('user_id', userId),
-      supabase.from('messages').select('lead_id, body').eq('user_id', userId).eq('direction', 'inbound').gte('sent_at', since.toISOString()),
+      supabase.from('messages').select('lead_id, body').eq('user_id', userId).eq('direction', 'inbound').gte('sent_at', since.toISOString()).limit(5000),
     ])
 
     if (leadsError) console.error('Stats leads query error:', leadsError.message)
 
     const OPT_OUT_WORDS = ['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']
-    const totalSent = msgs?.length || 0
-    const delivered = msgs?.filter(m => m.status === 'delivered').length || 0
+    const sentCount = totalSent || 0
+    const deliveredCount = delivered || 0
     const replied = new Set(
       (inboundLeads || [])
         .filter(m => !OPT_OUT_WORDS.includes((m.body || '').trim().toLowerCase()))
@@ -127,14 +135,14 @@ const getOverview = async (req, res) => {
     const newLeads = leads?.filter(l => new Date(l.created_at) >= since).length || 0
 
     res.json({
-      messages_sent: totalSent,
-      messages_sent_prev: prevMsgs?.length || 0,
-      delivered,
-      delivery_rate: totalSent > 0 ? parseFloat(((delivered / totalSent) * 100).toFixed(1)) : null,
+      messages_sent: sentCount,
+      messages_sent_prev: prevSentCount || 0,
+      delivered: deliveredCount,
+      delivery_rate: sentCount > 0 ? parseFloat(((deliveredCount / sentCount) * 100).toFixed(1)) : null,
       new_leads: newLeads,
       total_leads: leads?.length || 0,
       replied_leads: replied,
-      reply_rate: newLeads > 0 ? parseFloat(((replied / newLeads) * 100).toFixed(1)) : null,
+      reply_rate: sentCount > 0 ? parseFloat(((replied / sentCount) * 100).toFixed(1)) : null,
       active_campaigns: campaigns?.filter(c => c.status === 'active').length || 0,
       total_campaigns: campaigns?.length || 0,
     })
@@ -157,6 +165,7 @@ const getMessageStats = async (req, res) => {
       .select('status, sent_at, direction')
       .eq('user_id', userId)
       .gte('sent_at', since.toISOString())
+      .limit(10000)
 
     if (error) throw error
 
