@@ -219,12 +219,13 @@ const renderBucketPill = (b, extraStyle = '') => {
   const bg = isActive ? c : 'transparent'
   const color = isActive ? '#fff' : c
   const border = c
-  const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')
   const baseStyle = `background:${bg};color:${color};border-color:${border};${extraStyle}`
   if (b.is_system) {
     return `<button class="bucket-tab" data-bucket-id="${b.id}" style="${baseStyle}" onclick="selectBucket('${b.id}')" title="System bucket — cannot be renamed or deleted">🔒 ${b.name}<span style="opacity:0.8;font-size:11px;margin-left:4px;">${count}</span></button>`
   }
-  return `<button class="bucket-tab" data-bucket-id="${b.id}" style="${baseStyle}" onclick="selectBucket('${b.id}')" oncontextmenu="showBucketContextMenu(event,'${b.id}','${safeName}','${b.color}')" title="Right-click to rename or delete">${b.name}<span style="opacity:0.8;font-size:11px;margin-left:4px;">${count}</span></button>`
+  // data-* attributes used by event listener in renderBucketPills — avoids inline JS escaping issues
+  const escapedName = (b.name || '').replace(/"/g, '&quot;')
+  return `<button class="bucket-tab" data-bucket-id="${b.id}" data-bucket-name="${escapedName}" data-bucket-color="${b.color || ''}" data-is-folder="${b.is_folder ? '1' : '0'}" style="${baseStyle}" onclick="selectBucket('${b.id}')" title="Right-click to rename, archive or run a campaign">${b.name}<span style="opacity:0.8;font-size:11px;margin-left:4px;">${count}</span></button>`
 }
 
 const renderBucketPills = () => {
@@ -284,6 +285,16 @@ const renderBucketPills = () => {
     html += renderBucketPill(b)
   }
   container.innerHTML = html
+
+  // Attach context-menu listeners to every non-system bucket pill
+  // Only pills with data-bucket-name are non-system buckets (system + folder buttons omit it)
+  container.querySelectorAll('.bucket-tab[data-bucket-name]').forEach(btn => {
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      showBucketContextMenu(e.clientX, e.clientY, btn.dataset.bucketId, btn.dataset.bucketName, btn.dataset.isFolder === '1')
+    })
+  })
 
   // Show commission total when Sold bucket is active
   const soldBucket = allBuckets.find(b => b.is_system)
@@ -1939,28 +1950,38 @@ const saveBucket = async () => {
   finally { btn.disabled = false }
 }
 
-const showBucketContextMenu = (e, id, name, color) => {
-  e.preventDefault()
-  e.stopPropagation()
+const showBucketContextMenu = (x, y, id, name, isFolder) => {
   const bucket = allBuckets.find(b => b.id === id)
   if (bucket?.is_system) return
   contextMenuBucketId = id
   contextMenuBucketName = name
-  contextMenuBucketColor = color
-  contextMenuBucketIsFolder = !!bucket?.is_folder
-  const childCount = bucket?.is_folder ? allBuckets.filter(b => b.parent_id === id).length : 0
+  contextMenuBucketColor = bucket?.color || ''
+  contextMenuBucketIsFolder = !!isFolder
+
+  const childCount = isFolder ? allBuckets.filter(b => b.parent_id === id).length : 0
   const archiveBtn = document.getElementById('ctx-archive-btn')
   if (archiveBtn) {
-    archiveBtn.textContent = bucket?.is_folder
+    archiveBtn.textContent = isFolder
       ? `📦 Archive folder (${childCount} bucket${childCount !== 1 ? 's' : ''})`
       : '📦 Archive'
   }
   const runCampaignBtn = document.getElementById('ctx-run-campaign-btn')
-  if (runCampaignBtn) runCampaignBtn.style.display = bucket?.is_folder ? 'none' : 'block'
+  if (runCampaignBtn) runCampaignBtn.style.display = isFolder ? 'none' : 'block'
+
   const menu = document.getElementById('bucket-context-menu')
-  menu.style.left = `${e.clientX}px`
-  menu.style.top = `${e.clientY}px`
+  // Ensure menu is a direct body child so position:fixed is never clipped
+  if (menu.parentNode !== document.body) document.body.appendChild(menu)
+
+  // Position — nudge inside viewport if needed
+  menu.style.left = '0'
+  menu.style.top = '0'
   menu.style.display = 'block'
+  const mw = menu.offsetWidth || 180
+  const mh = menu.offsetHeight || 140
+  const left = x + mw > window.innerWidth ? window.innerWidth - mw - 6 : x
+  const top = y + mh > window.innerHeight ? window.innerHeight - mh - 6 : y
+  menu.style.left = `${left}px`
+  menu.style.top = `${top}px`
 }
 
 const editBucketFromMenu = () => {
