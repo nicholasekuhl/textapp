@@ -1955,6 +1955,8 @@ const showBucketContextMenu = (e, id, name, color) => {
       ? `📦 Archive folder (${childCount} bucket${childCount !== 1 ? 's' : ''})`
       : '📦 Archive'
   }
+  const runCampaignBtn = document.getElementById('ctx-run-campaign-btn')
+  if (runCampaignBtn) runCampaignBtn.style.display = bucket?.is_folder ? 'none' : 'block'
   const menu = document.getElementById('bucket-context-menu')
   menu.style.left = `${e.clientX}px`
   menu.style.top = `${e.clientY}px`
@@ -2010,6 +2012,69 @@ const archiveBucketFromMenu = async () => {
     filterLeads()
     toast.success('Archived', `"${contextMenuBucketName}" moved to archive`)
   } catch (err) { toast.error('Error', err.message) }
+}
+
+// ── Run Campaign from bucket context menu ────────────────────────────────────
+
+const openRunCampaignModal = async () => {
+  document.getElementById('bucket-context-menu').style.display = 'none'
+  const bucket = allBuckets.find(b => b.id === contextMenuBucketId)
+  if (!bucket || bucket.is_folder) return
+
+  document.getElementById('run-campaign-modal-title').textContent = `Assign Campaign to "${contextMenuBucketName}"`
+  document.getElementById('run-campaign-lead-count').textContent = `${bucket.lead_count || 0} lead${bucket.lead_count !== 1 ? 's' : ''} in this bucket (opted-out excluded automatically)`
+  document.getElementById('run-campaign-notice').style.display = 'none'
+  document.getElementById('run-campaign-confirm-btn').disabled = true
+
+  await loadCampaigns()
+  const campaigns = allCampaigns.filter(c => c.status !== 'deleted')
+  const sel = document.getElementById('run-campaign-select')
+  sel.innerHTML = '<option value="">Select a campaign…</option>' +
+    campaigns.map(c => `<option value="${c.id}" data-time="${c.initial_send_time || ''}">${c.name}</option>`).join('')
+
+  document.getElementById('run-campaign-modal').classList.add('open')
+}
+
+const closeRunCampaignModal = () => {
+  document.getElementById('run-campaign-modal').classList.remove('open')
+}
+
+const onRunCampaignChange = () => {
+  const sel = document.getElementById('run-campaign-select')
+  const opt = sel.options[sel.selectedIndex]
+  const sendTime = opt?.dataset?.time || ''
+  const notice = document.getElementById('run-campaign-notice')
+  const btn = document.getElementById('run-campaign-confirm-btn')
+  btn.disabled = !sel.value
+  if (sel.value && sendTime) {
+    notice.style.display = 'block'
+    notice.textContent = `⏰ Initial messages will send tomorrow at ${sendTime} local to each lead's timezone`
+  } else if (sel.value) {
+    notice.style.display = 'block'
+    notice.textContent = 'Messages will send immediately on confirm'
+  } else {
+    notice.style.display = 'none'
+  }
+}
+
+const confirmRunCampaign = async () => {
+  const campaignId = document.getElementById('run-campaign-select').value
+  if (!campaignId || !contextMenuBucketId) return
+  const btn = document.getElementById('run-campaign-confirm-btn')
+  btn.disabled = true
+  btn.textContent = 'Assigning…'
+  try {
+    const res = await fetch(`/campaigns/${campaignId}/enroll-bucket/${contextMenuBucketId}`, { method: 'POST' })
+    const data = await res.json()
+    if (!data.success) throw new Error(data.error)
+    closeRunCampaignModal()
+    toast.success('Campaign assigned', `${data.count} lead${data.count !== 1 ? 's' : ''} enrolled`)
+  } catch (err) {
+    toast.error('Error', err.message)
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Assign Campaign'
+  }
 }
 
 document.addEventListener('click', (e) => {
