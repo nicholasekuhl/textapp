@@ -237,7 +237,7 @@ const renderBucketPills = () => {
   const depth1Folders = allBuckets.filter(b => b.is_folder && b.parent_id)
   const topBuckets = allBuckets.filter(b => !b.is_folder && !b.parent_id)
 
-  let html = `<div class="bucket-tab${activeBucket === '' && activeFolderId === '' ? ' active' : ''}" onclick="selectBucket('')">All Leads <span class="count">${allLeads.length}</span></div>`
+  let html = `<div class="bucket-tab${activeBucket === '' && activeFolderId === '' ? ' active' : ''}" onclick="selectBucket('')">All Leads <span class="count">${totalLeads || allLeads.length}</span></div>`
 
   // Render depth-0 folders with sub-folders and buckets
   for (const folder of depth0Folders) {
