@@ -6,6 +6,10 @@ const { isWithinQuietHours, getNextSendWindow } = require('../compliance')
 const { getOrCreateOptOutBucket } = require('./leadsController')
 const { detectPipelineStage, extractLeadDataFromHistory, generateNoteSummary, STAGE_ORDER } = require('../pipeline')
 
+// Per-conversation debounce — prevents duplicate AI responses when a lead sends
+// multiple messages in quick succession (e.g. "Tomorrow 1:30" then "Actually 4:30")
+const pendingAiResponses = new Map() // key: conversationId, value: timeout handle
+
 const isPositiveEngagement = (history) => {
   const recentInbound = history.filter(m => m.role === 'user').slice(-5)
   const buyingSignals = [
@@ -434,161 +438,209 @@ const processInboundMessage = async (body) => {
     }
 
     if (lead.autopilot && profile) {
-      const { data: messages } = await supabase
-        .from('messages').select('*')
-        .eq('conversation_id', conversation.id)
-        .order('sent_at', { ascending: true })
+      const convId = conversation.id
 
-      const history = (messages || []).map(m => ({
-        role: m.direction === 'inbound' ? 'user' : 'assistant',
-        content: m.body
-      }))
-      console.log('Conversation history loaded:', history.length, 'messages')
-
-      // Check handoff triggers before generating AI response
-      const handoff = checkHandoffTriggers(conversation, Body, history)
-
-      if (handoff.quoteDetected) {
-        const newCount = (conversation.quote_push_count || 0) + 1
-        await supabase.from('conversations')
-          .update({ quote_push_count: newCount })
-          .eq('id', conversation.id)
-        conversation = { ...conversation, quote_push_count: newCount }
+      // Cancel any existing pending AI response for this conversation
+      if (pendingAiResponses.has(convId)) {
+        clearTimeout(pendingAiResponses.get(convId))
+        console.log(`[AI] Debounce reset for conversation ${convId} — new message arrived`)
       }
 
-      if (handoff.triggered) {
-        await executeHandoff(lead, conversation, handoff, fromNumber)
-      } else {
-        const aiResponse = await generateAIResponse(lead, history, profile, Body)
+      // Capture loop-local copies for the closure
+      const capturedLead = { ...lead }
+      const capturedConversation = { ...conversation }
+      const capturedProfile = profile
+      const capturedFromNumber = fromNumber
+      const capturedUserId = userId
+      const capturedBody = Body
 
-        if (aiResponse) {
-          // Check quiet hours — queue if outside window and user prefers queuing
-          const quietCheck = isWithinQuietHours(lead.state, lead.timezone)
-          const afterHoursSetting = profile.ai_afterhours_response || 'queue'
+      // Debounce 8 seconds — if another message arrives within this window the
+      // timeout gets cancelled and reset, so the AI only sees the final message state
+      const handle = setTimeout(async () => {
+        pendingAiResponses.delete(convId)
 
-          if (quietCheck.blocked && afterHoursSetting === 'queue') {
-            const nextWindow = getNextSendWindow(lead.state, lead.timezone)
-            const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, lead, false)
-            await supabase.from('scheduled_messages').insert({
-              user_id: userId,
-              lead_id: lead.id,
-              conversation_id: conversation.id,
-              body: aiBody,
-              scheduled_at: nextWindow,
-              send_at: nextWindow,
-              status: 'pending',
-              notes: 'AI response queued — outside quiet hours'
-            })
-            console.log(`AI response queued until ${nextWindow} for lead ${lead.id} (${quietCheck.reason})`)
+        try {
+          // Re-check autopilot — agent may have turned it off during the debounce window
+          const { data: freshLead } = await supabase
+            .from('leads').select('autopilot, first_message_sent, pipeline_stage, notes, status')
+            .eq('id', capturedLead.id).single()
+          if (!freshLead?.autopilot) {
+            console.log(`[AI] Autopilot turned off during debounce for lead ${capturedLead.id} — skipping`)
             return
           }
 
-          // Delay scales with message length to feel more human
-          const wordCount = aiResponse.split(' ').length
-          const baseDelay = 12000
-          const perWordDelay = 800
-          const maxDelay = 75000
-          const jitter = Math.floor(Math.random() * 6000)
-          const delay = Math.min(baseDelay + (wordCount * perWordDelay) + jitter, maxDelay)
-          await new Promise(resolve => setTimeout(resolve, delay))
+          // Re-check handoff status — agent may have taken over
+          const { data: freshConv } = await supabase
+            .from('conversations').select('needs_agent_review, quote_push_count, appointment_confirmed')
+            .eq('id', convId).single()
+          if (freshConv?.needs_agent_review) {
+            console.log(`[AI] Conversation ${convId} handed off during debounce — skipping`)
+            return
+          }
 
-          const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, lead, false)
-          const result = await sendSMS(lead.phone, aiBody, fromNumber)
-          if (result.success) {
-            await supabase.from('messages').insert({
-              conversation_id: conversation.id,
-              user_id: userId,
-              direction: 'outbound',
-              body: aiBody,
-              sent_at: new Date().toISOString(),
-              is_ai: true,
-              twilio_sid: result.sid,
-              status: 'sent'
-            })
-            if (!lead.first_message_sent) {
-              await supabase.from('leads').update({ first_message_sent: true }).eq('id', lead.id)
-              lead = { ...lead, first_message_sent: true }
-            }
+          // Re-fetch ALL messages fresh — captures every message sent during the debounce window
+          const { data: freshMessages } = await supabase
+            .from('messages').select('*')
+            .eq('conversation_id', convId)
+            .order('sent_at', { ascending: true })
+
+          const history = (freshMessages || []).map(m => ({
+            role: m.direction === 'inbound' ? 'user' : 'assistant',
+            content: m.body
+          }))
+          console.log(`[AI] Debounce fired for conversation ${convId} — history: ${history.length} messages`)
+
+          // Use the latest inbound message for handoff trigger checks
+          const lastInbound = (freshMessages || []).filter(m => m.direction === 'inbound').slice(-1)[0]
+          const lastInboundBody = lastInbound?.body || capturedBody
+
+          // Merge fresh conversation data for handoff checks
+          const convForHandoff = { ...capturedConversation, ...freshConv }
+
+          const handoff = checkHandoffTriggers(convForHandoff, lastInboundBody, history)
+
+          if (handoff.quoteDetected) {
+            const newCount = (convForHandoff.quote_push_count || 0) + 1
             await supabase.from('conversations')
-              .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
-              .eq('id', conversation.id)
+              .update({ quote_push_count: newCount })
+              .eq('id', convId)
+          }
 
-            // ─── PIPELINE STAGE DETECTION ────────────────────────────────────
-            try {
-              const { data: allMessages } = await supabase
-                .from('messages')
-                .select('direction, body')
-                .eq('conversation_id', conversation.id)
-                .order('sent_at', { ascending: true })
+          if (handoff.triggered) {
+            await executeHandoff({ ...capturedLead, ...freshLead }, convForHandoff, handoff, capturedFromNumber)
+          } else {
+            const mergedLead = { ...capturedLead, ...freshLead }
+            const aiResponse = await generateAIResponse(mergedLead, history, capturedProfile, lastInboundBody)
 
-              const newStage = detectPipelineStage(lead, allMessages || [])
-              const pipelineUpdates = {}
+            if (aiResponse) {
+              // Check quiet hours — queue if outside window and user prefers queuing
+              const quietCheck = isWithinQuietHours(mergedLead.state, mergedLead.timezone)
+              const afterHoursSetting = capturedProfile.ai_afterhours_response || 'queue'
 
-              // Only advance stage, never go backward
-              if (newStage) {
-                const currentOrder = STAGE_ORDER.indexOf(lead.pipeline_stage)
-                const newOrder = STAGE_ORDER.indexOf(newStage)
-                if (newOrder > currentOrder) {
-                  pipelineUpdates.pipeline_stage = newStage
-                  pipelineUpdates.pipeline_stage_set_at = new Date().toISOString()
-                  pipelineUpdates.pipeline_ghosted = false
-                  pipelineUpdates.pipeline_ghosted_at = null
-                }
-              }
-
-              // Extract any new structured data
-              const extracted = extractLeadDataFromHistory(lead, allMessages || [])
-              if (extracted) Object.assign(pipelineUpdates, extracted)
-
-              // Append AI note if stage changed or new data extracted
-              const stageChanged = newStage && newStage !== lead.pipeline_stage
-              if (stageChanged || extracted) {
-                const summary = generateNoteSummary(
-                  { ...lead, ...pipelineUpdates },
-                  pipelineUpdates.pipeline_stage || lead.pipeline_stage || newStage
-                )
-                const timestamp = new Date().toLocaleString('en-US', {
-                  month: 'short', day: 'numeric',
-                  hour: 'numeric', minute: '2-digit', hour12: true
+              if (quietCheck.blocked && afterHoursSetting === 'queue') {
+                const nextWindow = getNextSendWindow(mergedLead.state, mergedLead.timezone)
+                const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), capturedProfile, mergedLead, false)
+                await supabase.from('scheduled_messages').insert({
+                  user_id: capturedUserId,
+                  lead_id: mergedLead.id,
+                  conversation_id: convId,
+                  body: aiBody,
+                  scheduled_at: nextWindow,
+                  send_at: nextWindow,
+                  status: 'pending',
+                  notes: 'AI response queued — outside quiet hours'
                 })
-                const noteEntry = '[Auto ' + timestamp + '] ' + summary
-                pipelineUpdates.notes = lead.notes
-                  ? lead.notes + '\n' + noteEntry
-                  : noteEntry
-              }
-
-              if (Object.keys(pipelineUpdates).length > 0) {
-                await supabase.from('leads').update(pipelineUpdates).eq('id', lead.id)
-              }
-            } catch (pipelineErr) {
-              console.error('Pipeline detection error:', pipelineErr.message)
-            }
-            // ─────────────────────────────────────────────────────────────────
-
-            // Check if conversation just confirmed an appointment
-            const { data: conv } = await supabase.from('conversations').select('appointment_confirmed').eq('id', conversation.id).single()
-            if (!conv?.appointment_confirmed) {
-              const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
-              const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
-              const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
-              const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
-              const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
-              console.log('Checking for appointment confirmation')
-              console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation, 'hasBookingPattern:', hasBookingPattern, 'mightBeBooking:', mightBeBooking)
-              console.log('Response text:', aiBody)
-              if (!mightBeBooking) {
-                console.log('Skipping detectAppointment — no booking signals in response')
+                console.log(`[AI] Response queued until ${nextWindow} for lead ${mergedLead.id} (${quietCheck.reason})`)
                 return
               }
-              const apptData = await detectAppointment(history, aiResponse)
-              if (apptData.confirmed) {
-                console.log('Appointment detected:', apptData)
-                await bookAppointment(lead, conversation.id, apptData, profile, fromNumber)
+
+              // Typing delay scales with message length to feel human
+              const wordCount = aiResponse.split(' ').length
+              const baseDelay = 12000
+              const perWordDelay = 800
+              const maxDelay = 75000
+              const jitter = Math.floor(Math.random() * 6000)
+              const delay = Math.min(baseDelay + (wordCount * perWordDelay) + jitter, maxDelay)
+              await new Promise(resolve => setTimeout(resolve, delay))
+
+              const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), capturedProfile, mergedLead, false)
+              const result = await sendSMS(mergedLead.phone, aiBody, capturedFromNumber)
+              if (result.success) {
+                await supabase.from('messages').insert({
+                  conversation_id: convId,
+                  user_id: capturedUserId,
+                  direction: 'outbound',
+                  body: aiBody,
+                  sent_at: new Date().toISOString(),
+                  is_ai: true,
+                  twilio_sid: result.sid,
+                  status: 'sent'
+                })
+                if (!mergedLead.first_message_sent) {
+                  await supabase.from('leads').update({ first_message_sent: true }).eq('id', mergedLead.id)
+                }
+                await supabase.from('conversations')
+                  .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
+                  .eq('id', convId)
+
+                // ─── PIPELINE STAGE DETECTION ────────────────────────────────
+                try {
+                  const { data: allMessages } = await supabase
+                    .from('messages').select('direction, body')
+                    .eq('conversation_id', convId)
+                    .order('sent_at', { ascending: true })
+
+                  const newStage = detectPipelineStage(mergedLead, allMessages || [])
+                  const pipelineUpdates = {}
+
+                  if (newStage) {
+                    const currentOrder = STAGE_ORDER.indexOf(mergedLead.pipeline_stage)
+                    const newOrder = STAGE_ORDER.indexOf(newStage)
+                    if (newOrder > currentOrder) {
+                      pipelineUpdates.pipeline_stage = newStage
+                      pipelineUpdates.pipeline_stage_set_at = new Date().toISOString()
+                      pipelineUpdates.pipeline_ghosted = false
+                      pipelineUpdates.pipeline_ghosted_at = null
+                    }
+                  }
+
+                  const extracted = extractLeadDataFromHistory(mergedLead, allMessages || [])
+                  if (extracted) Object.assign(pipelineUpdates, extracted)
+
+                  const stageChanged = newStage && newStage !== mergedLead.pipeline_stage
+                  if (stageChanged || extracted) {
+                    const summary = generateNoteSummary(
+                      { ...mergedLead, ...pipelineUpdates },
+                      pipelineUpdates.pipeline_stage || mergedLead.pipeline_stage || newStage
+                    )
+                    const timestamp = new Date().toLocaleString('en-US', {
+                      month: 'short', day: 'numeric',
+                      hour: 'numeric', minute: '2-digit', hour12: true
+                    })
+                    const noteEntry = '[Auto ' + timestamp + '] ' + summary
+                    pipelineUpdates.notes = mergedLead.notes
+                      ? mergedLead.notes + '\n' + noteEntry
+                      : noteEntry
+                  }
+
+                  if (Object.keys(pipelineUpdates).length > 0) {
+                    await supabase.from('leads').update(pipelineUpdates).eq('id', mergedLead.id)
+                  }
+                } catch (pipelineErr) {
+                  console.error('Pipeline detection error:', pipelineErr.message)
+                }
+                // ─────────────────────────────────────────────────────────────
+
+                // Check if conversation just confirmed an appointment
+                const { data: convCheck } = await supabase.from('conversations').select('appointment_confirmed').eq('id', convId).single()
+                if (!convCheck?.appointment_confirmed) {
+                  const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
+                  const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
+                  const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
+                  const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
+                  const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
+                  console.log('Checking for appointment confirmation')
+                  console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation, 'hasBookingPattern:', hasBookingPattern, 'mightBeBooking:', mightBeBooking)
+                  console.log('Response text:', aiBody)
+                  if (!mightBeBooking) {
+                    console.log('Skipping detectAppointment — no booking signals in response')
+                    return
+                  }
+                  const apptData = await detectAppointment(history, aiResponse)
+                  if (apptData.confirmed) {
+                    console.log('Appointment detected:', apptData)
+                    await bookAppointment(mergedLead, convId, apptData, capturedProfile, capturedFromNumber)
+                  }
+                }
               }
             }
           }
+        } catch (debounceErr) {
+          console.error('[AI] Debounce handler error:', debounceErr.message)
         }
-      }
+      }, 8000)
+
+      pendingAiResponses.set(convId, handle)
     }
   } catch (err) {
     console.error('Incoming message error:', err)
