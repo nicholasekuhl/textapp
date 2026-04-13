@@ -165,6 +165,8 @@
   let scheduledTime = null
   let scheduledTimeLabel = null
   let profileCache = null
+  let currentScheduledMessages = []
+  let editingScheduledId = null
 
   const debounce = (fn, ms) => {
     let t
@@ -236,7 +238,10 @@
     if (!activeConvId) return
     if (tab === 'scheduled') { loadConvScheduled(activeConvId); return }
     const conv = allConversations.find(c => c.id === activeConvId)
-    if (conv) renderMessages(conv, tab)
+    if (conv) {
+      renderMessages(conv, tab)
+      if (tab === 'all') renderScheduledInline(activeConvId)
+    }
   }
 
   const loadConversations = async () => {
@@ -487,6 +492,65 @@
     } catch (err) { toast.error('Error', 'Could not cancel scheduled message') }
   }
 
+  const renderScheduledInline = async (convId) => {
+    document.querySelectorAll('.msg-scheduled-inline').forEach(el => el.remove())
+    document.querySelector('.msg-sched-sep')?.remove()
+    try {
+      const res = await fetch(`/conversations/${convId}/scheduled`)
+      const data = await res.json()
+      currentScheduledMessages = data.scheduled_messages || []
+      if (!currentScheduledMessages.length) return
+      const container = document.getElementById('conv3-messages')
+      if (!container) return
+      const sorted = [...currentScheduledMessages].sort((a, b) => new Date(a.send_at) - new Date(b.send_at))
+      const sep = document.createElement('div')
+      sep.className = 'msg-date-sep msg-sched-sep'
+      sep.textContent = 'Scheduled'
+      container.appendChild(sep)
+      sorted.forEach(sm => {
+        const dt = new Date(sm.send_at)
+        const label = dt.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+        const div = document.createElement('div')
+        div.className = 'msg outbound msg-scheduled-inline'
+        div.id = `sched-inline-${sm.id}`
+        div.innerHTML = `<div class="msg-bubble msg-bubble-scheduled">${sm.body}</div><div class="msg-time">🕐 ${label}</div><div class="msg-sched-actions"><button class="msg-sched-btn msg-sched-edit" onclick="editScheduledMessage('${sm.id}')">✏️ Edit</button><button class="msg-sched-btn msg-sched-delete" onclick="deleteScheduledMessageInline('${sm.id}')">🗑 Delete</button></div>`
+        container.appendChild(div)
+      })
+    } catch (err) { console.error('Error loading inline scheduled:', err) }
+  }
+
+  const deleteScheduledMessageInline = async (id) => {
+    if (!await confirmModal('Cancel scheduled message?', 'This scheduled message will not be sent.', 'Cancel message', true)) return
+    try {
+      const res = await fetch(`/scheduled-messages/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      document.getElementById(`sched-inline-${id}`)?.remove()
+      currentScheduledMessages = currentScheduledMessages.filter(m => m.id !== id)
+      if (!currentScheduledMessages.length) document.querySelector('.msg-sched-sep')?.remove()
+      toast.success('Cancelled', 'Scheduled message cancelled')
+    } catch (err) { toast.error('Error', 'Could not cancel scheduled message') }
+  }
+
+  const editScheduledMessage = (id) => {
+    const sm = currentScheduledMessages.find(m => m.id === id)
+    if (!sm) return
+    const input = document.getElementById('conv-input')
+    if (!input) return
+    input.value = sm.body
+    scheduledTime = sm.send_at
+    const dt = new Date(sm.send_at)
+    scheduledTimeLabel = dt.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+    editingScheduledId = id
+    updateSchedulePill()
+    updateConvCharCount(input)
+    const label = document.querySelector('.conv3-sched-pill-label')
+    if (label) label.textContent = `✏️ Editing: ${scheduledTimeLabel}`
+    const schedSendBtn = document.getElementById('conv3-sched-send-btn')
+    if (schedSendBtn) schedSendBtn.textContent = '💾 Save Changes'
+    input.focus()
+    input.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }
+
   const getRelativeTime = (minutes) => {
     const d = new Date()
     d.setMinutes(d.getMinutes() + minutes)
@@ -511,6 +575,9 @@
   const clearScheduledTime = () => {
     scheduledTime = null
     scheduledTimeLabel = null
+    editingScheduledId = null
+    const schedSendBtn = document.getElementById('conv3-sched-send-btn')
+    if (schedSendBtn) schedSendBtn.textContent = '🕐 Schedule Send'
     updateSchedulePill()
   }
 
@@ -590,18 +657,35 @@
 
     const body = resolveVariables(rawBody, currentLead, profileCache)
     try {
-      const res = await fetch(`/conversations/${convId}/scheduled`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body, send_at: scheduledTime, lead_id: leadId })
-      })
-      const data = await res.json()
-      if (data.success) {
-        input.value = ''
-        clearScheduledTime()
-        setConvSubTab('scheduled')
-        toast.success('Scheduled', 'Message scheduled successfully')
-      } else toast.error('Schedule failed', data.error || 'Could not schedule message')
+      if (editingScheduledId) {
+        const res = await fetch(`/scheduled-messages/${editingScheduledId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body, send_at: scheduledTime })
+        })
+        const data = await res.json()
+        if (data.success) {
+          input.value = ''
+          updateConvCharCount(input)
+          clearScheduledTime()
+          await renderScheduledInline(convId)
+          toast.success('Updated', 'Scheduled message updated')
+        } else toast.error('Update failed', data.error || 'Could not update scheduled message')
+      } else {
+        const res = await fetch(`/conversations/${convId}/scheduled`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body, send_at: scheduledTime, lead_id: leadId })
+        })
+        const data = await res.json()
+        if (data.success) {
+          input.value = ''
+          updateConvCharCount(input)
+          clearScheduledTime()
+          await renderScheduledInline(convId)
+          toast.success('Scheduled', 'Message scheduled successfully')
+        } else toast.error('Schedule failed', data.error || 'Could not schedule message')
+      }
     } catch (err) { toast.error('Error', 'Something went wrong') }
   }
 
@@ -864,6 +948,7 @@
       filterConversations(document.getElementById('conv3-search')?.value || '')
 
       renderMessages(conv, 'all')
+      await renderScheduledInline(convId)
       renderTemplatePills(conv.lead_id)
       if (rightPanelOpen) renderRightPanel(conv, lead, [])
       updateVarButtonStates(lead)
