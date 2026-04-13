@@ -638,7 +638,7 @@ const processInboundMessage = async (body) => {
         } catch (debounceErr) {
           console.error('[AI] Debounce handler error:', debounceErr.message)
         }
-      }, 8000)
+      }, 20000)
 
       pendingAiResponses.set(convId, handle)
     }
