@@ -18,6 +18,7 @@ let selectedLeads = new Set()
 let importFile = null
 let importHeaders = []
 let importPreview = []
+let importTimeoutHandle = null
 let lastSkippedRows = []
 let lastRiskData = null
 let campaignSortKey = 'created_at'
@@ -1764,6 +1765,8 @@ const selectNewBucketColor = (color, el) => {
 }
 
 const openUploadModal = () => {
+  // Cancel any in-flight import timeout from a previous open
+  if (importTimeoutHandle) { clearTimeout(importTimeoutHandle); importTimeoutHandle = null }
   importFile = null; importHeaders = []; importPreview = []
   document.getElementById('modal-file-name').textContent = ''
   const bucketSelect = document.getElementById('import-bucket-id')
@@ -1811,6 +1814,8 @@ const openUploadModal = () => {
   document.getElementById('step1-status-bar').textContent = ''
   document.getElementById('import-status-bar').className = 'status-bar'
   document.getElementById('import-status-bar').textContent = ''
+  document.getElementById('risk-status-bar').className = 'status-bar'
+  document.getElementById('risk-status-bar').textContent = ''
   const select = document.getElementById('import-campaign')
   select.innerHTML = '<option value="">No campaign</option>' + allCampaigns.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
   const dispSelect = document.getElementById('import-disposition')
@@ -1892,19 +1897,43 @@ const submitImport = async (riskFilter = 'all') => {
 
   const riskStatusEl = document.getElementById('risk-status-bar')
   riskStatusEl.className = 'status-bar loading'
-  riskStatusEl.textContent = 'Importing leads...'
+  riskStatusEl.textContent = '⏳ Uploading file...'
   const importAllBtn = document.getElementById('import-all-btn')
   const importGreenBtn = document.getElementById('import-green-btn')
-  if (importAllBtn) importAllBtn.disabled = true
-  if (importGreenBtn) importGreenBtn.disabled = true
 
+  // Save button labels so they can be reconstructed after import (the spans live inside the buttons)
+  const allCount = document.getElementById('import-all-count')?.textContent || '0'
+  const greenCount = document.getElementById('import-green-count')?.textContent || '0'
+  if (importAllBtn) { importAllBtn.disabled = true; importAllBtn.textContent = 'Importing...' }
+  if (importGreenBtn) { importGreenBtn.disabled = true; importGreenBtn.textContent = 'Importing...' }
+
+  // 30-second timeout fallback — re-enables UI if server never responds
+  let timedOut = false
+  clearTimeout(importTimeoutHandle)
+  importTimeoutHandle = setTimeout(() => {
+    timedOut = true
+    riskStatusEl.className = 'status-bar error'
+    riskStatusEl.textContent = '❌ Import timed out — please try again'
+    if (importAllBtn) { importAllBtn.disabled = false; importAllBtn.innerHTML = `Import All Valid (<span id="import-all-count">${allCount}</span>)` }
+    if (importGreenBtn) { importGreenBtn.disabled = false; importGreenBtn.innerHTML = `Import Clean Only (<span id="import-green-count">${greenCount}</span>)` }
+  }, 30000)
+
+  let importSucceeded = false
   try {
     const res = await fetch('/leads/upload', { method: 'POST', body: formData })
+    clearTimeout(importTimeoutHandle)
+    importTimeoutHandle = null
+    if (timedOut) return
     const data = await res.json()
     if (data.success) {
-      closeUploadModal()
+      importSucceeded = true
+      const importedCount = data.imported ?? 0
+      const skipped = (data.skipped_duplicates ?? 0) + (data.skipped_invalid_phone ?? 0)
+      riskStatusEl.className = 'status-bar success'
+      riskStatusEl.textContent = `✅ Import complete — ${importedCount} lead${importedCount !== 1 ? 's' : ''} imported${skipped > 0 ? `, ${skipped} skipped` : ''}`
+
       lastSkippedRows = data.skipped_rows || []
-      document.getElementById('res-imported').textContent = data.imported ?? 0
+      document.getElementById('res-imported').textContent = importedCount
       document.getElementById('res-total').textContent = data.total_rows ?? 0
       document.getElementById('res-duplicates').textContent = data.skipped_duplicates ?? 0
       document.getElementById('res-invalid').textContent = data.skipped_invalid_phone ?? 0
@@ -1919,17 +1948,28 @@ const submitImport = async (riskFilter = 'all') => {
           msgEl.style.display = 'none'
         }
       }
-      document.getElementById('import-results-modal').classList.add('open')
+
+      toast.success('Import complete', `${importedCount} lead${importedCount !== 1 ? 's' : ''} imported${skipped > 0 ? `, ${skipped} skipped` : ''}`)
+      // Auto-close after 2 seconds then show results summary
+      setTimeout(() => {
+        closeUploadModal()
+        document.getElementById('import-results-modal').classList.add('open')
+      }, 2000)
     } else {
       riskStatusEl.className = 'status-bar error'
-      riskStatusEl.textContent = data.error || 'Import failed'
+      riskStatusEl.textContent = `❌ Import failed: ${data.error || 'Unknown error'}`
     }
   } catch (err) {
+    clearTimeout(importTimeoutHandle)
+    importTimeoutHandle = null
     riskStatusEl.className = 'status-bar error'
-    riskStatusEl.textContent = 'Something went wrong'
+    riskStatusEl.textContent = `❌ Import failed: ${err.message || 'Something went wrong'}`
   } finally {
-    if (importAllBtn) importAllBtn.disabled = false
-    if (importGreenBtn) importGreenBtn.disabled = false
+    // On success the modal closes in 2s — leave buttons as-is. On failure/timeout restore them.
+    if (!importSucceeded && !timedOut) {
+      if (importAllBtn) { importAllBtn.disabled = false; importAllBtn.innerHTML = `Import All Valid (<span id="import-all-count">${allCount}</span>)` }
+      if (importGreenBtn) { importGreenBtn.disabled = false; importGreenBtn.innerHTML = `Import Clean Only (<span id="import-green-count">${greenCount}</span>)` }
+    }
   }
 }
 
