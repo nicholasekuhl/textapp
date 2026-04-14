@@ -1,4 +1,5 @@
 const supabase = require('../db')
+const { addCredits } = require('../services/credits')
 
 const getUsers = async (req, res) => {
   try {
@@ -15,7 +16,7 @@ const getUsers = async (req, res) => {
     monthStart.setDate(1)
     monthStart.setHours(0, 0, 0, 0)
 
-    const [{ data: profiles }, { data: leadCounts }, { data: msgCounts }] = await Promise.all([
+    const [{ data: profiles }, { data: leadCounts }, { data: msgCounts }, { data: creditRows }] = await Promise.all([
       supabase
         .from('user_profiles')
         .select('id, agent_name, agency_name, created_at, is_suspended, suspended_at, suspended_reason, is_admin')
@@ -24,7 +25,8 @@ const getUsers = async (req, res) => {
       supabase.from('messages')
         .select('conversation_id, conversations(user_id)')
         .eq('direction', 'outbound')
-        .gte('sent_at', monthStart.toISOString())
+        .gte('sent_at', monthStart.toISOString()),
+      supabase.from('user_credits').select('user_id, balance, lifetime_purchased, lifetime_used').in('user_id', userIds)
     ])
 
     const profileMap = {}
@@ -41,9 +43,13 @@ const getUsers = async (req, res) => {
       if (uid) msgCountMap[uid] = (msgCountMap[uid] || 0) + 1
     }
 
+    const creditMap = {}
+    for (const c of creditRows || []) creditMap[c.user_id] = c
+
     const users = authUsers
       .map(au => {
         const profile = profileMap[au.id] || {}
+        const credits = creditMap[au.id] || {}
         return {
           id: au.id,
           email: au.email,
@@ -55,7 +61,10 @@ const getUsers = async (req, res) => {
           suspended_reason: profile.suspended_reason || null,
           is_admin: profile.is_admin || false,
           lead_count: leadCountMap[au.id] || 0,
-          message_count_this_month: msgCountMap[au.id] || 0
+          message_count_this_month: msgCountMap[au.id] || 0,
+          credit_balance: credits.balance != null ? parseFloat(credits.balance) : 0,
+          lifetime_purchased: credits.lifetime_purchased != null ? parseFloat(credits.lifetime_purchased) : 0,
+          lifetime_used: credits.lifetime_used != null ? parseFloat(credits.lifetime_used) : 0
         }
       })
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -188,4 +197,19 @@ const getStats = async (req, res) => {
   }
 }
 
-module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides }
+const addUserCredits = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { amount, description } = req.body
+
+    const parsed = parseFloat(amount)
+    if (!parsed || parsed <= 0) return res.status(400).json({ error: 'Amount must be a positive number' })
+
+    const newBalance = await addCredits(id, parsed, description || `Admin top-up by ${req.user.id}`)
+    res.json({ success: true, new_balance: newBalance })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides, addUserCredits }

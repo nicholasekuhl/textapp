@@ -1,0 +1,152 @@
+/**
+ * credits.js — SMS credit balance and transaction ledger
+ *
+ * All monetary values are stored in USD with 4 decimal places.
+ * SMS rate: $0.0075 per outbound message
+ * AI rate:  actual Claude API cost × 3 markup
+ */
+
+const supabase = require('../db')
+
+const SMS_CREDIT_COST = 0.0075
+const AI_MARKUP = 3
+
+// Claude pricing (USD per token)
+const PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.0000008, output: 0.000004 },
+  'claude-sonnet-4-6':         { input: 0.000003,  output: 0.000015 },
+}
+
+class InsufficientCreditsError extends Error {
+  constructor(balance, required) {
+    super(`Insufficient credits: balance $${balance.toFixed(4)}, required $${required.toFixed(4)}`)
+    this.name = 'InsufficientCreditsError'
+    this.balance = balance
+    this.required = required
+  }
+}
+
+// ─── Internal helper ──────────────────────────────────────────────────────────
+
+async function getRow(userId) {
+  const { data } = await supabase
+    .from('user_credits')
+    .select('balance, lifetime_purchased, lifetime_used')
+    .eq('user_id', userId)
+    .single()
+  return data
+}
+
+async function upsertBalance(userId, newBalance, lifetimePurchased, lifetimeUsed) {
+  await supabase
+    .from('user_credits')
+    .upsert(
+      { user_id: userId, balance: newBalance, lifetime_purchased: lifetimePurchased, lifetime_used: lifetimeUsed, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+}
+
+async function insertTransaction(userId, amount, type, description, balanceAfter) {
+  await supabase.from('credit_transactions').insert({
+    user_id: userId,
+    amount,
+    type,
+    description: description || null,
+    balance_after: balanceAfter
+  })
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns current credit balance. Returns 0 if no row exists yet.
+ */
+async function getBalance(userId) {
+  const row = await getRow(userId)
+  return row ? parseFloat(row.balance) : 0
+}
+
+/**
+ * Deduct $0.0075 for one outbound SMS.
+ * Throws InsufficientCreditsError if balance would go negative.
+ * Returns new balance.
+ */
+async function deductSmsCredit(userId, fromNumber, toPhone, messageId) {
+  const cost = SMS_CREDIT_COST
+  const row = await getRow(userId)
+
+  if (!row) throw new InsufficientCreditsError(0, cost)
+
+  const currentBalance = parseFloat(row.balance)
+  if (currentBalance < cost) throw new InsufficientCreditsError(currentBalance, cost)
+
+  const newBalance       = parseFloat((currentBalance - cost).toFixed(4))
+  const lifetimeUsed     = parseFloat(((parseFloat(row.lifetime_used) || 0) + cost).toFixed(4))
+  const lifetimePurchased = parseFloat(row.lifetime_purchased) || 0
+
+  await upsertBalance(userId, newBalance, lifetimePurchased, lifetimeUsed)
+
+  const desc = `SMS outbound${toPhone ? ' to ' + toPhone : ''}${fromNumber ? ' via ' + fromNumber : ''}${messageId ? ' (' + messageId + ')' : ''}`
+  await insertTransaction(userId, -cost, 'sms_outbound', desc, newBalance)
+
+  return newBalance
+}
+
+/**
+ * Deduct AI cost (actual API cost × AI_MARKUP).
+ * Pass inputTokens, outputTokens, and model name.
+ * Returns new balance, or null if userId is falsy (non-fatal).
+ */
+async function deductAiCredit(userId, inputTokens, outputTokens, model) {
+  if (!userId) return null
+
+  const pricing = PRICING[model] || PRICING['claude-sonnet-4-6']
+  const rawCost = (inputTokens * pricing.input) + (outputTokens * pricing.output)
+  const cost = parseFloat((rawCost * AI_MARKUP).toFixed(4))
+
+  if (cost <= 0) return null
+
+  const row = await getRow(userId)
+  const currentBalance = row ? parseFloat(row.balance) : 0
+  const newBalance     = parseFloat((currentBalance - cost).toFixed(4))
+  const lifetimeUsed   = parseFloat(((row ? parseFloat(row.lifetime_used) : 0) + cost).toFixed(4))
+  const lifetimePurchased = row ? parseFloat(row.lifetime_purchased) : 0
+
+  // AI costs always deduct even if negative (logged but non-blocking)
+  await upsertBalance(userId, newBalance, lifetimePurchased, lifetimeUsed)
+
+  const desc = `AI reply — ${model} (${inputTokens}in / ${outputTokens}out tokens)`
+  await insertTransaction(userId, -cost, 'ai_reply', desc, newBalance)
+
+  return newBalance
+}
+
+/**
+ * Add credits to a user's balance (admin top-up or purchase).
+ * Returns new balance.
+ */
+async function addCredits(userId, amount, description) {
+  if (!amount || amount <= 0) throw new Error('Amount must be positive')
+
+  const row = await getRow(userId)
+  const currentBalance     = row ? parseFloat(row.balance) : 0
+  const lifetimeUsed       = row ? parseFloat(row.lifetime_used) : 0
+  const lifetimePurchased  = parseFloat(((row ? parseFloat(row.lifetime_purchased) : 0) + amount).toFixed(4))
+  const newBalance         = parseFloat((currentBalance + amount).toFixed(4))
+
+  await upsertBalance(userId, newBalance, lifetimePurchased, lifetimeUsed)
+  await insertTransaction(userId, amount, 'purchase', description || 'Credit top-up', newBalance)
+
+  return newBalance
+}
+
+/**
+ * Calculate USD cost from Anthropic API usage object.
+ * usage = { input_tokens, output_tokens }
+ */
+function calcAiCost(usage, model) {
+  const pricing = PRICING[model] || PRICING['claude-sonnet-4-6']
+  return (usage.input_tokens * pricing.input) + (usage.output_tokens * pricing.output)
+}
+
+module.exports = { getBalance, deductSmsCredit, deductAiCredit, addCredits, calcAiCost, InsufficientCreditsError, SMS_CREDIT_COST }

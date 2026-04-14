@@ -5,6 +5,7 @@ const { spintext } = require('../spintext')
 const { isWithinQuietHours, getNextSendWindow } = require('../compliance')
 const { getOrCreateOptOutBucket } = require('./leadsController')
 const { detectPipelineStage, extractLeadDataFromHistory, generateNoteSummary, STAGE_ORDER } = require('../pipeline')
+const { deductAiCredit } = require('../services/credits')
 
 // Per-conversation debounce — prevents duplicate AI responses when a lead sends
 // multiple messages in quick succession (e.g. "Tomorrow 1:30" then "Actually 4:30")
@@ -546,7 +547,7 @@ const processInboundMessage = async (body) => {
             await executeHandoff({ ...capturedLead, ...freshLead }, convForHandoff, handoff, capturedFromNumber)
           } else {
             const mergedLead = { ...capturedLead, ...freshLead }
-            const aiResponse = await generateAIResponse(mergedLead, history, capturedProfile, lastInboundBody)
+            const aiResponse = await generateAIResponse(mergedLead, history, capturedProfile, lastInboundBody, capturedUserId)
 
             if (!aiResponse || aiResponse.trim() === '' || aiResponse.trim().toLowerCase() === 'null') {
               console.log('[AI] Null/empty response for lead', mergedLead.id, '— flagging for agent review')
@@ -668,7 +669,7 @@ const processInboundMessage = async (body) => {
                     console.log('Skipping detectAppointment — no booking signals in response')
                     return
                   }
-                  const apptData = await detectAppointment(history, aiResponse)
+                  const apptData = await detectAppointment(history, aiResponse, capturedUserId)
                   if (apptData.confirmed) {
                     console.log('Appointment detected:', apptData)
                     await bookAppointment(mergedLead, convId, apptData, capturedProfile, capturedFromNumber)
@@ -757,7 +758,7 @@ const sendManualMessage = async (req, res) => {
   }
 }
 
-const detectAppointment = async (history, aiResponse) => {
+const detectAppointment = async (history, aiResponse, userId = null) => {
   try {
     const Anthropic = require('@anthropic-ai/sdk')
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -777,6 +778,11 @@ If yes: {"confirmed":true,"day":"tomorrow","time":"2pm"}
 If no: {"confirmed":false}`,
       messages: recentMessages
     })
+
+    if (userId && response.usage) {
+      deductAiCredit(userId, response.usage.input_tokens, response.usage.output_tokens, 'claude-haiku-4-5-20251001')
+        .catch(err => console.error('[credits] AI deduction failed:', err.message))
+    }
 
     const rawText = response.content[0]?.text || '{"confirmed":false}'
     console.log('detectAppointment raw response:', rawText)
@@ -970,7 +976,7 @@ const removeExcessEmojis = (text) => {
   return text
 }
 
-const generateAIResponse = async (lead, history, profile, inboundBody = '') => {
+const generateAIResponse = async (lead, history, profile, inboundBody = '', userId = null) => {
   try {
     const Anthropic = require('@anthropic-ai/sdk')
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -1070,6 +1076,11 @@ Never ask for availability again after appointment is confirmed.`
       messages: cappedMessages
     })
 
+    if (userId && response.usage) {
+      deductAiCredit(userId, response.usage.input_tokens, response.usage.output_tokens, 'claude-sonnet-4-6')
+        .catch(err => console.error('[credits] AI deduction failed:', err.message))
+    }
+
     return response.content[0]?.text || null
   } catch (err) {
     console.error('AI response error:', err.message)
@@ -1099,7 +1110,7 @@ const suggestReply = async (req, res) => {
       return res.json({ suggestion: getInitialMessage(lead) })
     }
 
-    const suggestion = await generateAIResponse(lead, history, req.user.profile)
+    const suggestion = await generateAIResponse(lead, history, req.user.profile, '', req.user.id)
     res.json({ suggestion: suggestion || '' })
   } catch (err) {
     res.status(500).json({ error: err.message })

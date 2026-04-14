@@ -1,5 +1,6 @@
 const supabase = require('./db')
 const { sendSMS, buildMessageBody, pickNumberForLead } = require('./twilio')
+const { deductSmsCredit } = require('./services/credits')
 const { spintext } = require('./spintext')
 const { smsQueue } = require('./smsQueue')
 const nodemailer = require('nodemailer')
@@ -545,6 +546,7 @@ const processQuickFollowups = async () => {
 
           await supabase.from('campaign_leads').update(stepUpdates).eq('id', job.enrollmentId)
           console.log(`[quickFollowups] Step ${job.stepToSend} sent to lead ${job.leadId}`)
+          if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, null).catch(err => console.error('[credits] SMS deduction failed:', err.message))
         },
 
         onFailure: async (job, err) => {
@@ -843,6 +845,7 @@ const processScheduledMessages = async () => {
           }
           messagesSent++
           console.log('[scheduler] Day-based send queued successfully for lead', job.leadId)
+          if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, null).catch(err => console.error('[credits] SMS deduction failed:', err.message))
         },
 
         onFailure: async (job, err) => {
@@ -962,6 +965,7 @@ const processScheduledMessages = async () => {
               })
               await supabase.from('conversations').update({ updated_at: sentAt }).eq('id', job.conversationId)
             }
+            if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, null).catch(err => console.error('[credits] SMS deduction failed:', err.message))
           },
 
           onFailure: async (job, err) => {

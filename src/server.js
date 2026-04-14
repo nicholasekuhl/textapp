@@ -22,6 +22,7 @@ const notificationsRouter = require('./routes/notifications')
 const numbersRouter = require('./routes/numbers')
 const { authMiddleware, authMiddlewareBasic, adminMiddleware } = require('./middleware/auth')
 const adminRouter = require('./routes/admin')
+const creditsRouter = require('./routes/credits')
 const { smsQueue } = require('./smsQueue')
 
 const app = express()
@@ -97,6 +98,7 @@ app.use('/notifications', authMiddleware, notificationsRouter)
 app.use('/buckets', authMiddleware, bucketsRouter)
 app.use('/api/numbers', authMiddleware, numbersRouter)
 app.use('/admin', authMiddleware, adminMiddleware, adminRouter)
+app.use('/api/credits', authMiddleware, creditsRouter)
 
 app.get('/health', (req, res) => {
   res.json({ status: 'server is running' })

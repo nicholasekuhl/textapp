@@ -129,6 +129,7 @@
             <th>Joined</th>
             <th>Leads</th>
             <th>Msgs (month)</th>
+            <th>Credits</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -432,13 +433,23 @@ async function loadUsers() {
         <td>${u.agency_name || '—'}</td>
         <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
         <td>${u.lead_count ?? 0}</td>
-        <td>${u.messages_month ?? 0}</td>
-        <td><span class="badge ${u.suspended ? 'badge-red' : 'badge-green'}">
-          ${u.suspended ? 'Suspended' : 'Active'}</span></td>
+        <td>${u.message_count_this_month ?? 0}</td>
         <td>
-          <button onclick="${u.suspended ? 'unsuspendUser' : 'suspendUser'}('${u.id}')"
-            class="btn btn-sm ${u.suspended ? 'btn-success' : 'btn-danger'}">
-            ${u.suspended ? 'Unsuspend' : 'Suspend'}
+          <span style="font-weight:600;color:${(u.credit_balance ?? 0) < 1 ? '#ef4444' : '#22c55e'}">
+            $${(u.credit_balance ?? 0).toFixed(2)}
+          </span><br>
+          <small style="color:#9ca3af">of $${(u.lifetime_purchased ?? 0).toFixed(2)}</small>
+        </td>
+        <td><span class="badge ${u.is_suspended ? 'badge-red' : 'badge-green'}">
+          ${u.is_suspended ? 'Suspended' : 'Active'}</span></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="${u.is_suspended ? 'unsuspendUser' : 'suspendUser'}('${u.id}')"
+            class="btn btn-sm ${u.is_suspended ? 'btn-success' : 'btn-danger'}">
+            ${u.is_suspended ? 'Unsuspend' : 'Suspend'}
+          </button>
+          <button onclick="topUpCredits('${u.id}', '${(u.agent_name || u.email).replace(/'/g, "\\'")}')"
+            class="btn btn-sm btn-secondary">
+            + Credits
           </button>
         </td>
       </tr>
@@ -457,6 +468,24 @@ async function unsuspendUser(id) {
   await fetch(`/admin/users/${id}/unsuspend`, { method: 'POST', credentials: 'include' })
   loadUsers()
   loadAdminStats()
+}
+
+async function topUpCredits(userId, label) {
+  const input = prompt(`Add credits to ${label}\n\nEnter amount in USD (e.g. 10.00):`)
+  if (!input) return
+  const amount = parseFloat(input)
+  if (!amount || amount <= 0) return alert('Enter a valid positive amount.')
+  const note = prompt('Description (optional, press OK to skip):') || ''
+  const res = await fetch(`/admin/users/${userId}/credits`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, description: note || undefined })
+  })
+  const data = await res.json()
+  if (!res.ok) return alert('Error: ' + (data.error || 'Unknown error'))
+  alert(`Credits added. New balance: $${data.new_balance.toFixed(2)}`)
+  loadUsers()
 }
 
 document.addEventListener('DOMContentLoaded', () => {
