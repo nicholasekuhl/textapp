@@ -2697,7 +2697,7 @@ const openLeadActionsMenu = (leadId, leadName, btn) => {
       <button class="ami-item" onclick="event.stopPropagation();toggleAmiSub('ami-bucket-sub')">
         <span class="ami-icon">📁</span> Move to Bucket <span style="margin-left:auto;font-size:11px;color:#9ca3af;flex-shrink:0;">▼</span>
       </button>
-      <div id="ami-bucket-sub" style="display:none;background:#f9fafb;border-top:1px solid #f3f4f6;padding:4px 0;">
+      <div id="ami-bucket-sub" style="display:none;background:#131a1f;border-top:1px solid rgba(255,255,255,0.06);padding:4px 0;">
         <div class="ami-sub-item" onclick="closeLeadActionsMenu();moveToBucket('${leadId}',null)">— No bucket</div>
         ${allBuckets.map(bk => `<div class="ami-sub-item" onclick="closeLeadActionsMenu();moveToBucket('${leadId}','${bk.id}')"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${bk.color};margin-right:8px;flex-shrink:0;"></span>${bk.name}</div>`).join('')}
       </div>

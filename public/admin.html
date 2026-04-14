@@ -1,167 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark")})()</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
   <script src="/toast.js?v=2"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; }
-    header { background: white; border-bottom: 1px solid #eee; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 50; }
-    .logo { font-size: 18px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.5px; }
-    .logo span { color: #6366f1; }
-    .header-right { display: flex; align-items: center; gap: 12px; }
-    .container { padding: 28px 32px; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .page-sub { font-size: 13px; color: #9ca3af; margin-bottom: 28px; }
+    /* ── Layout ── */
+    .admin-page-content { padding: 20px 24px 40px; }
+    .page-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 20px; }
 
-    .btn { border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
-    .btn-primary { background: #6366f1; color: white; }
-    .btn-primary:hover { background: #4f46e5; }
-    .btn-secondary { background: #f3f4f6; color: #374151; }
-    .btn-secondary:hover { background: #e5e7eb; }
-    .btn-danger { background: #fee2e2; color: #dc2626; }
-    .btn-danger:hover { background: #fecaca; }
-    .btn-success { background: #d1fae5; color: #059669; }
-    .btn-success:hover { background: #a7f3d0; }
-    .btn-ghost { background: none; color: #6b7280; border: 1px solid #e5e7eb; }
-    .btn-ghost:hover { background: #f9fafb; }
-    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    /* ── Stat cards ── */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; color: #fff; }
+    .stat-card .lbl { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 4px; }
 
-    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-    .stat-card { background: white; border-radius: 14px; padding: 18px 22px; border: 1px solid #f0f0f0; }
-    .stat-card .num { font-size: 32px; font-weight: 700; color: #6366f1; line-height: 1; }
-    .stat-card .lbl { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+    /* ── Tab bar ── */
+    .tabs-bar { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .tab-btn { padding: 8px 18px; border: none; background: none; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.4); border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit; transition: color 0.12s; margin-bottom: -1px; }
+    .tab-btn:hover { color: rgba(255,255,255,0.7); }
+    .tab-btn.active { color: #00d4b4; border-bottom-color: #00d4b4; font-weight: 600; }
 
-    .table-card { background: white; border-radius: 16px; border: 1px solid #f0f0f0; overflow: hidden; }
-    .table-toolbar { padding: 16px 20px; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .table-toolbar h2 { font-size: 15px; font-weight: 600; }
-    .search-input { padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; width: 220px; }
-    .search-input:focus { border-color: #6366f1; }
+    /* ── Table components ── */
+    .table-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+    .table-toolbar { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .table-toolbar h2 { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.8); margin: 0; }
     table { width: 100%; border-collapse: collapse; }
-    th { padding: 11px 18px; text-align: left; font-size: 12px; color: #9ca3af; font-weight: 500; border-bottom: 1px solid #f3f4f6; background: #fafafa; white-space: nowrap; }
-    td { padding: 14px 18px; font-size: 13px; border-bottom: 1px solid #f9fafb; vertical-align: middle; }
+    th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); white-space: nowrap; }
+    td { padding: 12px 16px; font-size: 13px; color: rgba(255,255,255,0.65); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #fafafa; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
 
-    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-active { background: #d1fae5; color: #065f46; }
-    .badge-suspended { background: #fee2e2; color: #991b1b; }
-    .badge-admin { background: #e0e7ff; color: #3730a3; }
+    /* ── Search input ── */
+    .search-input { padding: 7px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); outline: none; width: 220px; font-family: inherit; }
+    .search-input::placeholder { color: rgba(255,255,255,0.2); }
+    .search-input:focus { border-color: rgba(0,201,167,0.35); background: rgba(0,201,167,0.04); }
 
-    .user-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-    .user-email { font-size: 12px; color: #9ca3af; margin-top: 1px; }
-    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    /* ── Badges ── */
+    .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: rgba(52,211,153,0.12); color: #34d399; }
+    .badge-red { background: rgba(239,68,68,0.12); color: #f87171; }
+    .badge-admin { background: rgba(99,102,241,0.12); color: #a5b4fc; }
 
-    /* MODALS */
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+    /* ── Action buttons ── */
+    .btn { border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
+    .btn-danger:hover { background: rgba(239,68,68,0.18); }
+    .btn-success { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399; }
+    .btn-success:hover { background: rgba(52,211,153,0.18); }
+
+    /* ── Modals ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 900; display: none; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
-    .modal { background: white; border-radius: 20px; width: 100%; max-width: 480px; padding: 30px; }
+    .modal { background: #1a2228; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; width: 100%; max-width: 480px; padding: 28px; }
     .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-    .modal-header h2 { font-size: 18px; font-weight: 700; }
-    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #9ca3af; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
-    .modal-close:hover { background: #f3f4f6; }
-    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; padding-top: 18px; border-top: 1px solid #f3f4f6; }
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 5px; }
-    .form-group input, .form-group textarea { width: 100%; padding: 9px 13px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
-    .form-group input:focus, .form-group textarea:focus { border-color: #6366f1; }
+    .modal-header h2 { font-size: 16px; font-weight: 700; color: #fff; margin: 0; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: rgba(255,255,255,0.4); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.12s, color 0.12s; }
+    .modal-close:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.07); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.75); font-family: inherit; outline: none; transition: border-color 0.12s; box-sizing: border-box; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(255,255,255,0.2); }
+    .form-group input:focus, .form-group textarea:focus { border-color: rgba(0,201,167,0.4); background: rgba(0,201,167,0.04); }
     .form-group textarea { resize: vertical; min-height: 80px; }
-    .warning-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #9a3412; margin-bottom: 16px; line-height: 1.5; }
-    .danger-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #991b1b; margin-bottom: 16px; line-height: 1.5; }
-    .error-msg { background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
 
-    .empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
+    /* ── Alert boxes ── */
+    .warning-box { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #fbbf24; margin-bottom: 16px; line-height: 1.5; }
+    .danger-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #f87171; margin-bottom: 16px; line-height: 1.5; }
+    .error-msg { background: rgba(239,68,68,0.1); color: #f87171; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
     .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
     .empty-state p { font-size: 14px; }
 
     @media (max-width: 767px) {
-      header { padding: 0 16px; }
-      .container { padding: 16px; }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .table-card { overflow-x: auto; }
       table { min-width: 700px; }
-      .modal { padding: 24px 18px; }
+      .modal { padding: 22px 18px; }
     }
   </style>
 </head>
 <body>
 
 <div id="sidebar-root"></div>
-<div class="container">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-    <h1>Account Management</h1>
-    <button class="btn btn-primary" onclick="openInviteModal()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Invite Agent
-    </button>
-  </div>
-  <div class="page-sub">View and manage all Veloxo user accounts.</div>
+<div class="main-content">
 
-  <div class="stats-row">
-    <div class="stat-card"><div class="num" id="stat-total-users">—</div><div class="lbl">Total Users</div></div>
-    <div class="stat-card"><div class="num" id="stat-active" style="color:#059669;">—</div><div class="lbl">Active</div></div>
-    <div class="stat-card"><div class="num" id="stat-suspended" style="color:#dc2626;">—</div><div class="lbl">Suspended</div></div>
-    <div class="stat-card"><div class="num" id="stat-total-leads" style="color:#6366f1;">—</div><div class="lbl">Total Leads</div></div>
-  </div>
-
-  <!-- Admin tabs -->
-  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #f0f0f0;padding-bottom:0;">
-    <button id="tab-btn-users" onclick="showAdminTab('users')" style="padding:8px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;cursor:pointer;font-family:inherit;">Users</button>
-    <button id="tab-btn-compliance" onclick="showAdminTab('compliance')" style="padding:8px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#9ca3af;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;">Compliance Log</button>
-  </div>
-
-  <!-- Users tab -->
-  <div id="tab-users">
-    <div class="table-card">
-      <div class="table-toolbar">
-        <h2>Users</h2>
-        <input type="text" class="search-input" placeholder="Search users..." oninput="filterUsers(this.value)">
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Agent</th>
-            <th>Agency</th>
-            <th>Joined</th>
-            <th>Leads</th>
-            <th>Msgs (month)</th>
-            <th>Credits</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="users-tbody"></tbody>
-      </table>
+  <div class="topbar">
+    <span class="topbar-title">Account Management</span>
+    <div class="topbar-actions">
+      <button class="btn-primary" onclick="openInviteModal()">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
+        Invite Agent
+      </button>
     </div>
   </div>
 
-  <!-- Compliance Log tab -->
-  <div id="tab-compliance" style="display:none;">
-    <div class="table-card">
-      <div class="table-toolbar">
-        <h2>Compliance Overrides</h2>
-        <span style="font-size:12px;color:#9ca3af;">Every manual send that bypassed quiet hours protections</span>
-      </div>
-      <div id="compliance-log-loading" style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">Loading...</div>
-      <table id="compliance-log-table" style="display:none;">
-        <thead>
-          <tr>
-            <th>Date &amp; Time</th>
-            <th>Agent</th>
-            <th>Lead State</th>
-            <th>Local Time at Send</th>
-            <th>Reason Blocked</th>
-            <th>Message Preview</th>
-          </tr>
-        </thead>
-        <tbody id="compliance-tbody"></tbody>
-      </table>
-      <div id="compliance-empty" style="display:none;padding:48px;text-align:center;color:#9ca3af;font-size:13px;">No compliance overrides recorded.</div>
+  <div class="admin-page-content">
+    <div class="page-sub">View and manage all Veloxo user accounts.</div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="num" id="stat-total-users">—</div><div class="lbl">Total Users</div></div>
+      <div class="stat-card"><div class="num" id="stat-active" style="color:#34d399;">—</div><div class="lbl">Active</div></div>
+      <div class="stat-card"><div class="num" id="stat-suspended" style="color:#f87171;">—</div><div class="lbl">Suspended</div></div>
+      <div class="stat-card"><div class="num" id="stat-total-leads" style="color:#00d4b4;">—</div><div class="lbl">Total Leads</div></div>
     </div>
+
+    <div class="tabs-bar">
+      <button id="tab-btn-users" class="tab-btn active" onclick="showAdminTab('users')">Users</button>
+      <button id="tab-btn-compliance" class="tab-btn" onclick="showAdminTab('compliance')">Compliance Log</button>
+    </div>
+
+    <!-- Users tab -->
+    <div id="tab-users">
+      <div class="table-card">
+        <div class="table-toolbar">
+          <h2>Users</h2>
+          <input type="text" class="search-input" placeholder="Search users..." oninput="filterUsers(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Agency</th>
+              <th>Joined</th>
+              <th>Leads</th>
+              <th>Msgs (month)</th>
+              <th>Credits</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Compliance Log tab -->
+    <div id="tab-compliance" style="display:none;">
+      <div class="table-card">
+        <div class="table-toolbar">
+          <h2>Compliance Overrides</h2>
+          <span style="font-size:12px;color:rgba(255,255,255,0.3);">Every manual send that bypassed quiet hours protections</span>
+        </div>
+        <div id="compliance-log-loading" style="padding:32px;text-align:center;color:rgba(255,255,255,0.3);font-size:13px;">Loading...</div>
+        <table id="compliance-log-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Agent</th>
+              <th>Lead State</th>
+              <th>Local Time at Send</th>
+              <th>Reason Blocked</th>
+              <th>Message Preview</th>
+            </tr>
+          </thead>
+          <tbody id="compliance-tbody"></tbody>
+        </table>
+        <div id="compliance-empty" style="display:none;padding:48px;text-align:center;color:rgba(255,255,255,0.3);font-size:13px;">No compliance overrides recorded.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -177,10 +182,10 @@
       <label>Email Address</label>
       <input type="email" id="invite-email" placeholder="agent@theiragency.com" autocomplete="off">
     </div>
-    <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin-top:-8px;">They'll receive a link to create their account and set a password.</p>
+    <p style="font-size:12px;color:rgba(255,255,255,0.35);line-height:1.5;margin-top:-8px;">They'll receive a link to create their account and set a password.</p>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
-      <button class="btn btn-primary" id="invite-submit-btn" onclick="sendInvite()">Send Invite</button>
+      <button class="btn-primary btn" id="invite-submit-btn" onclick="sendInvite()">Send Invite</button>
     </div>
   </div>
 </div>
@@ -195,10 +200,10 @@
     <div class="warning-box">This agent will be immediately logged out and unable to access the app.</div>
     <div class="error-msg" id="suspend-error"></div>
     <div class="form-group">
-      <label>Suspending: <strong id="suspend-name"></strong></label>
+      <label>Suspending: <strong id="suspend-name" style="color:#fff;"></strong></label>
     </div>
     <div class="form-group">
-      <label>Reason <span style="color:#ef4444;">*</span></label>
+      <label>Reason <span style="color:#f87171;">*</span></label>
       <textarea id="suspend-reason" placeholder="Why is this account being suspended?"></textarea>
     </div>
     <div class="modal-footer">
@@ -221,7 +226,7 @@
     </div>
     <div class="error-msg" id="delete-error"></div>
     <div class="form-group">
-      <label>Type <strong id="delete-email-label" style="color:#dc2626;"></strong> to confirm</label>
+      <label>Type <strong id="delete-email-label" style="color:#f87171;"></strong> to confirm</label>
       <input type="text" id="delete-confirm-input" placeholder="Type the email address...">
     </div>
     <div class="modal-footer">
@@ -325,12 +330,8 @@
   const showAdminTab = (tab) => {
     document.getElementById('tab-users').style.display = tab === 'users' ? 'block' : 'none'
     document.getElementById('tab-compliance').style.display = tab === 'compliance' ? 'block' : 'none'
-    document.getElementById('tab-btn-users').style.cssText = tab === 'users'
-      ? 'padding:8px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;cursor:pointer;font-family:inherit;'
-      : 'padding:8px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#9ca3af;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;'
-    document.getElementById('tab-btn-compliance').style.cssText = tab === 'compliance'
-      ? 'padding:8px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;cursor:pointer;font-family:inherit;'
-      : 'padding:8px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#9ca3af;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;'
+    document.getElementById('tab-btn-users').classList.toggle('active', tab === 'users')
+    document.getElementById('tab-btn-compliance').classList.toggle('active', tab === 'compliance')
     if (tab === 'compliance') loadComplianceLog()
   }
 
@@ -352,11 +353,11 @@
         const preview = r.message_body ? r.message_body.slice(0, 60) + (r.message_body.length > 60 ? '…' : '') : '—'
         return `<tr>
           <td>${dt}</td>
-          <td style="font-weight:500;">${r.agent_name || '—'}</td>
+          <td style="font-weight:500;color:rgba(255,255,255,0.8);">${r.agent_name || '—'}</td>
           <td><span class="badge badge-admin" style="font-size:11px;">${r.lead_state || '—'}</span></td>
-          <td style="color:#9ca3af;font-size:12px;">${r.local_time_at_send || '—'}</td>
-          <td style="color:#dc2626;font-size:12px;max-width:220px;">${r.reason || '—'}</td>
-          <td style="color:#374151;font-size:12px;max-width:240px;font-style:italic;">${preview}</td>
+          <td style="color:rgba(255,255,255,0.35);font-size:12px;">${r.local_time_at_send || '—'}</td>
+          <td style="color:#f87171;font-size:12px;max-width:220px;">${r.reason || '—'}</td>
+          <td style="color:rgba(255,255,255,0.45);font-size:12px;max-width:240px;font-style:italic;">${preview}</td>
         </tr>`
       }).join('')
       table.style.display = 'table'
@@ -428,17 +429,19 @@ async function loadUsers() {
     if (!tbody) return
     tbody.innerHTML = (data.users || []).map(u => `
       <tr>
-        <td>${u.agent_name || '—'}<br>
-          <small style="color:#888">${u.email}</small></td>
+        <td>
+          <div style="font-weight:600;font-size:13px;color:rgba(255,255,255,0.85);">${u.agent_name || '—'}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:1px;">${u.email}</div>
+        </td>
         <td>${u.agency_name || '—'}</td>
         <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
         <td>${u.lead_count ?? 0}</td>
         <td>${u.message_count_this_month ?? 0}</td>
         <td>
-          <span style="font-weight:600;color:${(u.credit_balance ?? 0) < 1 ? '#ef4444' : '#22c55e'}">
+          <span style="font-weight:600;color:${(u.credit_balance ?? 0) < 1 ? '#f87171' : '#34d399'}">
             $${(u.credit_balance ?? 0).toFixed(2)}
-          </span><br>
-          <small style="color:#9ca3af">of $${(u.lifetime_purchased ?? 0).toFixed(2)}</small>
+          </span>
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:1px;">of $${(u.lifetime_purchased ?? 0).toFixed(2)}</div>
         </td>
         <td><span class="badge ${u.is_suspended ? 'badge-red' : 'badge-green'}">
           ${u.is_suspended ? 'Suspended' : 'Active'}</span></td>

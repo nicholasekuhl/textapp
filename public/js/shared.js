@@ -438,7 +438,7 @@ const renderSidebar = () => {
         <div id="profile-dropdown-name" style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:500;padding:6px 8px 2px;"></div>
         <div id="profile-dropdown-email" style="font-size:11px;color:rgba(255,255,255,0.35);padding:0 8px 8px;"></div>
         <div style="border-top:1px solid rgba(255,255,255,0.07);margin:4px 0;"></div>
-        <button class="nav-item" onclick="goToSettings('account');document.getElementById('profile-dropdown').style.display='none';" style="width:100%;border:none;cursor:pointer;font-family:inherit;">
+        <button class="nav-item" onclick="goToSettings('account');document.getElementById('profile-dropdown').style.display='none';">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="2.5"/><path d="M2.5 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
           Profile &amp; Settings
         </button>
@@ -447,7 +447,7 @@ const renderSidebar = () => {
           Admin Panel
         </a>
         <div style="border-top:1px solid rgba(255,255,255,0.07);margin:4px 0;"></div>
-        <button class="nav-item" onclick="logout()" style="width:100%;border:none;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color=''">
+        <button class="nav-item" onclick="logout()">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"/></svg>
           Log out
         </button>
