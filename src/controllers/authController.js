@@ -1,6 +1,6 @@
 const supabase = require('../db')
-const nodemailer = require('nodemailer')
 const crypto = require('crypto')
+const { Resend } = require('resend')
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -9,12 +9,7 @@ const COOKIE_OPTS = {
   path: '/'
 }
 
-const getMailer = () => nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 const login = async (req, res) => {
   try {
@@ -169,20 +164,28 @@ const inviteAgent = async (req, res) => {
     })
 
     const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`
-    const signupLink = `${appUrl}/invite.html?token=${token}`
+    const inviteUrl = `${appUrl}/invite.html?token=${token}`
 
-    if (process.env.SMTP_HOST) {
-      const mailer = getMailer()
-      await mailer.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    if (process.env.RESEND_API_KEY) {
+      await resend.emails.send({
+        from: process.env.RESEND_FROM || 'invites@veloxo.io',
         to: email,
         subject: 'You have been invited to Veloxo',
-        text: `You have been invited to join Veloxo.\n\nClick here to set up your account:\n${signupLink}\n\nThis link expires in 7 days.`,
-        html: `<p>You have been invited to join Veloxo.</p><p><a href="${signupLink}" style="background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Set Up Your Account</a></p><p style="color:#9ca3af;font-size:12px;">This link expires in 7 days.</p>`
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2 style="color: #7c6ff7;">You're invited to Veloxo</h2>
+            <p>You've been invited to join Veloxo, the AI-powered SMS platform for insurance agents.</p>
+            <p>Click the button below to set up your account:</p>
+            <a href="${inviteUrl}" style="display: inline-block; background: #7c6ff7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">Accept Invite</a>
+            <p style="color: #999; font-size: 13px; margin-top: 24px;">This link expires in 7 days. If you didn't expect this invite, you can ignore this email.</p>
+          </div>
+        `
       })
+    } else {
+      console.warn('[inviteAgent] RESEND_API_KEY not set — invite email not sent. Link:', inviteUrl)
     }
 
-    res.json({ success: true, invite_link: signupLink })
+    res.json({ success: true, invite_link: inviteUrl })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
