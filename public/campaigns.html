@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark")})()</script>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Campaigns — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
@@ -11,26 +10,31 @@
 <body>
 
 <div id="sidebar-root"></div>
-<div class="container">
-  <div class="campaigns-toolbar">
-    <input type="text" class="campaigns-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)">
-    <button class="btn btn-primary" onclick="openCreateCampaignModal()">+ New Campaign</button>
+<div class="main-content">
+  <div class="topbar">
+    <span class="topbar-title">Campaigns</span>
+    <div class="topbar-actions">
+      <input type="text" class="search-input campaigns-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)">
+      <button class="btn-primary" onclick="openCreateCampaignModal()">+ New Campaign</button>
+    </div>
   </div>
-  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;">Initial outreach sequences — create multiple campaigns and compare reply rates to find what works.</div>
-  <div class="table-card">
-    <table>
-      <thead>
-        <tr>
-          <th onclick="sortCampaigns('name')">Name ↕</th>
-          <th>Messages</th>
-          <th>Enrolled</th>
-          <th title="Leads who replied ÷ leads enrolled">Replied</th>
-          <th onclick="sortCampaigns('status')">Status ↕</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="campaigns-tbody"></tbody>
-    </table>
+  <div class="page-content">
+    <div style="font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:14px;">Initial outreach sequences — create multiple campaigns and compare reply rates to find what works.</div>
+    <div class="table-card" style="background:#131a1f;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortCampaigns('name')">Name ↕</th>
+            <th>Messages</th>
+            <th>Enrolled</th>
+            <th title="Leads who replied ÷ leads enrolled">Replied</th>
+            <th onclick="sortCampaigns('status')">Status ↕</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="campaigns-tbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -142,7 +146,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveCampaign()">Save Campaign</button>
+      <button class="btn-primary" onclick="saveCampaign()">Save Campaign</button>
     </div>
   </div>
 </div>

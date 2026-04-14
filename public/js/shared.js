@@ -76,6 +76,10 @@ const loadProfile = async () => {
     const displayName = p.agent_name || p.email || ''
     const headerName = document.getElementById('header-agent-name')
     if (headerName) headerName.textContent = displayName
+    const headerAgency = document.getElementById('header-agency-name')
+    if (headerAgency) headerAgency.textContent = p.agency_name || ''
+    const userAvatarEl = document.getElementById('user-avatar-initials')
+    if (userAvatarEl) userAvatarEl.textContent = getInitials(p.agent_name?.split(' ')[0], p.agent_name?.split(' ')[1])
     const ddName = document.getElementById('profile-dropdown-name')
     if (ddName) ddName.textContent = displayName
     const ddEmail = document.getElementById('profile-dropdown-email')
@@ -389,36 +393,37 @@ const renderSidebar = () => {
   const SVG_BELL = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`
 
   root.innerHTML = `
-<button class="mobile-hamburger" onclick="openNavDrawer()" aria-label="Open menu">☰</button>
-<div class="nav-overlay" id="nav-overlay" onclick="closeNavDrawer()"></div>
 <div class="sidebar" id="nav-drawer">
-  <a href="/leads.html" class="sidebar-logo">Vel<span>oxo</span></a>
-  <nav class="sidebar-nav">
-    <a href="/leads.html" class="sidebar-nav-item${a('/leads.html')}">${SVG_LEADS}Leads</a>
-    <a href="/buckets.html" class="sidebar-nav-item${a('/buckets.html')}">${SVG_BUCKETS}Buckets</a>
-    <a href="/archive.html" class="sidebar-nav-item${a('/archive.html')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>Archive</a>
-    <a href="/pipeline.html" class="sidebar-nav-item${a('/pipeline.html')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Pipeline</a>
-    <a href="/conversations.html" class="sidebar-nav-item${a('/conversations.html')}">${SVG_CONV}Conversations</a>
-    <a href="/campaigns.html" class="sidebar-nav-item${a('/campaigns.html')}">${SVG_CAMP}Campaigns</a>
-    <a href="/stats.html" class="sidebar-nav-item${a('/stats.html')}">${SVG_STATS}Stats</a>
-    <a href="/calendar.html" class="sidebar-nav-item${a('/calendar.html')}" id="nav-calendar" style="position:relative;">${SVG_CAL}Calendar<span id="today-appt-badge" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:#ef4444;border-radius:50%;animation:calPulse 2s infinite;"></span></a>
-    <a href="/settings.html" class="sidebar-nav-item${a('/settings.html')}">${SVG_SETTINGS}Settings</a>
-    <a href="/admin.html" id="admin-nav-link" class="sidebar-nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}Admin</a>
-  </nav>
-  <div onclick="toggleDarkMode()" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;border-top:1px solid var(--border-default);margin-top:auto;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:14px;">🌙</span>
-      <span style="font-size:13px;color:var(--color-text-secondary);font-weight:500;">Dark Mode</span>
-    </div>
-    <div id="dark-mode-switch" style="width:36px;height:20px;background:var(--gray-300);border-radius:10px;position:relative;transition:background 0.2s;">
-      <div id="dark-mode-knob" style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+  <div class="sidebar-logo">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 20 20" fill="none" width="20" height="20">
+          <path d="M4 10h9" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-linecap="round"/>
+          <path d="M4 7h6" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round"/>
+          <path d="M4 13h5" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-linecap="round"/>
+          <path d="M11 5.5L16 10L11 14.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="logo-text"><span class="logo-velox">velox</span>o</span>
     </div>
   </div>
-  <div class="sidebar-bottom">
-    <div class="notif-wrap" id="notif-wrap">
-      <button class="notif-btn" onclick="toggleNotifPanel(event)" title="Notifications" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:#6b7280;display:flex;align-items:center;position:relative;">
-        ${SVG_BELL}
-        <span class="notif-badge" id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:white;border-radius:20px;font-size:9px;font-weight:700;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 3px;"></span>
+  <nav class="sidebar-nav">
+    <a href="/leads.html" class="nav-item${a('/leads.html')}">${SVG_LEADS}<span>Leads</span></a>
+    <a href="/buckets.html" class="nav-item${a('/buckets.html')}">${SVG_BUCKETS}<span>Buckets</span></a>
+    <a href="/archive.html" class="nav-item${a('/archive.html')}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg><span>Archive</span></a>
+    <a href="/pipeline.html" class="nav-item${a('/pipeline.html')}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Pipeline</span></a>
+    <a href="/conversations.html" class="nav-item${a('/conversations.html')}">${SVG_CONV}<span>Conversations</span><span class="notif-badge-inline nav-badge alert" id="notif-badge" style="display:none;"></span></a>
+    <a href="/campaigns.html" class="nav-item${a('/campaigns.html')}">${SVG_CAMP}<span>Campaigns</span></a>
+    <a href="/stats.html" class="nav-item${a('/stats.html')}">${SVG_STATS}<span>Stats</span></a>
+    <a href="/calendar.html" class="nav-item${a('/calendar.html')}" id="nav-calendar">${SVG_CAL}<span>Calendar</span><span id="today-appt-badge" class="nav-badge alert" style="display:none;"></span></a>
+    <a href="/settings.html" class="nav-item${a('/settings.html')}">${SVG_SETTINGS}<span>Settings</span></a>
+    <a href="/admin.html" id="admin-nav-link" class="nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}<span>Admin</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="notif-wrap" id="notif-wrap" style="padding:0 8px 8px;">
+      <button class="notif-btn nav-item" onclick="toggleNotifPanel(event)" title="Notifications" style="width:100%;justify-content:flex-start;position:relative;">
+        ${SVG_BELL}<span>Notifications</span>
+        <span class="nav-badge alert" id="notif-count-badge" style="display:none;"></span>
       </button>
       <div class="notif-panel" id="notif-panel" style="display:none;">
         <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
@@ -426,11 +431,14 @@ const renderSidebar = () => {
         <div class="notif-footer">Showing last 30 notifications</div>
       </div>
     </div>
-    <div class="profile-menu" id="profile-menu" style="flex:1;min-width:0;">
-      <button class="profile-trigger" onclick="toggleProfileMenu(event)" id="profile-trigger" style="width:100%;padding:4px 6px;">
-        <span class="profile-trigger-name" id="header-agent-name" style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;"></span>
-        <span class="profile-chevron">▼</span>
-      </button>
+    <div class="profile-menu" id="profile-menu">
+      <div class="user-row" onclick="toggleProfileMenu(event)" id="profile-trigger">
+        <div class="user-avatar" id="user-avatar-initials">?</div>
+        <div style="min-width:0;">
+          <div class="user-name" id="header-agent-name"></div>
+          <div class="user-sub" id="header-agency-name"></div>
+        </div>
+      </div>
       <div class="profile-dropdown" id="profile-dropdown">
         <div class="profile-dropdown-header">
           <div class="profile-dropdown-name" id="profile-dropdown-name"></div>

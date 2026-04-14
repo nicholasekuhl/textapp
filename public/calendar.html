@@ -1,26 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark")})()</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendar — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
   <script src="/toast.js?v=2"></script>
+  <style>
+    .today-section { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 16px 20px; }
+    .today-section h3 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .today-count { background: rgba(0,201,167,0.15); color: #00d4b4; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
+    .cal-layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+    .cal-main { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 16px; }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .cal-header h2 { font-size: 16px; font-weight: 600; color: #fff; }
+    .cal-nav-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; color: rgba(255,255,255,0.6); font-size: 18px; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.12s; }
+    .cal-nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-day-label { text-align: center; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); padding: 4px 0 8px; letter-spacing: 0.05em; }
+    .cal-cell { min-height: 64px; padding: 6px 8px; border-radius: 7px; cursor: pointer; background: transparent; transition: background 0.1s; position: relative; }
+    .cal-cell:hover { background: rgba(255,255,255,0.04); }
+    .cal-cell.other-month { opacity: 0.3; cursor: default; }
+    .cal-cell.other-month:hover { background: transparent; }
+    .cal-cell.today .cal-date { background: #0ea5e9; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .cal-cell.selected { background: rgba(0,201,167,0.08); border: 1px solid rgba(0,201,167,0.25); }
+    .cal-date { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+    .cal-dot { width: 5px; height: 5px; border-radius: 50%; margin-bottom: 2px; }
+    .cal-dot-scheduled { background: #00c9a7; }
+    .cal-dot-completed { background: #34d399; }
+    .cal-dot-cancelled { background: #f87171; }
+    .appt-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; padding: 12px 14px; margin-bottom: 10px; }
+    .appt-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .appt-name { font-size: 13.5px; font-weight: 600; color: #fff; }
+    .appt-phone { font-size: 12px; color: #00d4b4; margin-top: 2px; }
+    .appt-time { font-size: 13px; font-weight: 600; color: #fff; text-align: right; }
+    .appt-notes { font-size: 12px; color: rgba(255,255,255,0.45); margin-bottom: 10px; line-height: 1.5; }
+    .appt-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .status-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-scheduled { background: rgba(0,201,167,0.12); color: #00d4b4; }
+    .status-completed { background: rgba(52,211,153,0.12); color: #34d399; }
+    .status-cancelled { background: rgba(239,68,68,0.12); color: #f87171; }
+    .btn-success-tint { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #34d399; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); cursor: pointer; text-decoration: none; transition: background 0.12s; }
+    .btn-success-tint:hover { background: rgba(52,211,153,0.18); }
+    .btn-danger-tint { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #f87171; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); cursor: pointer; transition: background 0.12s; }
+    .btn-danger-tint:hover { background: rgba(239,68,68,0.18); }
+  </style>
 </head>
 <body>
 
 <div id="sidebar-root"></div>
-<div class="container">
-
-  <!-- CALENDAR PAGE -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-    <div>
-      <h2 style="font-size:20px;font-weight:700;margin-bottom:2px;">Calendar</h2>
-      <div style="font-size:13px;color:#9ca3af;">Your upcoming appointments</div>
+<div class="main-content">
+  <div class="topbar">
+    <span class="topbar-title">Calendar</span>
+    <div class="topbar-actions">
+      <button class="btn-primary" onclick="openCreateApptModal()">+ New Appointment</button>
     </div>
-    <button class="btn btn-primary" onclick="openCreateApptModal()">+ New Appointment</button>
   </div>
+  <div class="page-content">
 
   <!-- Today's Calls -->
   <div class="today-section" style="margin-bottom:20px;" id="today-section">
@@ -54,8 +90,8 @@
       <div id="day-appts"><div style="color:#d1d5db;font-size:13px;">Click a date to see appointments</div></div>
     </div>
   </div>
-
-</div>
+  </div><!-- /page-content -->
+</div><!-- /main-content -->
 
 <!-- CREATE APPOINTMENT MODAL -->
 <div class="modal-overlay" id="create-appt-modal">
@@ -155,8 +191,8 @@
       if (!allAppointments.length) {
         container.innerHTML = `<div style="text-align:center;padding:40px 20px;">
           <div style="font-size:36px;margin-bottom:12px;">📅</div>
-          <div style="font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">No appointments scheduled</div>
-          <div style="font-size:13px;color:#9ca3af;">Appointments are created automatically when the AI books a call with a lead.</div>
+          <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px;">No appointments scheduled</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.35);">Appointments are created automatically when the AI books a call with a lead.</div>
         </div>`
       } else {
         container.innerHTML = `<div style="color:#d1d5db;font-size:13px;padding:12px 0;">No calls scheduled for today</div>`
@@ -234,16 +270,16 @@
         </div>
         <div style="text-align:right;">
           <div class="appt-time">${time}</div>
-          <div style="font-size:11px;color:#9ca3af;">${dateLabel}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.35);">${dateLabel}</div>
         </div>
       </div>
       ${a.notes ? `<div class="appt-notes">${a.notes}</div>` : ''}
       <div style="margin-bottom:8px;"><span class="status-badge status-${a.status}">${a.status}</span></div>
       <div class="appt-actions">
-        ${phone ? `<a href="tel:${phone}" class="btn btn-call btn-sm">📞 Call</a>` : ''}
-        ${a.status === 'scheduled' ? `<button class="btn btn-success btn-sm" onclick="markApptComplete('${a.id}')">✓ Complete</button>` : ''}
-        ${a.status === 'scheduled' ? `<button class="btn btn-secondary btn-sm" onclick="openReschedule('${a.id}')">Reschedule</button>` : ''}
-        ${a.status !== 'cancelled' ? `<button class="btn btn-danger btn-sm" onclick="cancelAppt('${a.id}')">Cancel</button>` : ''}
+        ${phone ? `<a href="tel:${phone}" class="btn-primary" style="font-size:12px;padding:6px 12px;text-decoration:none;">📞 Call</a>` : ''}
+        ${a.status === 'scheduled' ? `<button class="btn-success-tint" onclick="markApptComplete('${a.id}')">✓ Complete</button>` : ''}
+        ${a.status === 'scheduled' ? `<button class="btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="openReschedule('${a.id}')">Reschedule</button>` : ''}
+        ${a.status !== 'cancelled' ? `<button class="btn-danger-tint" onclick="cancelAppt('${a.id}')">Cancel</button>` : ''}
       </div>
     </div>`
   }

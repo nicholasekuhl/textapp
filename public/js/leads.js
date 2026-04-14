@@ -668,118 +668,79 @@ const renderLeads = (leads) => {
           ? `<span class="tag" style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;border:1px solid #bfdbfe;">⚡ Campaign Active</span>`
           : `<span class="tag" style="background:#f0fdf4;color:#166534;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">✓ Campaign Done</span>`
       : ''
+    const bucket = lead.bucket_id ? allBuckets.find(b => b.id === lead.bucket_id) : null
     return `
-      <div class="lead-card" style="border-left: 4px solid ${borderColor};">
-        <div class="lead-card-top">
-          <div style="display:flex;align-items:flex-start;gap:6px;margin-top:3px;">
-            <input type="checkbox" class="lead-select-cb" data-id="${lead.id}" onchange="toggleLead(this)" ${selectedLeads.has(lead.id) ? 'checked' : ''} style="accent-color:#6366f1;margin-top:2px;">
-          </div>
-          <div class="lead-card-left">
-            <div class="lead-avatar">${initials}</div>
-            <div class="lead-info">
-              <div class="lead-name">
-                <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;cursor:pointer;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='inherit'">${name}</a>
-                <button class="copy-btn" onclick="copyToClipboard('${safeName}', this)" title="Copy name">${COPY_SVG}</button>
-                ${lead.opted_out ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.3px;">🚫 OPTED OUT</span>' : ''}
-                ${lead.is_sold ? '<span class="sold-badge">✓ SOLD</span>' : ''}
-                ${leadDispTags.map(t => `<span class="disposition-pill" style="background:${t.color}">${t.name}</span>`).join('')}
-                ${replyBadge}
-                ${apptBadge}
-              </div>
-              ${lead.is_sold ? `<div class="sold-info">${lead.sold_at ? 'Sold ' + new Date(lead.sold_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Sold'}${lead.sold_plan_type ? ' · ' + lead.sold_plan_type : ''}${lead.sold_premium ? ' · $' + parseFloat(lead.sold_premium).toFixed(0) + '/mo' : ''}</div>` : ''}
-              <div class="lead-tags">
-                <span class="tag tag-${lead.status}">${lead.status}</span>
-                ${lead.bucket_id ? (() => { const bk = allBuckets.find(b => b.id === lead.bucket_id); return bk ? `<span class="tag" style="font-size:10px;background:${bk.color}18;color:${bk.color};border:1px solid ${bk.color}30;" title="Bucket: ${bk.name}">📁 ${bk.name}</span>` : '' })() : ''}
-                ${lead.product ? `<span class="tag tag-plan" style="cursor:pointer;" onclick="editLeadProduct('${lead.id}', this)" title="Click to edit">${lead.product}</span>` : ''}
-                ${campProgress}
-                ${lead.pipeline_stage ? (() => {
-                  const PIPELINE_COLORS = { replied: '#6366f1', household_confirmed: '#3b82f6', income_provided: '#0ea5e9', medical_shared: '#8b5cf6', budget_provided: '#f59e0b', appointment_scheduled: '#10b981', sold: '#22c55e' }
-                  const PIPELINE_LABELS = { replied: 'Replied', household_confirmed: 'Household', income_provided: 'Income', medical_shared: 'Medical', budget_provided: 'Budget', appointment_scheduled: 'Appt Set', sold: 'Sold' }
-                  const color = PIPELINE_COLORS[lead.pipeline_stage] || '#6366f1'
-                  const label = PIPELINE_LABELS[lead.pipeline_stage] || lead.pipeline_stage
-                  const opacity = lead.pipeline_ghosted ? '0.5' : '1'
-                  const ghostSuffix = lead.pipeline_ghosted ? ' (ghosted)' : ''
-                  return `<span class="tag" style="font-size:10px;background:${color}18;color:${color};border:1px solid ${color}40;opacity:${opacity};" title="Pipeline stage">◈ ${label}${ghostSuffix}</span>`
-                })() : ''}
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              ${hotLeadMap[lead.id] ? `<span title="Hot lead — requesting quote" style="font-size:14px;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')">🔥</span>` : ''}
-              ${ghostedMap[lead.id] === 'positive_ghosted' ? `<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:20px;padding:1px 6px;font-weight:600;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Went quiet after engaging">Went Quiet</span>` : ghostedMap[lead.id] === 'ghosted_mid' ? `<span style="font-size:10px;background:#f3f4f6;color:#6b7280;border-radius:20px;padding:1px 6px;font-weight:600;cursor:pointer;" onclick="event.stopPropagation();viewConversation('${lead.id}')" title="No response to follow-ups">No Response</span>` : ''}
-              ${unreadConvMap[lead.id] ? `<button onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Unread messages" style="background:#ef4444;color:white;border:none;border-radius:9px;padding:2px 6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;">💬 ${unreadConvMap[lead.id]}</button>` : ''}
-              <button class="lead-3dot-btn" onclick="event.stopPropagation();openLeadActionsMenu('${lead.id}','${safeName}',this)" title="More actions">⋯</button>
-            </div>
-            <div class="autopilot-wrap">
-              <span class="autopilot-label ${lead.autopilot ? 'on' : ''}" id="ap-label-${lead.id}">${lead.autopilot ? 'Autopilot ON' : 'Autopilot'}</span>
-              <label class="toggle">
-                <input type="checkbox" ${lead.autopilot ? 'checked' : ''} onchange="toggleAutopilot('${lead.id}', this.checked)">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-        </div>
+      <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}">
         <div class="lead-card-body">
-          <div class="lead-card-body-left">
-            <div style="font-size:12px;color:var(--gray-500);display:flex;flex-direction:column;gap:4px;">
-              <span>📞 ${lead.phone} <button class="copy-btn" onclick="copyToClipboard('${lead.phone}', this)" title="Copy phone">${COPY_SVG}</button></span>
-              ${lead.email ? `<span>✉️ ${lead.email} <button class="copy-btn" onclick="copyToClipboard('${lead.email}', this)" title="Copy email">${COPY_SVG}</button></span>` : ''}
-              ${(lead.state || lead.zip_code) ? `<span>📍 ${[lead.state, lead.zip_code].filter(Boolean).join(' ')}</span>` : ''}
-              ${lead.date_of_birth ? `<span>🎂 ${lead.date_of_birth}</span>` : ''}
-              ${localTime ? `<span>🕐 ${localTime} local</span>` : ''}
-              ${lastContactHtml(lead)}
+
+          <div class="col-contact">
+            <div class="col-contact-top">
+              <input type="checkbox" class="lead-cb lead-select-cb" data-id="${lead.id}" onchange="toggleLead(this)" ${selectedLeads.has(lead.id) ? 'checked' : ''}>
+              <div class="lead-avatar" style="background:rgba(0,201,167,0.15);color:#00d4b4">${initials}</div>
+              <div>
+                <div class="lead-name">
+                  <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#00d4b4'" onmouseout="this.style.color='inherit'">${name}</a>
+                  ${lead.opted_out ? '<span style="font-size:10px;font-weight:700;color:#f87171;margin-left:4px;">🚫 OPT-OUT</span>' : ''}
+                  ${lead.is_sold ? '<span style="font-size:10px;font-weight:700;color:#34d399;margin-left:4px;">✓ SOLD</span>' : ''}
+                </div>
+                <div class="lead-phone">${lead.phone}</div>
+                <div class="lead-email">${lead.email || ''}</div>
+              </div>
+            </div>
+            <div class="lead-meta-line">${lead.state || ''} · <span>${lead.zip_code || ''}</span></div>
+            ${localTime ? `<div class="lead-local-time"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l1.5 1.5"/></svg>${localTime} local</div>` : ''}
+            <div class="lead-status-row">
+              <span class="status-pill sp-${lead.status}"><span class="sp-dot"></span>${lead.status}</span>
+              ${hotLeadMap[lead.id] ? '<span style="font-size:11px;margin-left:4px;" title="Hot lead">🔥</span>' : ''}
+              ${unreadConvMap[lead.id] ? `<button onclick="event.stopPropagation();viewConversation('${lead.id}')" title="Unread messages" style="background:#ef4444;color:white;border:none;border-radius:9px;padding:1px 6px;font-size:10px;font-weight:700;cursor:pointer;margin-left:4px;">💬 ${unreadConvMap[lead.id]}</button>` : ''}
             </div>
           </div>
-          <div class="lead-card-body-right">
-            <textarea class="notes-input" placeholder="Add notes..." onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+
+          <div class="col-notes">
+            <div class="notes-label">Notes</div>
+            <textarea class="notes-textarea" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+            <div class="notes-footer">
+              <span class="notes-timestamp">${lead.notes_updated_at ? 'Last edited ' + timeAgo(lead.notes_updated_at) : 'No notes yet'}</span>
+              <button class="notes-save-btn" onclick="saveNotes('${lead.id}', this.closest('.col-notes').querySelector('.notes-textarea').value)">Save</button>
+            </div>
           </div>
-        </div>
-        <div class="lead-qa-note-editor" id="qa-note-${lead.id}">
-          <textarea class="lead-qa-note-input" id="qa-note-input-${lead.id}" placeholder="Type a note… Enter to save, Shift+Enter for newline" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveQuickNote('${lead.id}')}">${lead.notes || ''}</textarea>
-          <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px;">
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeQuickNote('${lead.id}')">Cancel</button>
-            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();saveQuickNote('${lead.id}')">Save Note</button>
-          </div>
-        </div>
-        <div class="lead-qa-bar">
-          <button class="lead-qa-btn qa-sms" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
-            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span><span class="qa-label">Send Text</span>
-          </button>
-          <div class="qa-sep"></div>
-          <button class="lead-qa-btn qa-convo" onclick="event.stopPropagation();viewConversation('${lead.id}')">
-            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="qa-label">Conversation</span>
-          </button>
-          <div class="qa-sep"></div>
-          <button class="lead-qa-btn qa-disp" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">
-            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="qa-label">Disposition</span>
-          </button>
-          <div class="qa-sep"></div>
-          <button class="lead-qa-btn qa-note" onclick="event.stopPropagation();quickNote('${lead.id}')">
-            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><span class="qa-label">Quick Note</span>
-          </button>
-          <div class="qa-sep"></div>
-          <div style="position:relative;display:inline-block;">
-            <button class="lead-qa-btn" onclick="event.stopPropagation();toggleBucketDropdown('${lead.id}')">
-              <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span><span class="qa-label">Bucket</span>
+
+          <div class="col-actions">
+            <button class="btn-call" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#0b0f12" stroke-width="1.8"><path d="M3 2h2.5l1 3-1.5 1a7 7 0 003 3l1-1.5 3 1V11a1 1 0 01-1 1A10 10 0 012 3a1 1 0 011-1z"/></svg>
+              Send Text
             </button>
-            <div id="bucket-dd-${lead.id}" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:200;min-width:160px;max-height:200px;overflow-y:auto;padding:4px 0;">
-              <div onclick="event.stopPropagation();moveToBucket('${lead.id}',null)" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#6b7280;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">— No bucket</div>
-              ${allBuckets.filter(bk => !bk.is_folder).map(bk => `<div onclick="event.stopPropagation();moveToBucket('${lead.id}','${bk.id}')" style="padding:7px 14px;cursor:pointer;font-size:13px;color:#374151;display:flex;align-items:center;gap:8px;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bk.color};flex-shrink:0;"></span>${bk.name}</div>`).join('')}
+            <button class="btn-disposition" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">Disposition</button>
+            <div class="action-tags">
+              ${leadDispTags.map(t => `<span class="action-tag" style="background:${t.color}18;border-color:${t.color}30;color:${t.color}">${t.name}</span>`).join('')}
+              ${campProgress ? `<span class="action-tag teal">${hasActiveCampaign ? (lead.campaign_day != null ? `⚡ Day ${lead.campaign_day}` : '⚡ Active') : '✓ Done'}</span>` : ''}
+              ${lead.product ? `<span class="action-tag" onclick="editLeadProduct('${lead.id}', this)" style="cursor:pointer;">${lead.product}</span>` : ''}
+            </div>
+            <div class="ap-toggle">
+              <div class="ap-track ${lead.autopilot ? 'on' : ''}" onclick="toggleAutopilot('${lead.id}', ${!lead.autopilot})">
+                <div class="ap-thumb"></div>
+              </div>
+              <span class="ap-label ${lead.autopilot ? 'on' : ''}">Autopilot ${lead.autopilot ? 'ON' : 'OFF'}</span>
             </div>
           </div>
-          <div class="qa-sep"></div>
-          ${lead.is_sold
-            ? `<button class="lead-qa-btn qa-unsold" onclick="event.stopPropagation();markUnsold('${lead.id}','${safeName}')">
-                <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span><span class="qa-label">Unsold</span>
-              </button>`
-            : `<button class="lead-qa-btn qa-sold" onclick="event.stopPropagation();openMarkSoldModal('${lead.id}','${safeName}')">
-                <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span class="qa-label">Mark Sold</span>
-              </button>`}
-          <div class="qa-sep"></div>
-          <a class="lead-qa-btn qa-profile" href="/lead.html?id=${lead.id}" target="_blank" onclick="event.stopPropagation()">
-            <span class="qa-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="qa-label">Profile</span>
-          </a>
+
+          <div class="col-meta">
+            <div class="meta-sms-line">Last contact: <strong>${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '—'}</strong></div>
+            <div class="divider"></div>
+            <div class="meta-row"><span class="meta-key">Added</span><span class="meta-val">${lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
+            <div class="meta-row"><span class="meta-key">State</span><span class="meta-val">${lead.state || '—'}</span></div>
+            <div class="meta-row"><span class="meta-key">Zip</span><span class="meta-val">${lead.zip_code || '—'}</span></div>
+            <div class="meta-row"><span class="meta-key">DOB</span><span class="meta-val">${lead.date_of_birth || '—'}</span></div>
+            <div class="divider"></div>
+            <div class="meta-bucket-row">
+              <span class="meta-bucket-dot" style="background:${bucket ? bucket.color : '#00c9a7'}"></span>
+              <span class="meta-bucket-name">${bucket ? bucket.name : '—'}</span>
+            </div>
+            <div style="margin-top:6px;">
+              <button class="lead-3dot-btn" onclick="event.stopPropagation();openLeadActionsMenu('${lead.id}','${safeName}',this)" title="More actions" style="color:rgba(255,255,255,0.3);font-size:14px;">⋯ More</button>
+            </div>
+          </div>
+
         </div>
       </div>
     `

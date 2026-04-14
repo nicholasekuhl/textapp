@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark")})()</script>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stats — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
@@ -14,107 +13,113 @@
 <body>
 
 <div id="sidebar-root"></div>
-<div class="container">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
-    <div>
-      <h2 style="font-size:20px;font-weight:700;margin-bottom:2px;">Analytics</h2>
-      <div style="font-size:13px;color:#9ca3af;">Delivery stats, lead funnel, and campaign performance</div>
-    </div>
-    <div style="display:flex;gap:6px;">
-      <button class="btn btn-secondary btn-sm" id="an-btn-today" onclick="setAnalyticsPeriod('today')">Today</button>
-      <button class="btn btn-secondary btn-sm" id="an-btn-7d" onclick="setAnalyticsPeriod('7d')">7 days</button>
-      <button class="btn btn-primary btn-sm" id="an-btn-30d" onclick="setAnalyticsPeriod('30d')">30 days</button>
-      <button class="btn btn-secondary btn-sm" id="an-btn-90d" onclick="setAnalyticsPeriod('90d')">90 days</button>
+<div class="main-content">
+  <div class="topbar">
+    <span class="topbar-title">Analytics</span>
+    <div class="topbar-actions">
+      <button class="btn-ghost" id="an-btn-today" onclick="setAnalyticsPeriod('today')">Today</button>
+      <button class="btn-ghost" id="an-btn-7d" onclick="setAnalyticsPeriod('7d')">7 days</button>
+      <button class="btn-primary" id="an-btn-30d" onclick="setAnalyticsPeriod('30d')">30 days</button>
+      <button class="btn-ghost" id="an-btn-90d" onclick="setAnalyticsPeriod('90d')">90 days</button>
     </div>
   </div>
+  <div class="page-content">
 
-  <div id="scheduler-status-bar" style="background:white;border-radius:12px;padding:10px 16px;border:1px solid #f0f0f0;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+  <div id="scheduler-status-bar" style="background:#131a1f;border-radius:10px;padding:10px 16px;border:1px solid rgba(255,255,255,0.07);margin-bottom:16px;display:flex;align-items:center;gap:10px;">
     <span id="scheduler-dot" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;"></span>
     <span id="scheduler-status-text" style="font-size:13px;color:#6b7280;">Checking scheduler...</span>
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="an-metric-grid">
-    <div class="stat-card" style="border-left:3px solid #6366f1;">
-      <div class="num" id="an-messages-sent"><span class="skeleton" style="width:48px;height:28px;"></span></div>
-      <div class="lbl">Messages Sent</div>
-      <div id="an-messages-trend" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#00c9a7"></div>
+      <div class="stat-value" id="an-messages-sent"><span class="skeleton" style="width:48px;height:28px;"></span></div>
+      <div class="stat-label">Messages Sent</div>
+      <div id="an-messages-trend" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #22c55e;">
-      <div class="num" style="color:#059669;" id="an-delivery-rate"><span class="skeleton" style="width:56px;height:28px;"></span></div>
-      <div class="lbl">Delivery Rate</div>
-      <div id="an-delivery-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#38bdf8"></div>
+      <div class="stat-value" id="an-delivery-rate"><span class="skeleton" style="width:56px;height:28px;"></span></div>
+      <div class="stat-label">Delivery Rate</div>
+      <div id="an-delivery-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #8b5cf6;">
-      <div class="num" style="color:#7c3aed;" id="an-reply-rate"><span class="skeleton" style="width:48px;height:28px;"></span></div>
-      <div class="lbl">Reply Rate</div>
-      <div id="an-reply-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#fbbf24"></div>
+      <div class="stat-value" id="an-reply-rate"><span class="skeleton" style="width:48px;height:28px;"></span></div>
+      <div class="stat-label">Reply Rate</div>
+      <div id="an-reply-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #f59e0b;">
-      <div class="num" id="an-total-leads"><span class="skeleton" style="width:48px;height:28px;"></span></div>
-      <div class="lbl">Total Leads</div>
-      <div id="an-leads-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#00d4b4"></div>
+      <div class="stat-value" id="an-total-leads"><span class="skeleton" style="width:48px;height:28px;"></span></div>
+      <div class="stat-label">Total Leads</div>
+      <div id="an-leads-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #10b981;">
-      <div class="num" style="color:#059669;" id="an-sold"><span class="skeleton" style="width:40px;height:28px;"></span></div>
-      <div class="lbl">Leads Sold</div>
-      <div id="an-sold-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#34d399"></div>
+      <div class="stat-value" id="an-sold"><span class="skeleton" style="width:40px;height:28px;"></span></div>
+      <div class="stat-label">Leads Sold</div>
+      <div id="an-sold-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #3b82f6;">
-      <div class="num" id="an-active-campaigns"><span class="skeleton" style="width:36px;height:28px;"></span></div>
-      <div class="lbl">Active Campaigns</div>
-      <div id="an-campaigns-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#a78bfa"></div>
+      <div class="stat-value" id="an-active-campaigns"><span class="skeleton" style="width:36px;height:28px;"></span></div>
+      <div class="stat-label">Active Campaigns</div>
+      <div id="an-campaigns-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #10b981;">
-      <div class="num" style="color:#059669;" id="an-total-sold"><span class="skeleton" style="width:36px;height:28px;"></span></div>
-      <div class="lbl">Total Sold</div>
-      <div id="an-total-sold-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#34d399"></div>
+      <div class="stat-value" id="an-total-sold"><span class="skeleton" style="width:36px;height:28px;"></span></div>
+      <div class="stat-label">Total Sold</div>
+      <div id="an-total-sold-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
-    <div class="stat-card" style="border-left:3px solid #f59e0b;">
-      <div class="num" style="color:#d97706;" id="an-monthly-premium"><span class="skeleton" style="width:64px;height:28px;"></span></div>
-      <div class="lbl">Premium This Month</div>
-      <div id="an-monthly-premium-sub" style="font-size:11px;color:#9ca3af;margin-top:3px;"></div>
+    <div class="stat-card">
+      <div class="stat-accent" style="background:#fbbf24"></div>
+      <div class="stat-value" id="an-monthly-premium"><span class="skeleton" style="width:64px;height:28px;"></span></div>
+      <div class="stat-label">Premium This Month</div>
+      <div id="an-monthly-premium-sub" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;"></div>
     </div>
   </div>
 
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;" id="an-charts-row">
-    <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a2e;">Message Volume</div>
+    <div style="background:#131a1f;border-radius:10px;padding:20px 22px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#fff;">Message Volume</div>
       <div style="position:relative;height:200px;">
         <canvas id="an-volume-chart"></canvas>
       </div>
     </div>
-    <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a2e;">Lead Funnel</div>
+    <div style="background:#131a1f;border-radius:10px;padding:20px 22px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#fff;">Lead Funnel</div>
       <div id="an-funnel"></div>
     </div>
   </div>
 
   <!-- STATE PERFORMANCE MAP -->
-  <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;margin-bottom:20px;">
+  <div style="background:#131a1f;border-radius:10px;padding:20px 22px;border:1px solid rgba(255,255,255,0.07);margin-bottom:20px;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div>
-        <div style="font-size:15px;font-weight:600;color:#1a1a2e;">Performance by State</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Lead volume and sales by location</div>
+        <div style="font-size:15px;font-weight:600;color:#fff;">Performance by State</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px;">Lead volume and sales by location</div>
       </div>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-primary btn-sm" id="map-btn-leads" onclick="setMapMode('leads')">Leads</button>
-        <button class="btn btn-secondary btn-sm" id="map-btn-sales" onclick="setMapMode('sales')">Sales</button>
-        <button class="btn btn-secondary btn-sm" id="map-btn-conversion" onclick="setMapMode('conversion')">Conversion Rate</button>
+        <button class="btn-primary" id="map-btn-leads" onclick="setMapMode('leads')">Leads</button>
+        <button class="btn-ghost" id="map-btn-sales" onclick="setMapMode('sales')">Sales</button>
+        <button class="btn-ghost" id="map-btn-conversion" onclick="setMapMode('conversion')">Conversion Rate</button>
       </div>
     </div>
     <div id="an-state-map" style="width:100%;height:400px;position:relative;">
-      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:13px;">Loading map...</div>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.35);font-size:13px;">Loading map...</div>
     </div>
     <div id="an-map-legend" style="margin-top:10px;"></div>
     <div style="margin-top:20px;">
-      <div style="font-size:14px;font-weight:600;color:#1a1a2e;margin-bottom:10px;" id="map-top-states-title">Top States by Leads</div>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:10px;" id="map-top-states-title">Top States by Leads</div>
       <div id="an-top-states"></div>
     </div>
   </div>
 
   <div style="display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:20px;" id="an-bottom-row">
-    <div class="table-card">
-      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
+    <div class="table-card" style="background:#131a1f;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:15px;font-weight:600;">Campaign Performance</div>
       </div>
       <div style="overflow-x:auto;">
@@ -134,22 +139,22 @@
         </table>
       </div>
     </div>
-    <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;">
-      <div style="font-size:15px;font-weight:600;margin-bottom:4px;color:#1a1a2e;">Best Times to Send</div>
-      <div style="font-size:11px;color:#9ca3af;margin-bottom:14px;">Darker = more messages sent</div>
+    <div style="background:#131a1f;border-radius:10px;padding:20px 22px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px;color:#fff;">Best Times to Send</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:14px;">Darker = more messages sent</div>
       <div id="an-heatmap" style="overflow-x:auto;"></div>
     </div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="an-feed-row">
-    <div style="background:white;border-radius:16px;border:1px solid #f0f0f0;overflow:hidden;">
-      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;font-size:15px;font-weight:600;">Recent Activity</div>
+    <div style="background:#131a1f;border-radius:10px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:15px;font-weight:600;">Recent Activity</div>
       <div id="an-activity" style="max-height:340px;overflow-y:auto;">
-        <div style="padding:20px;text-align:center;color:#9ca3af;font-size:13px;">Loading...</div>
+        <div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">Loading...</div>
       </div>
     </div>
-    <div style="background:white;border-radius:16px;border:1px solid #f0f0f0;overflow:hidden;">
-      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
+    <div style="background:#131a1f;border-radius:10px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:15px;font-weight:600;">Recent Sales</div>
         <span id="an-sold-month-badge" style="font-size:12px;color:#059669;font-weight:600;"></span>
       </div>
@@ -160,43 +165,50 @@
   </div>
 
   <div id="an-commission-section" style="margin-top:8px;">
-    <div style="font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:14px;display:flex;align-items:center;gap:8px;">💰 Commission Earnings</div>
+    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px;">💰 Commission Earnings</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="an-comm-grid">
-      <div class="stat-card" style="border-left:3px solid #10b981;">
-        <div class="num" style="color:#059669;" id="an-comm-today">—</div>
-        <div class="lbl">Today</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#34d399"></div>
+        <div class="stat-value" id="an-comm-today">—</div>
+        <div class="stat-label">Today</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #10b981;">
-        <div class="num" style="color:#059669;" id="an-comm-week">—</div>
-        <div class="lbl">This Week</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#34d399"></div>
+        <div class="stat-value" id="an-comm-week">—</div>
+        <div class="stat-label">This Week</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #10b981;">
-        <div class="num" style="color:#059669;" id="an-comm-month">—</div>
-        <div class="lbl">This Month</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#34d399"></div>
+        <div class="stat-value" id="an-comm-month">—</div>
+        <div class="stat-label">This Month</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #10b981;">
-        <div class="num" style="color:#059669;" id="an-comm-year">—</div>
-        <div class="lbl">This Year</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#34d399"></div>
+        <div class="stat-value" id="an-comm-year">—</div>
+        <div class="stat-label">This Year</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #6366f1;">
-        <div class="num" id="an-comm-alltime">—</div>
-        <div class="lbl">All Time</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#a78bfa"></div>
+        <div class="stat-value" id="an-comm-alltime">—</div>
+        <div class="stat-label">All Time</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #6366f1;">
-        <div class="num" id="an-comm-avg">—</div>
-        <div class="lbl">Avg per Sale</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#a78bfa"></div>
+        <div class="stat-value" id="an-comm-avg">—</div>
+        <div class="stat-label">Avg per Sale</div>
       </div>
-      <div class="stat-card" style="border-left:3px solid #f59e0b;">
-        <div class="num" id="an-comm-sales-month">—</div>
-        <div class="lbl">Sales This Month</div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:#fbbf24"></div>
+        <div class="stat-value" id="an-comm-sales-month">—</div>
+        <div class="stat-label">Sales This Month</div>
       </div>
     </div>
-    <div style="background:white;border-radius:16px;padding:20px 22px;border:1px solid #f0f0f0;margin-bottom:20px;">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a2e;">Commission by Date <span style="font-size:12px;font-weight:400;color:#9ca3af;">(last 30 days)</span></div>
+    <div style="background:#131a1f;border-radius:10px;padding:20px 22px;border:1px solid rgba(255,255,255,0.07);margin-bottom:20px;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#fff;">Commission by Date <span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.35);">(last 30 days)</span></div>
       <div style="position:relative;height:200px;"><canvas id="an-commission-chart"></canvas></div>
     </div>
-    <div class="table-card" style="margin-bottom:20px;">
-      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;font-size:15px;font-weight:600;">Recent Sales</div>
+    <div class="table-card" style="margin-bottom:20px;background:#131a1f;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:15px;font-weight:600;">Recent Sales</div>
       <div style="overflow-x:auto;">
         <table style="width:100%;">
           <thead>
@@ -218,25 +230,26 @@
     </div>
 
     <!-- TWILIO DELIVERY METRICS -->
-    <div class="table-card" style="margin-bottom:20px;">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--color-border-light);font-size:15px;font-weight:600;color:var(--color-text);">Twilio Delivery Metrics <span style="font-size:12px;font-weight:400;color:var(--color-text-muted);">(last 100 messages per number)</span></div>
+    <div class="table-card" style="margin-bottom:20px;background:#131a1f;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:15px;font-weight:600;">Twilio Delivery Metrics <span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.35);">(last 100 messages per number)</span></div>
       <div id="stats-twilio-delivery-list" style="padding:0;">
-        <div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Loading...</div>
+        <div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">Loading...</div>
       </div>
     </div>
 
     <!-- PHONE HEALTH SECTION -->
-    <div class="table-card" style="margin-bottom:20px;">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--color-border-light);display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:15px;font-weight:600;color:var(--color-text);">Phone Number Health</div>
-        <a href="/settings.html#phone-numbers" style="font-size:12px;color:var(--color-primary);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Manage numbers →</a>
+    <div class="table-card" style="margin-bottom:20px;background:#131a1f;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:15px;font-weight:600;">Phone Number Health</div>
+        <a href="/settings.html#phone-numbers" style="font-size:12px;color:#00d4b4;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Manage numbers →</a>
       </div>
       <div id="stats-phone-health-list" style="padding:0;">
-        <div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Loading...</div>
+        <div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">Loading...</div>
       </div>
     </div>
   </div>
-</div>
+  </div><!-- /page-content -->
+</div><!-- /main-content -->
 
 <script src="/js/shared.js?v=2"></script>
 <script>
@@ -572,7 +585,7 @@
       const data = await res.json()
       const numbers = data.numbers || []
       if (!numbers.length) {
-        container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">No active phone numbers found.</div>`
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">No active phone numbers found.</div>`
         return
       }
       container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -609,7 +622,7 @@
         </tbody>
       </table>`
     } catch (err) {
-      container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Could not load Twilio delivery data.</div>`
+      container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">Could not load Twilio delivery data.</div>`
     }
   }
 
@@ -643,7 +656,7 @@
       const data = await res.json()
       const health = data.health || []
       if (!health.length) {
-        container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">No phone numbers found. <a href="/settings.html" style="color:var(--color-primary);">Add one in Settings.</a></div>`
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">No phone numbers found. <a href="/settings.html" style="color:var(--color-primary);">Add one in Settings.</a></div>`
         return
       }
       const badgeMap = {
@@ -675,7 +688,7 @@
         </tbody>
       </table>`
     } catch (err) {
-      container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px;">Could not load health data.</div>`
+      container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.35);font-size:13px;">Could not load health data.</div>`
     }
   }
 

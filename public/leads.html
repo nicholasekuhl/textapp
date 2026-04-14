@@ -7,20 +7,71 @@
   <title>Leads — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
   <style>
+.lead-list { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px 32px; }
+.lead-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; overflow: hidden; transition: border-color 0.12s; }
+.lead-card:hover { border-color: rgba(255,255,255,0.12); }
+.lead-card.has-notes { border-color: rgba(0,201,167,0.18); }
+.lead-card-body { display: grid; grid-template-columns: 220px 1fr 185px 195px; }
+.lead-card-body > div { border-right: 1px solid rgba(255,255,255,0.05); padding: 14px 15px; }
+.lead-card-body > div:last-child { border-right: none; }
+
+.col-contact-top { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
+.lead-cb { margin-top: 3px; accent-color: #00c9a7; cursor: pointer; flex-shrink: 0; }
+.lead-avatar { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.lead-name { font-size: 13.5px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-phone { font-size: 12px; color: #00d4b4; font-weight: 500; margin-top: 1px; }
+.lead-email { font-size: 11px; color: rgba(255,255,255,0.32); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-meta-line { font-size: 11.5px; color: rgba(255,255,255,0.38); margin-left: 45px; line-height: 1.7; }
+.lead-meta-line span { color: rgba(255,255,255,0.6); }
+.lead-local-time { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.28); margin: 5px 0 8px 45px; }
+.lead-status-row { margin-left: 45px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+
+.col-notes { display: flex; flex-direction: column; }
+.notes-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.22); margin-bottom: 6px; }
+.notes-textarea { flex: 1; min-height: 90px; resize: vertical; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 9px 11px; font-size: 12.5px; line-height: 1.6; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; transition: border-color 0.12s, background 0.12s; }
+.notes-textarea::placeholder { color: rgba(255,255,255,0.2); }
+.notes-textarea:focus { border-color: rgba(0,201,167,0.35); background: rgba(0,201,167,0.04); }
+.notes-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.notes-timestamp { font-size: 10.5px; color: rgba(255,255,255,0.2); }
+.notes-save-btn { font-size: 11px; font-weight: 500; color: rgba(0,201,167,0.6); cursor: pointer; background: none; border: none; transition: color 0.12s; }
+.notes-save-btn:hover { color: #00d4b4; }
+
+.col-actions { display: flex; flex-direction: column; gap: 7px; }
+.btn-call { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 8px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: #0b0f12; background: linear-gradient(135deg, #00c9a7, #0ea5e9); border: none; cursor: pointer; box-shadow: 0 2px 10px rgba(0,201,167,0.3); transition: box-shadow 0.12s, transform 0.12s; }
+.btn-call:hover { box-shadow: 0 4px 16px rgba(0,201,167,0.45); transform: translateY(-1px); }
+.btn-disposition { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 7px; border-radius: 8px; font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.12s, color 0.12s; }
+.btn-disposition:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.action-tags { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.action-tag { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); }
+.action-tag.teal { background: rgba(0,201,167,0.1); border-color: rgba(0,201,167,0.2); color: #00d4b4; }
+.action-tag.amber { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); color: #fbbf24; }
+.action-tag.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #f87171; }
+.col-actions .ap-toggle { margin-top: auto; padding-top: 6px; }
+
+.col-meta { display: flex; flex-direction: column; gap: 1px; }
+.meta-sms-line { font-size: 11px; color: rgba(255,255,255,0.3); padding: 2px 0; }
+.meta-sms-line strong { color: rgba(255,255,255,0.55); font-weight: 500; }
+.meta-row { display: flex; justify-content: space-between; align-items: baseline; padding: 2.5px 0; }
+.meta-key { font-size: 11px; color: rgba(255,255,255,0.28); }
+.meta-val { font-size: 11.5px; color: rgba(255,255,255,0.6); }
+.meta-bucket-row { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+.meta-bucket-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.meta-bucket-name { font-size: 11px; color: rgba(255,255,255,0.4); }
+
     .lead-3dot-btn {
       background: none;
-      border: 1px solid transparent;
+      border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 16px;
-      font-weight: 700;
-      color: #9ca3af;
-      padding: 2px 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.3);
+      padding: 2px 6px;
       line-height: 1;
-      letter-spacing: 1px;
-      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      transition: color 0.12s;
+      font-family: inherit;
     }
-    .lead-3dot-btn:hover { color: #6366f1; background: #f0f0ff; border-color: #e0e7ff; }
+    .lead-3dot-btn:hover { color: rgba(255,255,255,0.7); }
     #lead-actions-menu {
       display: none;
       position: absolute;
