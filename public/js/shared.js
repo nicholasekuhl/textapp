@@ -382,15 +382,17 @@ const renderSidebar = () => {
   const p = window.location.pathname
   const a = (href) => (p === href || p.endsWith(href)) ? ' active' : ''
 
-  const SVG_LEADS = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`
-  const SVG_BUCKETS = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
-  const SVG_CONV = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
-  const SVG_CAMP = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`
-  const SVG_STATS = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`
-  const SVG_CAL = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
-  const SVG_SETTINGS = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`
-  const SVG_ADMIN = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`
-  const SVG_BELL = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`
+  const SVG_LEADS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1.5 13.5c0-3 2-4.5 4.5-4.5s4.5 1.5 4.5 4.5"/><circle cx="12.5" cy="6" r="1.8"/><path d="M10.5 13.5c0-2 1-3 2-3s2 1 2 3"/></svg>`
+  const SVG_BUCKETS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="2"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>`
+  const SVG_ARCHIVE = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="3" rx="1"/><path d="M3 6v7a1 1 0 001 1h8a1 1 0 001-1V6"/><path d="M6 10h4"/></svg>`
+  const SVG_PIPELINE = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="3" height="12" rx="1"/><rect x="6.5" y="5" width="3" height="9" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/></svg>`
+  const SVG_CONV = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 5a1 1 0 00-1-1H3a1 1 0 00-1 1v6a1 1 0 001 1h2v2l3-2h5a1 1 0 001-1V5z"/></svg>`
+  const SVG_CAMP = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l5 3 7-4"/><rect x="2" y="4" width="12" height="9" rx="1"/></svg>`
+  const SVG_STATS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V9l3-3 3 2.5 3-5 3 2V13H2z"/></svg>`
+  const SVG_CAL = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 2v2M11 2v2M2 7h12"/></svg>`
+  const SVG_SETTINGS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>`
+  const SVG_ADMIN = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5 6.5 5z"/></svg>`
+  const SVG_BELL = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2a5 5 0 00-5 5v2l-1 2h12l-1-2V7a5 5 0 00-5-5z"/><path d="M6.5 13a1.5 1.5 0 003 0"/></svg>`
 
   root.innerHTML = `
 <div class="sidebar" id="nav-drawer">
@@ -410,8 +412,8 @@ const renderSidebar = () => {
   <nav class="sidebar-nav">
     <a href="/leads.html" class="nav-item${a('/leads.html')}">${SVG_LEADS}<span>Leads</span></a>
     <a href="/buckets.html" class="nav-item${a('/buckets.html')}">${SVG_BUCKETS}<span>Buckets</span></a>
-    <a href="/archive.html" class="nav-item${a('/archive.html')}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg><span>Archive</span></a>
-    <a href="/pipeline.html" class="nav-item${a('/pipeline.html')}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Pipeline</span></a>
+    <a href="/archive.html" class="nav-item${a('/archive.html')}">${SVG_ARCHIVE}<span>Archive</span></a>
+    <a href="/pipeline.html" class="nav-item${a('/pipeline.html')}">${SVG_PIPELINE}<span>Pipeline</span></a>
     <a href="/conversations.html" class="nav-item${a('/conversations.html')}">${SVG_CONV}<span>Conversations</span><span class="notif-badge-inline nav-badge alert" id="notif-badge" style="display:none;"></span></a>
     <a href="/campaigns.html" class="nav-item${a('/campaigns.html')}">${SVG_CAMP}<span>Campaigns</span></a>
     <a href="/stats.html" class="nav-item${a('/stats.html')}">${SVG_STATS}<span>Stats</span></a>
@@ -420,24 +422,28 @@ const renderSidebar = () => {
     <a href="/admin.html" id="admin-nav-link" class="nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}<span>Admin</span></a>
   </nav>
   <div class="sidebar-footer">
-    <div class="notif-wrap" id="notif-wrap" style="padding:0 8px 8px;">
-      <button class="notif-btn nav-item" onclick="toggleNotifPanel(event)" title="Notifications" style="width:100%;justify-content:flex-start;position:relative;">
-        ${SVG_BELL}<span>Notifications</span>
-        <span class="nav-badge alert" id="notif-count-badge" style="display:none;"></span>
-      </button>
-      <div class="notif-panel" id="notif-panel" style="display:none;">
-        <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
-        <div class="notif-list" id="notif-list"></div>
-        <div class="notif-footer">Showing last 30 notifications</div>
+    <div class="sidebar-footer-actions">
+      <div id="notif-wrap">
+        <button class="sidebar-icon-btn" id="notification-bell" title="Notifications" onclick="toggleNotifPanel(event)">
+          ${SVG_BELL}
+          <span class="sidebar-icon-btn-label">Notifications</span>
+          <span class="nav-badge alert" id="notif-count-badge" style="display:none;margin-left:auto;"></span>
+        </button>
+        <div class="notif-panel" id="notif-panel" style="display:none;">
+          <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
+          <div class="notif-list" id="notif-list"></div>
+          <div class="notif-footer">Showing last 30 notifications</div>
+        </div>
       </div>
     </div>
     <div class="profile-menu" id="profile-menu">
       <div class="user-row" onclick="toggleProfileMenu(event)" id="profile-trigger">
         <div class="user-avatar" id="user-avatar-initials">?</div>
-        <div style="min-width:0;">
+        <div style="flex:1;min-width:0;">
           <div class="user-name" id="header-agent-name"></div>
           <div class="user-sub" id="header-agency-name"></div>
         </div>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;flex-shrink:0"><path d="M5 3l4 4-4 4"/></svg>
       </div>
       <div class="profile-dropdown" id="profile-dropdown">
         <div class="profile-dropdown-header">

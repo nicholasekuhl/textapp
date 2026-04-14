@@ -10,16 +10,17 @@
 .lead-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; overflow: hidden; transition: border-color 0.12s; }
 .lead-card:hover { border-color: rgba(255,255,255,0.12); }
 .lead-card.has-notes { border-color: rgba(0,201,167,0.18); }
-.lead-card-body { display: grid; grid-template-columns: 220px 1fr 185px 195px; }
+.lead-card-body { display: grid; grid-template-columns: 260px 1fr 185px 195px; }
+.col-contact { overflow: hidden; }
 .lead-card-body > div { border-right: 1px solid rgba(255,255,255,0.05); padding: 14px 15px; }
 .lead-card-body > div:last-child { border-right: none; }
 
 .col-contact-top { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
 .lead-cb { margin-top: 3px; accent-color: #00c9a7; cursor: pointer; flex-shrink: 0; }
 .lead-avatar { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-.lead-name { font-size: 13.5px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-name { font-size: 13.5px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lead-phone { font-size: 12px; color: #00d4b4; font-weight: 500; margin-top: 1px; }
-.lead-email { font-size: 11px; color: rgba(255,255,255,0.32); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-email { font-size: 11px; color: rgba(255,255,255,0.32); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lead-meta-line { font-size: 11.5px; color: rgba(255,255,255,0.38); margin-left: 45px; line-height: 1.7; }
 .lead-meta-line span { color: rgba(255,255,255,0.6); }
 .lead-local-time { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.28); margin: 5px 0 8px 45px; }
@@ -174,6 +175,14 @@
     .map-table th { padding: 8px 10px; text-align: left; font-weight: 600; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
     .map-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; color: rgba(255,255,255,0.65); }
     .map-table tr:last-child td { border-bottom: none; }
+    .copy-btn {
+      background: none; border: none; cursor: pointer; padding: 2px;
+      color: rgba(255,255,255,0.25); border-radius: 4px;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: color 0.12s, background 0.12s; flex-shrink: 0;
+    }
+    .copy-btn:hover { color: #00d4b4; background: rgba(0,201,167,0.1); }
+    .copy-btn.copied { color: #34d399; }
     .map-select { width: 100%; padding: 5px 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 13px; outline: none; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); }
     .map-select:focus { border-color: rgba(0,201,167,0.4); }
     .map-preview-cell { color: rgba(255,255,255,0.35); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }

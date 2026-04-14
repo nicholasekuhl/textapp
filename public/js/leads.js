@@ -678,13 +678,22 @@ const renderLeads = (leads) => {
               <input type="checkbox" class="lead-cb lead-select-cb" data-id="${lead.id}" onchange="toggleLead(this)" ${selectedLeads.has(lead.id) ? 'checked' : ''}>
               <div class="lead-avatar" style="background:rgba(0,201,167,0.15);color:#00d4b4">${initials}</div>
               <div>
-                <div class="lead-name">
-                  <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#00d4b4'" onmouseout="this.style.color='inherit'">${name}</a>
-                  ${lead.opted_out ? '<span style="font-size:10px;font-weight:700;color:#f87171;margin-left:4px;">🚫 OPT-OUT</span>' : ''}
-                  ${lead.is_sold ? '<span style="font-size:10px;font-weight:700;color:#34d399;margin-left:4px;">✓ SOLD</span>' : ''}
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div class="lead-name">
+                    <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#00d4b4'" onmouseout="this.style.color='inherit'">${name}</a>
+                    ${lead.opted_out ? '<span style="font-size:10px;font-weight:700;color:#f87171;margin-left:4px;">🚫 OPT-OUT</span>' : ''}
+                    ${lead.is_sold ? '<span style="font-size:10px;font-weight:700;color:#34d399;margin-left:4px;">✓ SOLD</span>' : ''}
+                  </div>
+                  <button class="copy-btn" data-copy="${name}" title="Copy name"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2 10V2h8"/></svg></button>
                 </div>
-                <div class="lead-phone">${lead.phone}</div>
-                <div class="lead-email">${lead.email || ''}</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div class="lead-phone">${lead.phone}</div>
+                  <button class="copy-btn" data-copy="${lead.phone}" title="Copy phone"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2 10V2h8"/></svg></button>
+                </div>
+                ${lead.email ? `<div style="display:flex;align-items:center;gap:6px">
+                  <div class="lead-email">${lead.email}</div>
+                  <button class="copy-btn" data-copy="${lead.email}" title="Copy email"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2 10V2h8"/></svg></button>
+                </div>` : `<div class="lead-email"></div>`}
               </div>
             </div>
             <div class="lead-meta-line">${lead.state || ''} · <span>${lead.zip_code || ''}</span></div>
@@ -707,7 +716,7 @@ const renderLeads = (leads) => {
 
           <div class="col-actions">
             <button class="btn-call" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#0b0f12" stroke-width="1.8"><path d="M3 2h2.5l1 3-1.5 1a7 7 0 003 3l1-1.5 3 1V11a1 1 0 01-1 1A10 10 0 012 3a1 1 0 011-1z"/></svg>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0b0f12" stroke-width="1.5"><path d="M14 3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h3l2 2 2-2h3a1 1 0 001-1V3z"/><path d="M5 6h6M5 9h4"/></svg>
               Send Text
             </button>
             <button class="btn-disposition" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">Disposition</button>
@@ -3121,3 +3130,14 @@ window.addEventListener('scroll', debounceScroll(() => {
 }, 150))
 
 document.addEventListener('DOMContentLoaded', init)
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.copy-btn')
+  if (!btn) return
+  const text = btn.dataset.copy
+  if (!text) return
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied')
+    setTimeout(() => btn.classList.remove('copied'), 1500)
+  })
+})

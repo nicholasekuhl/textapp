@@ -242,3 +242,16 @@ body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f12; c
 /* ── New bucket/folder dropdown items ── */
 .new-dd-item { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; color: rgba(255,255,255,0.65); background: none; border: none; cursor: pointer; transition: background 0.1s; font-family: inherit; }
 .new-dd-item:hover { background: rgba(255,255,255,0.05); }
+
+/* ── Sidebar footer notification button ── */
+.sidebar-footer-actions { padding: 4px 8px 2px; }
+.sidebar-icon-btn {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 7px 10px; border-radius: 7px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.4); font-size: 13px; font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+}
+.sidebar-icon-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.75); }
+.sidebar-icon-btn-label { font-size: 13px; }
