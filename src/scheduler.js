@@ -8,6 +8,10 @@ const { isValidTimezone, isWithinQuietHours, checkSystemInitiatedLimit, getNextS
 const HEALTH_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const HEALTH_ALERT_THRESHOLD_MS = 5 * 60 * 1000
 
+// Per-user fairness cap — max jobs enqueued per user per scheduler tick.
+// Prevents one agent's blast from starving every other agent's sends.
+const RATE_PER_SECOND_PER_USER = 3
+
 // Status priority — never downgrade
 const STATUS_PRIORITY = { new: 0, contacted: 1, replied: 2, booked: 3, sold: 4 }
 const canUpgrade = (current, target) => (STATUS_PRIORITY[target] ?? -1) > (STATUS_PRIORITY[current] ?? -1)
@@ -305,8 +309,18 @@ const processQuickFollowups = async () => {
 
     if (error) throw error
 
-    // Only process campaigns that have message_1 (quick follow-up campaigns)
-    const quickEnrollments = (enrollments || []).filter(e => e.campaigns?.message_1)
+    // Only process campaigns that have message_1 (quick follow-up campaigns).
+    // Group by user_id and cap at RATE_PER_SECOND_PER_USER per tick for fairness.
+    const byUserQuick = {}
+    for (const e of (enrollments || [])) {
+      if (!e.campaigns?.message_1 || !e.user_id) continue
+      if (!byUserQuick[e.user_id]) byUserQuick[e.user_id] = []
+      byUserQuick[e.user_id].push(e)
+    }
+    const quickEnrollments = []
+    for (const userEnrollments of Object.values(byUserQuick)) {
+      quickEnrollments.push(...userEnrollments.slice(0, RATE_PER_SECOND_PER_USER))
+    }
     if (quickEnrollments.length === 0) return
 
     // Batch-load phone numbers and profiles
@@ -636,8 +650,21 @@ const processScheduledMessages = async () => {
     if (error) throw error
     if (!dueCampaignLeads || dueCampaignLeads.length === 0) return
 
+    // Group by user_id and cap at RATE_PER_SECOND_PER_USER per tick for fairness.
+    // Prevents one agent's large campaign from monopolising every other agent's sends.
+    const byUserSched = {}
+    for (const e of dueCampaignLeads) {
+      if (!e.user_id) continue
+      if (!byUserSched[e.user_id]) byUserSched[e.user_id] = []
+      byUserSched[e.user_id].push(e)
+    }
+    const throttledLeads = []
+    for (const userLeads of Object.values(byUserSched)) {
+      throttledLeads.push(...userLeads.slice(0, RATE_PER_SECOND_PER_USER))
+    }
+
     // Batch-load active phone numbers and profiles for all unique user_ids in this batch
-    const userIds = [...new Set(dueCampaignLeads.map(e => e.user_id).filter(Boolean))]
+    const userIds = [...new Set(throttledLeads.map(e => e.user_id).filter(Boolean))]
     let phoneNumbersMap = {}  // userId -> array of {phone_number, state, is_default}
     let profileMap = {}
     if (userIds.length > 0) {
@@ -656,7 +683,7 @@ const processScheduledMessages = async () => {
       }
     }
 
-    for (const enrollment of dueCampaignLeads) {
+    for (const enrollment of throttledLeads) {
       if (!enrollment.leads || !enrollment.campaigns) continue
       if (enrollment.campaigns.status !== 'active') continue
 
@@ -861,7 +888,19 @@ const processScheduledMessages = async () => {
       .lte('send_at', now.toISOString())
 
     if (dueOneOff && dueOneOff.length > 0) {
+      // Same per-user fairness cap for one-off scheduled messages
+      const byUserOneOff = {}
       for (const sm of dueOneOff) {
+        if (!sm.user_id) continue
+        if (!byUserOneOff[sm.user_id]) byUserOneOff[sm.user_id] = []
+        byUserOneOff[sm.user_id].push(sm)
+      }
+      const throttledOneOff = []
+      for (const userMsgs of Object.values(byUserOneOff)) {
+        throttledOneOff.push(...userMsgs.slice(0, RATE_PER_SECOND_PER_USER))
+      }
+
+      for (const sm of throttledOneOff) {
         if (!sm.leads) continue
         if (sm.leads.status === 'opted_out' || sm.leads.is_blocked) {
           await supabase.from('scheduled_messages').update({ status: 'cancelled' }).eq('id', sm.id)
