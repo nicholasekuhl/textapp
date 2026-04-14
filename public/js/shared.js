@@ -422,22 +422,37 @@ const renderSidebar = () => {
     <a href="/admin.html" id="admin-nav-link" class="nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}<span>Admin</span></a>
   </nav>
   <div class="sidebar-footer">
-    <div class="sidebar-footer-actions">
-      <div id="notif-wrap">
-        <button class="sidebar-icon-btn" id="notification-bell" title="Notifications" onclick="toggleNotifPanel(event)">
-          ${SVG_BELL}
-          <span class="sidebar-icon-btn-label">Notifications</span>
-          <span class="nav-badge alert" id="notif-count-badge" style="display:none;margin-left:auto;"></span>
-        </button>
-        <div class="notif-panel" id="notif-panel" style="display:none;">
-          <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
-          <div class="notif-list" id="notif-list"></div>
-          <div class="notif-footer">Showing last 30 notifications</div>
-        </div>
+    <div id="notif-wrap" style="padding:0 8px 4px;">
+      <button class="nav-item" id="notification-bell" onclick="toggleNotifPanel(event)" style="width:100%;border:none;cursor:pointer;font-family:inherit;">
+        ${SVG_BELL}<span>Notifications</span>
+        <span class="nav-badge alert" id="notif-count-badge" style="display:none;margin-left:auto;"></span>
+      </button>
+      <div class="notif-panel" id="notif-panel" style="display:none;">
+        <div class="notif-panel-header"><span>Notifications</span><a onclick="markAllNotifRead()">Mark all read</a></div>
+        <div class="notif-list" id="notif-list"></div>
+        <div class="notif-footer">Showing last 30 notifications</div>
       </div>
     </div>
-    <div class="profile-menu" id="profile-menu">
-      <div class="user-row" onclick="toggleProfileMenu(event)" id="profile-trigger">
+    <div style="position:relative;" id="profile-menu">
+      <div id="profile-dropdown" style="display:none;position:absolute;bottom:70px;left:8px;right:8px;background:#1a2228;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px;z-index:300;">
+        <div id="profile-dropdown-name" style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:500;padding:6px 8px 2px;"></div>
+        <div id="profile-dropdown-email" style="font-size:11px;color:rgba(255,255,255,0.35);padding:0 8px 8px;"></div>
+        <div style="border-top:1px solid rgba(255,255,255,0.07);margin:4px 0;"></div>
+        <button class="nav-item" onclick="goToSettings('account');document.getElementById('profile-dropdown').style.display='none';" style="width:100%;border:none;cursor:pointer;font-family:inherit;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="2.5"/><path d="M2.5 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+          Profile &amp; Settings
+        </button>
+        <a href="/admin.html" id="profile-admin-link" class="nav-item" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5 6.5 5z"/></svg>
+          Admin Panel
+        </a>
+        <div style="border-top:1px solid rgba(255,255,255,0.07);margin:4px 0;"></div>
+        <button class="nav-item" onclick="logout()" style="width:100%;border:none;cursor:pointer;font-family:inherit;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color=''">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"/></svg>
+          Log out
+        </button>
+      </div>
+      <div class="user-row" id="profile-trigger" onclick="event.stopPropagation();var d=document.getElementById('profile-dropdown');d.style.display=d.style.display==='block'?'none':'block';">
         <div class="user-avatar" id="user-avatar-initials">?</div>
         <div style="flex:1;min-width:0;">
           <div class="user-name" id="header-agent-name"></div>
@@ -445,19 +460,20 @@ const renderSidebar = () => {
         </div>
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;flex-shrink:0"><path d="M5 3l4 4-4 4"/></svg>
       </div>
-      <div class="profile-dropdown" id="profile-dropdown">
-        <div class="profile-dropdown-header">
-          <div class="profile-dropdown-name" id="profile-dropdown-name"></div>
-          <div class="profile-dropdown-email" id="profile-dropdown-email"></div>
-        </div>
-        <button class="profile-dropdown-item" onclick="goToSettings('account'); closeProfileMenu()"><span class="profile-dropdown-icon">👤</span> Profile &amp; Settings</button>
-        <a href="/admin.html" id="profile-admin-link" class="profile-dropdown-item" style="display:none;"><span class="profile-dropdown-icon">🛡️</span> Admin Panel</a>
-        <div class="profile-dropdown-divider"></div>
-        <button class="profile-dropdown-item danger" onclick="logout()"><span class="profile-dropdown-icon">→</span> Log out</button>
-      </div>
     </div>
   </div>
 </div>`
+
+  if (!window._profileDropdownBound) {
+    window._profileDropdownBound = true
+    document.addEventListener('click', function(e) {
+      const pm = document.getElementById('profile-menu')
+      if (pm && !pm.contains(e.target)) {
+        const d = document.getElementById('profile-dropdown')
+        if (d) d.style.display = 'none'
+      }
+    })
+  }
 }
 
 function toggleDarkMode() {
