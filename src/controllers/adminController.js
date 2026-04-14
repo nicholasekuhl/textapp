@@ -182,7 +182,7 @@ const getStats = async (req, res) => {
       supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_suspended', true),
       supabase.from('leads').select('*', { count: 'exact', head: true })
     ])
-    res.json({ total: totalUsers || 0, active: activeUsers || 0, suspended: suspendedUsers || 0, leads: totalLeads || 0 })
+    res.json({ totalUsers: totalUsers || 0, active: activeUsers || 0, suspended: suspendedUsers || 0, totalLeads: totalLeads || 0 })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -102,10 +102,10 @@
   <div class="page-sub">View and manage all Veloxo user accounts.</div>
 
   <div class="stats-row">
-    <div class="stat-card"><div class="num" id="stat-total">—</div><div class="lbl">Total Users</div></div>
+    <div class="stat-card"><div class="num" id="stat-total-users">—</div><div class="lbl">Total Users</div></div>
     <div class="stat-card"><div class="num" id="stat-active" style="color:#059669;">—</div><div class="lbl">Active</div></div>
     <div class="stat-card"><div class="num" id="stat-suspended" style="color:#dc2626;">—</div><div class="lbl">Suspended</div></div>
-    <div class="stat-card"><div class="num" id="stat-leads" style="color:#6366f1;">—</div><div class="lbl">Total Leads</div></div>
+    <div class="stat-card"><div class="num" id="stat-total-leads" style="color:#6366f1;">—</div><div class="lbl">Total Leads</div></div>
   </div>
 
   <!-- Admin tabs -->
@@ -174,7 +174,7 @@
     <div class="error-msg" id="invite-error"></div>
     <div class="form-group">
       <label>Email Address</label>
-      <input type="email" id="invite-email-input" placeholder="agent@theiragency.com" autocomplete="off">
+      <input type="email" id="invite-email" placeholder="agent@theiragency.com" autocomplete="off">
     </div>
     <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin-top:-8px;">They'll receive a link to create their account and set a password.</p>
     <div class="modal-footer">
@@ -232,7 +232,6 @@
 
 <script src="/js/shared.js?v=2"></script>
 <script>
-  let allUsers = []
   let currentUserId = null
   let suspendTargetId = null
   let deleteTargetId = null
@@ -240,113 +239,14 @@
 
   const init = async () => {
     renderSidebar()
-    // Verify admin access
     const meRes = await fetch('/auth/me')
     if (!meRes.ok) { window.location.href = '/login.html'; return }
     const meData = await meRes.json()
     if (!meData.user?.is_admin) { window.location.href = '/'; return }
     currentUserId = meData.user.id
-    loadAdminStats()
-    loadUsers()
   }
 
-  const loadAdminStats = async () => {
-    try {
-      const res = await fetch('/admin/stats')
-      if (!res.ok) return
-      const data = await res.json()
-      document.getElementById('stat-total').textContent = (data.total || 0).toLocaleString()
-      document.getElementById('stat-active').textContent = (data.active || 0).toLocaleString()
-      document.getElementById('stat-suspended').textContent = (data.suspended || 0).toLocaleString()
-      document.getElementById('stat-leads').textContent = (data.leads || 0).toLocaleString()
-    } catch { /* non-fatal — renderStats() from loadUsers() will fill in */ }
-  }
-
-  const loadUsers = async () => {
-    const tbody = document.getElementById('users-tbody')
-    if (tbody && !allUsers.length) {
-      tbody.innerHTML = Array(5).fill(0).map(() => `
-        <tr>
-          <td><div class="skeleton" style="height:14px;width:55%;margin-bottom:5px;border-radius:4px;"></div><div class="skeleton" style="height:11px;width:70%;border-radius:4px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:60%;border-radius:4px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:80px;border-radius:4px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:36px;border-radius:4px;"></div></td>
-          <td><div class="skeleton" style="height:13px;width:36px;border-radius:4px;"></div></td>
-          <td><div class="skeleton" style="height:20px;width:56px;border-radius:20px;"></div></td>
-          <td><div class="skeleton" style="height:28px;width:70px;border-radius:6px;"></div></td>
-        </tr>`).join('')
-    }
-    try {
-      const res = await fetch('/admin/users')
-      if (!res.ok) { window.location.href = '/'; return }
-      const data = await res.json()
-      allUsers = data.users || []
-      renderStats()
-      renderUsers(allUsers)
-    } catch (err) {
-      console.error('Failed to load users:', err)
-      toast.error('Failed to load users', 'Could not fetch user data')
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Could not load users.</td></tr>`
-    }
-  }
-
-  const renderStats = () => {
-    document.getElementById('stat-total').textContent = allUsers.length
-    document.getElementById('stat-active').textContent = allUsers.filter(u => !u.is_suspended).length
-    document.getElementById('stat-suspended').textContent = allUsers.filter(u => u.is_suspended).length
-    document.getElementById('stat-leads').textContent = allUsers.reduce((s, u) => s + (u.lead_count || 0), 0).toLocaleString()
-  }
-
-  const renderUsers = (users) => {
-    const tbody = document.getElementById('users-tbody')
-    if (!users.length) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No users found</p></div></td></tr>`
-      return
-    }
-    tbody.innerHTML = users.map(u => {
-      const isMe = u.id === currentUserId
-      const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
-      const statusBadge = u.is_suspended
-        ? `<span class="badge badge-suspended">Suspended</span>`
-        : `<span class="badge badge-active">Active</span>`
-      const adminBadge = u.is_admin ? `<span class="badge badge-admin" style="margin-left:4px;">Admin</span>` : ''
-      const meBadge = isMe ? `<span style="font-size:11px;color:#9ca3af;font-weight:400;"> — You</span>` : ''
-
-      let actions = ''
-      if (!isMe) {
-        if (u.is_suspended) {
-          actions += `<button class="btn btn-success btn-sm" onclick="openUnsuspend('${u.id}', '${(u.agent_name || u.email).replace(/'/g, "\\'")}')">Unsuspend</button>`
-        } else {
-          actions += `<button class="btn btn-secondary btn-sm" onclick="openSuspend('${u.id}', '${(u.agent_name || u.email).replace(/'/g, "\\'")}')">Suspend</button>`
-        }
-        actions += `<button class="btn btn-danger btn-sm" onclick="openDelete('${u.id}', '${u.email.replace(/'/g, "\\'")}')">Delete</button>`
-      }
-
-      return `<tr>
-        <td>
-          <div class="user-name">${u.agent_name || '—'}${adminBadge}${meBadge}</div>
-          <div class="user-email">${u.email}</div>
-        </td>
-        <td style="color:#6b7280;">${u.agency_name || '—'}</td>
-        <td style="color:#9ca3af;white-space:nowrap;">${joined}</td>
-        <td style="font-weight:600;">${(u.lead_count || 0).toLocaleString()}</td>
-        <td style="color:#6b7280;">${(u.message_count_this_month || 0).toLocaleString()}</td>
-        <td>${statusBadge}</td>
-        <td><div class="actions">${actions || '<span style="color:#d1d5db;font-size:12px;">—</span>'}</div></td>
-      </tr>`
-    }).join('')
-  }
-
-  const filterUsers = (q) => {
-    const lower = q.toLowerCase()
-    renderUsers(allUsers.filter(u =>
-      (u.agent_name || '').toLowerCase().includes(lower) ||
-      (u.email || '').toLowerCase().includes(lower) ||
-      (u.agency_name || '').toLowerCase().includes(lower)
-    ))
-  }
-
-  // SUSPEND
+  // SUSPEND MODAL
   const openSuspend = (id, name) => {
     suspendTargetId = id
     document.getElementById('suspend-name').textContent = name
@@ -366,33 +266,21 @@
       const res = await fetch(`/admin/users/${suspendTargetId}/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ reason })
       })
       const data = await res.json()
       if (!data.success) { errEl.textContent = data.error || 'Failed to suspend.'; errEl.style.display = 'block'; return }
       closeSuspendModal()
       loadUsers()
-      toast.warning('Account suspended', 'User has been logged out and access revoked')
+      loadAdminStats()
     } catch (err) {
       errEl.textContent = 'Something went wrong.'
       errEl.style.display = 'block'
     }
   }
 
-  // UNSUSPEND
-  const openUnsuspend = async (id, name) => {
-    if (!window.confirm(`Unsuspend ${name}? They will regain access to the app immediately.`)) return
-    try {
-      const res = await fetch(`/admin/users/${id}/unsuspend`, { method: 'POST' })
-      const data = await res.json()
-      if (data.success) { loadUsers(); toast.success('Account unsuspended', `${name} can now access the app`) }
-      else toast.error('Error', data.error || 'Failed to unsuspend')
-    } catch {
-      toast.error('Error', 'Something went wrong')
-    }
-  }
-
-  // DELETE
+  // DELETE MODAL
   const openDelete = (id, email) => {
     deleteTargetId = id
     deleteTargetEmail = email
@@ -414,69 +302,17 @@
       const res = await fetch(`/admin/users/${deleteTargetId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ confirm: 'DELETE' })
       })
       const data = await res.json()
       if (!data.success) { errEl.textContent = data.error || 'Failed to delete.'; errEl.style.display = 'block'; return }
       closeDeleteModal()
       loadUsers()
-      toast.info('Account deleted', 'User and all associated data have been removed')
+      loadAdminStats()
     } catch {
       errEl.textContent = 'Something went wrong.'
       errEl.style.display = 'block'
-    }
-  }
-
-  const logout = async () => {
-    await fetch('/auth/logout', { method: 'POST' })
-    window.location.href = '/login.html'
-  }
-
-  // INVITE
-  const openInviteModal = () => {
-    document.getElementById('invite-email-input').value = ''
-    document.getElementById('invite-error').style.display = 'none'
-    document.getElementById('invite-submit-btn').disabled = false
-    document.getElementById('invite-submit-btn').textContent = 'Send Invite'
-    document.getElementById('invite-modal').classList.add('open')
-    setTimeout(() => document.getElementById('invite-email-input').focus(), 50)
-  }
-  const closeInviteModal = () => {
-    document.getElementById('invite-modal').classList.remove('open')
-  }
-  const sendInvite = async () => {
-    const email = document.getElementById('invite-email-input').value.trim()
-    const errEl = document.getElementById('invite-error')
-    const btn = document.getElementById('invite-submit-btn')
-    errEl.style.display = 'none'
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errEl.textContent = 'Please enter a valid email address.'
-      errEl.style.display = 'block'
-      return
-    }
-    btn.disabled = true
-    btn.textContent = 'Sending...'
-    try {
-      const res = await fetch('/auth/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        errEl.textContent = data.error || 'Failed to send invite.'
-        errEl.style.display = 'block'
-        btn.disabled = false
-        btn.textContent = 'Send Invite'
-        return
-      }
-      closeInviteModal()
-      toast.success('Invite sent', `Invite email sent to ${email}`)
-    } catch {
-      errEl.textContent = 'Something went wrong. Please try again.'
-      errEl.style.display = 'block'
-      btn.disabled = false
-      btn.textContent = 'Send Invite'
     }
   }
 
@@ -484,8 +320,7 @@
     if (e.key === 'Escape') { closeSuspendModal(); closeDeleteModal(); closeInviteModal() }
   })
 
-  // ─── ADMIN TABS ────────────────────────────────────────────────────────────
-
+  // ADMIN TABS
   const showAdminTab = (tab) => {
     document.getElementById('tab-users').style.display = tab === 'users' ? 'block' : 'none'
     document.getElementById('tab-compliance').style.display = tab === 'compliance' ? 'block' : 'none'
@@ -499,24 +334,18 @@
   }
 
   let complianceLoaded = false
-
   const loadComplianceLog = async () => {
     if (complianceLoaded) return
     try {
-      const res = await fetch('/admin/compliance-overrides')
+      const res = await fetch('/admin/compliance-overrides', { credentials: 'include' })
       const data = await res.json()
       const loading = document.getElementById('compliance-log-loading')
       const table = document.getElementById('compliance-log-table')
       const empty = document.getElementById('compliance-empty')
       const tbody = document.getElementById('compliance-tbody')
-
       loading.style.display = 'none'
       const rows = data.overrides || []
-      if (!rows.length) {
-        empty.style.display = 'block'
-        return
-      }
-
+      if (!rows.length) { empty.style.display = 'block'; return }
       tbody.innerHTML = rows.map(r => {
         const dt = r.created_at ? new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
         const preview = r.message_body ? r.message_body.slice(0, 60) + (r.message_body.length > 60 ? '…' : '') : '—'
@@ -537,6 +366,103 @@
   }
 
   init()
+</script>
+
+<script>
+function openInviteModal() {
+  document.getElementById('invite-modal').style.display = 'flex'
+  document.getElementById('invite-email').value = ''
+  document.getElementById('invite-email').focus()
+}
+
+function closeInviteModal() {
+  document.getElementById('invite-modal').style.display = 'none'
+}
+
+async function sendInvite() {
+  const email = document.getElementById('invite-email').value.trim()
+  if (!email) return
+  const btn = document.getElementById('invite-submit-btn')
+  btn.disabled = true
+  btn.textContent = 'Sending...'
+  try {
+    const res = await fetch('/auth/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email })
+    })
+    const data = await res.json()
+    if (data.success) {
+      closeInviteModal()
+      showToast('Invite sent to ' + email, 'success')
+      setTimeout(() => loadUsers(), 1000)
+    } else {
+      showToast(data.error || 'Failed to send invite', 'error')
+    }
+  } catch (err) {
+    showToast('Something went wrong', 'error')
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Send Invite'
+  }
+}
+
+async function loadAdminStats() {
+  try {
+    const res = await fetch('/admin/stats', { credentials: 'include' })
+    const data = await res.json()
+    document.getElementById('stat-total-users').textContent = data.totalUsers ?? '—'
+    document.getElementById('stat-active').textContent = data.active ?? '—'
+    document.getElementById('stat-suspended').textContent = data.suspended ?? '—'
+    document.getElementById('stat-total-leads').textContent = data.totalLeads ?? '—'
+  } catch (err) { console.error('Stats error', err) }
+}
+
+async function loadUsers() {
+  try {
+    const res = await fetch('/admin/users', { credentials: 'include' })
+    const data = await res.json()
+    const tbody = document.getElementById('users-tbody')
+    if (!tbody) return
+    tbody.innerHTML = (data.users || []).map(u => `
+      <tr>
+        <td>${u.agent_name || '—'}<br>
+          <small style="color:#888">${u.email}</small></td>
+        <td>${u.agency_name || '—'}</td>
+        <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+        <td>${u.lead_count ?? 0}</td>
+        <td>${u.messages_month ?? 0}</td>
+        <td><span class="badge ${u.suspended ? 'badge-red' : 'badge-green'}">
+          ${u.suspended ? 'Suspended' : 'Active'}</span></td>
+        <td>
+          <button onclick="${u.suspended ? 'unsuspendUser' : 'suspendUser'}('${u.id}')"
+            class="btn btn-sm ${u.suspended ? 'btn-success' : 'btn-danger'}">
+            ${u.suspended ? 'Unsuspend' : 'Suspend'}
+          </button>
+        </td>
+      </tr>
+    `).join('')
+  } catch (err) { console.error('Users error', err) }
+}
+
+async function suspendUser(id) {
+  if (!confirm('Suspend this agent?')) return
+  await fetch(`/admin/users/${id}/suspend`, { method: 'POST', credentials: 'include' })
+  loadUsers()
+  loadAdminStats()
+}
+
+async function unsuspendUser(id) {
+  await fetch(`/admin/users/${id}/unsuspend`, { method: 'POST', credentials: 'include' })
+  loadUsers()
+  loadAdminStats()
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadAdminStats()
+  loadUsers()
+})
 </script>
 </body>
 </html>
