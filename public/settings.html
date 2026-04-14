@@ -1,17 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark")})()</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings — Veloxo</title>
   <link rel="stylesheet" href="/css/shared.css?v=2">
   <script src="/toast.js?v=2"></script>
+  <style>
+    .settings-layout { display: grid; grid-template-columns: 192px 1fr; min-height: calc(100vh - 60px); }
+    .settings-nav { background: #0e1419; border-right: 1px solid rgba(255,255,255,0.06); padding: 12px 8px; }
+    .settings-nav-item { display: block; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.45); cursor: pointer; margin-bottom: 2px; transition: background 0.12s, color 0.12s; }
+    .settings-nav-item:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.75); }
+    .settings-nav-item.active { background: rgba(0,201,167,0.12); color: #00d4b4; }
+    .settings-nav-mobile { display: none; padding: 12px 16px; }
+    .settings-nav-mobile select { width: 100%; padding: 7px 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(255,255,255,0.7); font-size: 13px; font-family: inherit; outline: none; }
+    .settings-panel { display: none; padding: 20px 24px; }
+    .settings-panel.active { display: block; }
+    .settings-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
+    .settings-card h2 { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+    .settings-card > p { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 16px; line-height: 1.6; }
+    .settings-section-title { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 12px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+    .form-group input:not([type=checkbox]):not([type=radio]),
+    .form-group textarea,
+    .form-group select { width: 100%; padding: 8px 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; box-sizing: border-box; transition: border-color 0.12s, background 0.12s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: rgba(0,201,167,0.35); background: rgba(0,201,167,0.04); }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(255,255,255,0.2); }
+    .form-group input[readonly] { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.3); cursor: not-allowed; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* Toggle switches */
+    .toggle { position: relative; display: inline-block; width: 34px; height: 19px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider { position: absolute; inset: 0; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+    .toggle-slider::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .toggle input:checked + .toggle-slider { background: linear-gradient(90deg, #00c9a7, #0ea5e9); }
+    .toggle input:checked + .toggle-slider::after { transform: translateX(15px); }
+    /* Compliance preview */
+    .compliance-preview-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+    .compliance-preview-label { font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    /* Help text */
+    .help-text { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 4px; line-height: 1.5; }
+    /* Nickname tip */
+    .nickname-tip { font-size: 12px; color: #00d4b4; font-weight: 500; margin-top: 6px; padding: 8px 12px; background: rgba(0,201,167,0.06); border-radius: 7px; border-left: 3px solid rgba(0,201,167,0.4); }
+  </style>
 </head>
 <body>
 
 <div id="sidebar-root"></div>
-<div class="container">
+<div class="main-content">
+  <div class="topbar">
+    <span class="topbar-title">Settings</span>
+  </div>
   <div class="settings-layout">
     <div class="settings-nav">
       <div class="settings-nav-item active" onclick="showSettingsPanel('dispositions', this)">Disposition Tags</div>
@@ -35,7 +75,7 @@
         <div class="settings-card">
           <h2>Disposition Tags</h2>
           <p>Create tags to categorize leads after conversations. Each tag can optionally trigger a drip sequence.</p>
-          <button class="btn btn-primary" onclick="openCreateDispositionModal()">+ New Disposition Tag</button>
+          <button class="btn-primary" onclick="openCreateDispositionModal()">+ New Disposition Tag</button>
           <div class="settings-section-title" style="margin-top:24px;">Current Tags</div>
           <div id="disposition-tags-list">
             <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No disposition tags yet</div>
@@ -47,7 +87,7 @@
         <div class="settings-card">
           <h2>Preset Templates</h2>
           <p>Save your best messages and fire them with one click from any conversation.</p>
-          <button class="btn btn-primary" onclick="openCreateTemplateModal()">+ New Template</button>
+          <button class="btn-primary" onclick="openCreateTemplateModal()">+ New Template</button>
           <div class="settings-section-title" style="margin-top:24px;">Current Templates</div>
           <div id="templates-list">
             <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No templates yet</div>
@@ -57,11 +97,11 @@
       <!-- PHONE NUMBERS PANEL -->
       <div class="settings-panel" id="panel-phone-numbers">
         <!-- Critical health banner -->
-        <div id="pn-critical-banner" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-md);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <div id="pn-critical-banner" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;align-items:center;gap:12px;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <div>
-            <div style="font-size:13px;font-weight:600;color:#b91c1c;" id="pn-critical-banner-text">One or more phone numbers have critical health issues.</div>
-            <div style="font-size:12px;color:#dc2626;margin-top:2px;">High violation counts or low delivery rates may result in number suspension.</div>
+            <div style="font-size:13px;font-weight:600;color:#f87171;" id="pn-critical-banner-text">One or more phone numbers have critical health issues.</div>
+            <div style="font-size:12px;color:#f87171;opacity:0.8;margin-top:2px;">High violation counts or low delivery rates may result in number suspension.</div>
           </div>
         </div>
 
@@ -74,29 +114,29 @@
             <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;position:relative;">
               <label>State</label>
               <input type="text" id="pn-search-state-input" placeholder="Type state name..." autocomplete="off" oninput="filterStateDropdown()" onfocus="filterStateDropdown()" style="width:100%;">
-              <div id="pn-state-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-md);max-height:200px;overflow-y:auto;z-index:100;margin-top:2px;"></div>
+              <div id="pn-state-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#131a1f;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:200px;overflow-y:auto;z-index:100;margin-top:2px;"></div>
             </div>
-            <div style="font-size:13px;color:var(--color-text-muted);padding-bottom:8px;">or</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.35);padding-bottom:8px;">or</div>
             <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0;">
               <label>Area Code</label>
               <input type="text" id="pn-search-areacode" placeholder="555" maxlength="3" style="width:100%;">
             </div>
-            <button class="btn btn-primary" onclick="searchNumbers()" id="pn-search-btn" style="margin-bottom:0;white-space:nowrap;">Search</button>
+            <button class="btn-primary" onclick="searchNumbers()" id="pn-search-btn" style="margin-bottom:0;white-space:nowrap;">Search</button>
           </div>
           <div id="pn-search-results" style="margin-top:16px;"></div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:28px;margin-bottom:12px;">
             <div class="settings-section-title" style="margin:0;">My Numbers</div>
             <div style="display:flex;align-items:center;gap:10px;">
-              <span id="pn-last-updated" style="font-size:11px;color:var(--color-text-muted);"></span>
-              <button class="btn btn-secondary btn-sm" id="pn-refresh-btn" onclick="refreshHealthData()" style="display:flex;align-items:center;gap:6px;">
+              <span id="pn-last-updated" style="font-size:11px;color:rgba(255,255,255,0.35);"></span>
+              <button class="btn-ghost" id="pn-refresh-btn" onclick="refreshHealthData()" style="display:flex;align-items:center;gap:6px;">
                 <svg id="pn-refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
                 Refresh Health
               </button>
             </div>
           </div>
           <div id="phone-numbers-list">
-            <div style="color:var(--color-text-muted);font-size:13px;padding:20px 0;">No phone numbers yet</div>
+            <div style="color:rgba(255,255,255,0.35);font-size:13px;padding:20px 0;">No phone numbers yet</div>
           </div>
         </div>
       </div>
@@ -105,7 +145,7 @@
         <div class="settings-card">
           <h2>Team &amp; Invites</h2>
           <p>Invite agents to join Veloxo. Each agent gets their own isolated workspace.</p>
-          <button class="btn btn-primary" onclick="openInviteModal()" style="width:auto;">+ Invite Agent</button>
+          <button class="btn-primary" onclick="openInviteModal()" style="width:auto;">+ Invite Agent</button>
           <div class="settings-section-title" style="margin-top:24px;">Pending Invites</div>
           <div id="invites-list">
             <div style="color:#d1d5db;font-size:13px;padding:20px 0;">No pending invites</div>
@@ -114,9 +154,9 @@
       </div>
       <!-- ACCOUNT PANEL -->
       <div class="settings-panel" id="panel-account">
-        <div id="profile-setup-banner" style="display:none;background:var(--color-danger-bg);border:1px solid #fca5a5;border-radius:var(--radius-md);padding:14px 18px;margin-bottom:16px;">
-          <div style="font-size:14px;font-weight:700;color:var(--color-danger-text);margin-bottom:4px;">Complete your profile before using Veloxo.</div>
-          <div style="font-size:13px;color:var(--color-danger-text);opacity:0.85;">These fields are required for the AI to work correctly. Fill in the highlighted fields below and click Save.</div>
+        <div id="profile-setup-banner" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:700;color:#f87171;margin-bottom:4px;">Complete your profile before using Veloxo.</div>
+          <div style="font-size:13px;color:#f87171;opacity:0.85;">These fields are required for the AI to work correctly. Fill in the highlighted fields below and click Save.</div>
         </div>
         <div id="account-earnings-banner" style="display:none;background:linear-gradient(135deg,#064e3b,#065f46);border-radius:14px;padding:18px 22px;margin-bottom:20px;color:white;">
           <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">This Month</div>
@@ -138,10 +178,10 @@
             </div>
           </div>
           <div class="form-group" id="field-agent-nickname">
-            <label>AI Nickname <span style="font-weight:400;color:var(--color-text-muted);">(optional but recommended)</span></label>
-            <input type="text" id="profile-agent-nickname" placeholder="e.g. Nick">
-            <div style="font-size:12px;color:var(--color-primary);font-weight:500;margin-top:6px;padding:8px 12px;background:var(--color-primary-bg);border-radius:var(--radius-sm);border-left:3px solid var(--color-primary);">
-              Add a nickname — the AI will use this when referring to you in conversations (e.g. Nick instead of Nicholas Kuhl). Leave blank to use first name from Agent Name.
+            <label>AI Nickname <span style="font-weight:400;color:rgba(255,255,255,0.3);">(optional but recommended)</span></label>
+            <input type="text" id="profile-agent-nickname" placeholder="e.g. Alex">
+            <div class="nickname-tip">
+              Add a nickname — the AI will use this in conversations. Leave blank to use first name from Agent Name.
             </div>
           </div>
           <div class="form-group">
@@ -165,7 +205,7 @@
             <input type="text" id="profile-email" readonly style="background:#f9fafb;">
           </div>
           <div id="profile-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
-          <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+          <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
         </div>
         <div class="settings-card">
           <h2>Compliance Footer</h2>
@@ -175,21 +215,21 @@
               <input type="checkbox" id="compliance-enabled" onchange="updateCompliancePreview()">
               <span class="toggle-slider"></span>
             </label>
-            <span style="font-size:13px;color:#374151;">Enable compliance footer</span>
+            <span style="font-size:13px;color:rgba(255,255,255,0.65);">Enable compliance footer</span>
           </div>
           <div id="compliance-fields">
             <div class="form-group">
-              <label>Footer Text <span style="font-weight:400;color:#9ca3af;">(leave blank to use default)</span></label>
-              <textarea id="compliance-footer" rows="2" style="width:100%;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;" placeholder="Reply STOP to opt out. [Agency Name]" oninput="updateCompliancePreview()"></textarea>
-              <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Use <strong>[Agency Name]</strong> as a placeholder — it will be replaced with your agency name.</div>
+              <label>Footer Text <span style="font-weight:400;color:rgba(255,255,255,0.35);">(leave blank to use default)</span></label>
+              <textarea id="compliance-footer" rows="2" placeholder="Reply STOP to opt out. [Agency Name]" oninput="updateCompliancePreview()"></textarea>
+              <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;">Use <strong>[Agency Name]</strong> as a placeholder — it will be replaced with your agency name.</div>
             </div>
-            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
-              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Preview</div>
-              <div id="compliance-preview" style="font-size:13px;color:#374151;white-space:pre-line;"></div>
+            <div class="compliance-preview-box">
+              <div class="compliance-preview-label">Preview</div>
+              <div id="compliance-preview" style="font-size:13px;color:rgba(255,255,255,0.6);white-space:pre-line;"></div>
             </div>
           </div>
           <div id="compliance-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
-          <button class="btn btn-primary" onclick="saveCompliance()">Save Compliance Settings</button>
+          <button class="btn-primary" onclick="saveCompliance()">Save Compliance Settings</button>
         </div>
         <div class="settings-card">
           <h2>Notifications</h2>
@@ -197,7 +237,7 @@
           <div class="form-group">
             <label>Your personal cell for SMS alerts</label>
             <input type="text" id="profile-personal-phone" placeholder="+1 (555) 000-0000">
-            <div style="font-size:12px;color:#9ca3af;margin-top:4px;">We'll forward lead replies to this number as a text so you never miss a message. This is your personal phone, not a Veloxo number.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:4px;">We'll forward lead replies to this number as a text so you never miss a message. This is your personal phone, not a Veloxo number.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
             <label class="toggle" style="margin-top:2px;">
@@ -205,8 +245,8 @@
               <span class="toggle-slider"></span>
             </label>
             <div>
-              <div style="font-size:13px;font-weight:500;color:#374151;">SMS reply notifications</div>
-              <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Sends you a text for every lead reply. Uses SMS credits.</div>
+              <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.7);">SMS reply notifications</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;">Sends you a text for every lead reply. Uses SMS credits.</div>
             </div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
@@ -215,8 +255,8 @@
               <span class="toggle-slider"></span>
             </label>
             <div>
-              <div style="font-size:13px;font-weight:500;color:#374151;">Show notification bell in the app</div>
-              <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Red badge on the bell icon when leads reply.</div>
+              <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.7);">Show notification bell in the app</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;">Red badge on the bell icon when leads reply.</div>
             </div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;">
@@ -225,30 +265,30 @@
               <span class="toggle-slider"></span>
             </label>
             <div>
-              <div style="font-size:13px;font-weight:500;color:#374151;">Text me when an appointment is booked</div>
-              <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Sends a summary to your personal cell when AI books an appointment with a lead.</div>
+              <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.7);">Text me when an appointment is booked</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;">Sends a summary to your personal cell when AI books an appointment with a lead.</div>
             </div>
           </div>
           <div id="notif-settings-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
-          <button class="btn btn-primary" onclick="saveNotifSettings()">Save Notification Settings</button>
+          <button class="btn-primary" onclick="saveNotifSettings()">Save Notification Settings</button>
         </div>
         <div class="settings-card">
           <h2>AI After-Hours Response</h2>
           <p>When a lead texts after permitted marketing hours, should the AI respond right away or wait until the next allowed window?</p>
           <div class="form-group" style="margin-bottom:20px;">
-            <select id="ai-afterhours-response" style="padding:9px 13px;border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:14px;font-family:inherit;outline:none;background:white;color:var(--color-text);width:100%;max-width:320px;">
+            <select id="ai-afterhours-response" style="padding:9px 13px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);width:100%;max-width:320px;">
               <option value="queue">Queue until morning (default)</option>
               <option value="immediate">Respond immediately</option>
             </select>
-            <div style="font-size:12px;color:var(--color-text-muted);margin-top:6px;">Queue sends the AI reply at the start of the next permitted window. Immediate responds right away regardless of time.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:6px;">Queue sends the AI reply at the start of the next permitted window. Immediate responds right away regardless of time.</div>
           </div>
           <div id="afterhours-save-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
-          <button class="btn btn-primary" onclick="saveAfterHoursSettings()">Save After-Hours Settings</button>
+          <button class="btn-primary" onclick="saveAfterHoursSettings()">Save After-Hours Settings</button>
         </div>
       </div>
     </div>
   </div>
-</div>
+</div><!-- /main-content -->
 
 <!-- CREATE/EDIT DISPOSITION TAG MODAL -->
 <div class="modal-overlay" id="disp-tag-modal">
@@ -273,34 +313,34 @@
       <input type="text" id="disp-tag-description" placeholder="Internal note">
     </div>
 
-    <div style="border-top:1px solid #f3f4f6;margin:20px 0;"></div>
+    <div style="border-top:1px solid rgba(255,255,255,0.07);margin:20px 0;"></div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div>
-        <div style="font-size:14px;font-weight:600;color:#374151;">Automated Actions</div>
-        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Actions execute in order when this tag is applied to a lead</div>
+        <div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.8);">Automated Actions</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;">Actions execute in order when this tag is applied to a lead</div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="addActionRow()">+ Add Action</button>
+      <button class="btn-ghost" onclick="addActionRow()">+ Add Action</button>
     </div>
 
     <div id="action-rows"></div>
 
-    <div style="border-top:1px solid #f3f4f6;margin:20px 0;"></div>
+    <div style="border-top:1px solid rgba(255,255,255,0.07);margin:20px 0;"></div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div>
-        <div style="font-size:14px;font-weight:600;color:#374151;">Drip Sequence</div>
-        <div style="font-size:12px;color:#9ca3af;margin-top:2px;">Messages fire X days after this tag is applied</div>
+        <div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.8);">Drip Sequence</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px;">Messages fire X days after this tag is applied</div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="addDispMessageStep()">+ Add Message</button>
+      <button class="btn-ghost" onclick="addDispMessageStep()">+ Add Message</button>
     </div>
 
     <div class="tip">Click any variable below to insert it. Use <strong>{Option 1|Option 2}</strong> to randomize — the scheduler picks one variation per send.</div>
     <div id="disp-message-steps"></div>
 
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeDispTagModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveDispositionTag()">Save Tag</button>
+      <button class="btn-ghost" onclick="closeDispTagModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDispositionTag()">Save Tag</button>
     </div>
   </div>
 </div>
@@ -320,8 +360,8 @@
       <div id="invite-error" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none;"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
-      <button class="btn btn-primary" id="invite-submit-btn" onclick="sendInvite()">Send Invite</button>
+      <button class="btn-ghost" onclick="closeInviteModal()">Cancel</button>
+      <button class="btn-primary" id="invite-submit-btn" onclick="sendInvite()">Send Invite</button>
     </div>
   </div>
 </div>
@@ -340,8 +380,8 @@
     </div>
     <div id="buy-number-status" style="font-size:13px;margin-bottom:12px;display:none;"></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeBuyNumberModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmPurchaseNumber()" id="buy-number-confirm-btn">Buy Number</button>
+      <button class="btn-ghost" onclick="closeBuyNumberModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmPurchaseNumber()" id="buy-number-confirm-btn">Buy Number</button>
     </div>
   </div>
 </div>
@@ -364,8 +404,8 @@
       <div class="char-count" id="template-modal-char">0 / 160</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeTemplateModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+      <button class="btn-ghost" onclick="closeTemplateModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTemplate()">Save Template</button>
     </div>
   </div>
 </div>
@@ -588,7 +628,7 @@
           <div class="day-input">
             <label>Send on day</label><input type="number" class="dstep-day" min="1" value="${msg.day_number}">
             <label>at</label><input type="time" class="dstep-time" value="${msg.send_time || '10:00'}">
-            <span style="font-size:11px;color:#9ca3af;">after disposition applied</span>
+            <span style="font-size:11px;color:rgba(255,255,255,0.35);">after disposition applied</span>
           </div>
           <textarea class="dstep-body" rows="3" oninput="updateCharCount(this)">${msg.message_body}</textarea>
           <div class="char-count">${msg.message_body.length} / 160</div>
@@ -611,7 +651,7 @@
       <div class="day-input">
         <label>Send on day</label><input type="number" class="dstep-day" min="1" value="${dispMessageStepCount}">
         <label>at</label><input type="time" class="dstep-time" value="10:00">
-        <span style="font-size:11px;color:#9ca3af;">after disposition applied</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.35);">after disposition applied</span>
       </div>
       <textarea class="dstep-body" placeholder="Hi [First Name], just checking in..." rows="3" oninput="updateCharCount(this)"></textarea>
       <div class="char-count">0 / 160</div>
@@ -878,8 +918,8 @@
       container.innerHTML = `<div style="text-align:center;padding:48px 20px;">
         <div style="font-size:36px;margin-bottom:12px;">📱</div>
         <div style="font-size:15px;font-weight:600;color:var(--color-text);margin-bottom:4px;">No phone numbers yet</div>
-        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:16px;">Search for and purchase a number to start sending texts.</div>
-        <button class="btn btn-primary" style="width:auto;padding:8px 20px;" onclick="document.getElementById('pn-search-areacode').focus()">Search Numbers</button>
+        <div style="font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:16px;">Search for and purchase a number to start sending texts.</div>
+        <button class="btn-primary" style="width:auto;padding:8px 20px;" onclick="document.getElementById('pn-search-areacode').focus()">Search Numbers</button>
       </div>`
       return
     }
@@ -921,7 +961,7 @@
             } else if (pnStatus === 'flagged') {
               statusBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#dc2626;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Consider replacing</span>`
             } else if (pnStatus === 'retired') {
-              statusBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--color-text-muted);"><span style="width:7px;height:7px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>Retired</span>`
+              statusBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.35);"><span style="width:7px;height:7px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>Retired</span>`
             }
 
             const sentToday = pn.sent_today != null ? pn.sent_today : '—'
@@ -935,7 +975,7 @@
             return `<tr style="border-bottom:1px solid var(--color-border-light);">
               <td style="padding:12px 10px;">
                 <div style="font-weight:600;color:var(--color-text);">${pn.friendly_name || pn.phone_number}</div>
-                <div style="font-size:11px;color:var(--color-text-muted);">${pn.phone_number}${pn.is_default ? ' · <span style="color:var(--color-primary);">Default</span>' : ''}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.35);">${pn.phone_number}${pn.is_default ? ' · <span style="color:var(--color-primary);">Default</span>' : ''}</div>
               </td>
               <td style="padding:12px 10px;">
                 <select onchange="saveNumberState('${pn.id}', this.value)" style="padding:4px 6px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:12px;background:white;color:var(--color-text);cursor:pointer;">
@@ -951,7 +991,7 @@
               <td style="padding:12px 10px;color:var(--color-text-secondary);">${purchased}</td>
               <td style="padding:12px 10px;text-align:right;">
                 <div style="position:relative;display:inline-block;">
-                  <button class="btn btn-secondary btn-sm" onclick="togglePnMenu('${pn.id}')" style="padding:4px 8px;">⋯</button>
+                  <button class="btn-ghost" onclick="togglePnMenu('${pn.id}')" style="padding:4px 8px;">⋯</button>
                   <div id="pn-menu-${pn.id}" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:white;border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-md);min-width:160px;z-index:50;overflow:hidden;">
                     ${!pn.is_default ? `<button onclick="closePnMenus();setDefaultNumber('${pn.id}')" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;color:var(--color-text);background:none;border:none;cursor:pointer;" onmouseover="this.style.background='var(--color-surface-subtle)'" onmouseout="this.style.background='none'">Set as Default</button>` : ''}
                     <button onclick="closePnMenus();refreshSingleNumber('${pn.phone_number}')" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;color:var(--color-text);background:none;border:none;cursor:pointer;" onmouseover="this.style.background='var(--color-surface-subtle)'" onmouseout="this.style.background='none'">Refresh Health</button>
@@ -1042,7 +1082,7 @@
     if (!state && !areaCode) return toast.error('Required', 'Choose a state or enter an area code')
     const resultsEl = document.getElementById('pn-search-results')
     const btn = document.getElementById('pn-search-btn')
-    resultsEl.innerHTML = `<div style="color:var(--color-text-muted);font-size:13px;">Searching...</div>`
+    resultsEl.innerHTML = `<div style="color:rgba(255,255,255,0.35);font-size:13px;">Searching...</div>`
     btn.disabled = true
     try {
       if (areaCode) { selectedStateAbbr = ''; document.getElementById('pn-search-state-input').value = '' }
@@ -1051,14 +1091,14 @@
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Search failed')
       if (!data.numbers || !data.numbers.length) {
-        resultsEl.innerHTML = `<div style="color:var(--color-text-muted);font-size:13px;">No numbers found. Try a different state or area code.</div>`
+        resultsEl.innerHTML = `<div style="color:rgba(255,255,255,0.35);font-size:13px;">No numbers found. Try a different state or area code.</div>`
         return
       }
       resultsEl.innerHTML = data.numbers.map(n => `
         <div class="disp-tag-row" style="padding:10px 0;">
           <div style="flex:1;">
             <div style="font-size:14px;font-weight:600;">${n.phone_number}</div>
-            <div style="font-size:12px;color:var(--color-text-muted);">${[n.locality, n.region].filter(Boolean).join(', ')}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);">${[n.locality, n.region].filter(Boolean).join(', ')}</div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openBuyNumberModal('${n.phone_number}', '${n.region}')">Buy</button>
         </div>`).join('')
@@ -1171,7 +1211,7 @@
       : US_STATES
     if (!matches.length) { dropdown.style.display = 'none'; return }
     dropdown.innerHTML = matches.map(s =>
-      `<div onclick="selectState('${s.a}','${s.n}')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:#374151;" onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background=''">${s.n} <span style="color:#9ca3af;">${s.a}</span></div>`
+      `<div onclick="selectState('${s.a}','${s.n}')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.8);" onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background=''">${s.n} <span style="color:rgba(255,255,255,0.35);">${s.a}</span></div>`
     ).join('')
     dropdown.style.display = 'block'
   }
@@ -1211,10 +1251,10 @@
         return `<div class="disp-tag-row">
           <div style="flex:1;">
             <div style="font-size:14px;font-weight:600;">${inv.email}</div>
-            <div style="font-size:12px;color:#9ca3af;">Expires ${expires}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);">Expires ${expires}</div>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="copyInviteLink('${link}')">Copy Link</button>
-          <button class="btn btn-secondary btn-sm" onclick="resendInvite('${inv.id}', '${inv.email}')">Resend</button>
+          <button class="btn-ghost" onclick="resendInvite('${inv.id}', '${inv.email}')">Resend</button>
           <button class="btn btn-danger btn-sm" onclick="cancelInvite('${inv.id}')">Cancel</button>
         </div>`
       }).join('')
@@ -1251,9 +1291,9 @@
           <div style="text-align:center;padding:12px 0;">
             <div style="font-size:28px;margin-bottom:8px;">✅</div>
             <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Invite sent to ${email}</div>
-            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">Share this link if email delivery isn't configured:</div>
-            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:#374151;">${link}</div>
-            <button class="btn btn-secondary" style="margin-top:10px;width:auto;padding:8px 16px;" onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='Copied!')">Copy Link</button>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:12px;">Share this link if email delivery isn't configured:</div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:rgba(255,255,255,0.8);">${link}</div>
+            <button class="btn-ghost" style="margin-top:10px;width:auto;padding:8px 16px;" onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='Copied!')">Copy Link</button>
           </div>`
         document.getElementById('invite-submit-btn').style.display = 'none'
         loadInvites()
@@ -1414,7 +1454,7 @@
       <div class="disp-tag-row">
         <div style="flex:1;">
           <div style="font-size:14px;font-weight:600;margin-bottom:2px;">${t.name}</div>
-          <div style="font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px;">${t.body}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px;">${t.body}</div>
         </div>
         <div class="disp-tag-actions">
           <button class="btn btn-ghost btn-sm" onclick="editTemplate('${t.id}')">Edit</button>
