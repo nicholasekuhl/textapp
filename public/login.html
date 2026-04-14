@@ -101,7 +101,7 @@
   </div>
 
   <script>
-    fetch('/auth/me').then(r => { if (r.ok) window.location.href = '/' })
+    fetch('/auth/me').then(r => { if (r.ok) window.location.href = '/leads.html' })
 
     // Show verification error from callback redirect
     const urlParams = new URLSearchParams(window.location.search)
@@ -167,7 +167,7 @@
         const res = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
         const data = await res.json()
         if (data.success) {
-          window.location.href = '/'
+          window.location.href = '/leads.html'
         } else {
           errEl.textContent = data.error || 'Login failed.'
           errEl.style.display = 'block'
@@ -249,7 +249,7 @@
           successEl.classList.remove('hidden')
           document.getElementById('toggle-signup').classList.add('hidden')
         } else if (data.success) {
-          window.location.href = '/'
+          window.location.href = '/leads.html'
         } else {
           errEl.textContent = data.error || 'Signup failed.'
           errEl.style.display = 'block'
