@@ -23,6 +23,7 @@ const { authMiddleware, adminMiddleware } = require('./middleware/auth')
 const adminRouter = require('./routes/admin')
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3000
 
 // Redirect old Railway URL to custom domain.
@@ -45,7 +46,7 @@ app.use(cookieParser())
 app.use(express.static(path.join(__dirname, '../public'), { maxAge: '5m', etag: true, lastModified: true }))
 
 app.get('/', (req, res) => {
-  const host = req.hostname || ''
+  const host = req.headers.host || req.hostname || ''
   if (host.startsWith('app.')) {
     return res.redirect('/login.html')
   }
