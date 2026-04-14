@@ -25,6 +25,18 @@ const adminRouter = require('./routes/admin')
 const app = express()
 const PORT = process.env.PORT || 3000
 
+// Redirect old Railway URL to custom domain.
+// NOTE: Twilio webhook still uses the Railway URL.
+// Update to app.veloxo.io/webhook/sms when switching to Telnyx.
+app.use((req, res, next) => {
+  const host = req.hostname || ''
+  if (host.includes('railway.app')) {
+    if (req.path.startsWith('/webhook')) return next()
+    return res.redirect(301, 'https://app.veloxo.io' + req.originalUrl)
+  }
+  next()
+})
+
 app.use(compression())
 app.use(cors())
 app.use(express.json())
