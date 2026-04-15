@@ -115,6 +115,10 @@
     <div class="tabs-bar">
       <button id="tab-btn-users" class="tab-btn active" onclick="showAdminTab('users')">Users</button>
       <button id="tab-btn-compliance" class="tab-btn" onclick="showAdminTab('compliance')">Compliance Log</button>
+      <button id="tab-btn-access" class="tab-btn" onclick="showAdminTab('access')" style="position:relative;">
+        Access Requests
+        <span id="access-requests-badge" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:#ef4444;"></span>
+      </button>
     </div>
 
     <!-- Users tab -->
@@ -139,6 +143,29 @@
           </thead>
           <tbody id="users-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Access Requests tab -->
+    <div id="tab-access" style="display:none;">
+      <div class="table-card">
+        <div class="table-toolbar">
+          <h2>Access Requests</h2>
+          <span style="font-size:12px;color:rgba(255,255,255,0.3);">Submissions from the landing page waitlist form</span>
+        </div>
+        <div id="access-loading" style="padding:32px;text-align:center;color:rgba(255,255,255,0.3);font-size:13px;">Loading...</div>
+        <table id="access-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Requested</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="access-tbody"></tbody>
+        </table>
+        <div id="access-empty" style="display:none;padding:48px;text-align:center;color:rgba(255,255,255,0.3);font-size:13px;">No access requests yet.</div>
       </div>
     </div>
 
@@ -330,9 +357,73 @@
   const showAdminTab = (tab) => {
     document.getElementById('tab-users').style.display = tab === 'users' ? 'block' : 'none'
     document.getElementById('tab-compliance').style.display = tab === 'compliance' ? 'block' : 'none'
+    document.getElementById('tab-access').style.display = tab === 'access' ? 'block' : 'none'
     document.getElementById('tab-btn-users').classList.toggle('active', tab === 'users')
     document.getElementById('tab-btn-compliance').classList.toggle('active', tab === 'compliance')
+    document.getElementById('tab-btn-access').classList.toggle('active', tab === 'access')
     if (tab === 'compliance') loadComplianceLog()
+    if (tab === 'access') loadAccessRequests()
+  }
+
+  let accessLoaded = false
+  const loadAccessRequests = async (force) => {
+    if (accessLoaded && !force) return
+    try {
+      const res = await fetch('/admin/access-requests', { credentials: 'include' })
+      const data = await res.json()
+      const loading = document.getElementById('access-loading')
+      const table = document.getElementById('access-table')
+      const empty = document.getElementById('access-empty')
+      const tbody = document.getElementById('access-tbody')
+      loading.style.display = 'none'
+      const rows = data.requests || []
+      const pending = rows.filter(r => r.status === 'pending').length
+      const badge = document.getElementById('access-requests-badge')
+      if (badge) badge.style.display = pending > 0 ? 'inline-block' : 'none'
+      if (!rows.length) { empty.style.display = 'block'; return }
+      tbody.innerHTML = rows.map(r => {
+        const dt = r.requested_at ? new Date(r.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+        const badgeClass = r.status === 'pending' ? 'badge-admin' : r.status === 'invited' ? 'badge-green' : 'badge-red'
+        const actions = r.status === 'pending'
+          ? `<button class="btn btn-sm btn-success" onclick="inviteAccessRequest('${r.id}', '${r.email.replace(/'/g, "\\'")}')">Invite</button>
+             <button class="btn btn-sm btn-danger" style="margin-left:6px;" onclick="declineAccessRequest('${r.id}')">Decline</button>`
+          : `<span style="font-size:12px;color:rgba(255,255,255,0.3);">${r.status === 'invited' ? 'Invited ' + (r.invited_at ? new Date(r.invited_at).toLocaleDateString() : '') : 'Declined'}</span>`
+        return `<tr id="ar-row-${r.id}">
+          <td style="font-weight:500;color:rgba(255,255,255,0.85);">${r.email}</td>
+          <td style="color:rgba(255,255,255,0.45);font-size:12px;">${dt}</td>
+          <td><span class="badge ${badgeClass}">${r.status}</span></td>
+          <td>${actions}</td>
+        </tr>`
+      }).join('')
+      table.style.display = 'table'
+      accessLoaded = true
+    } catch (err) {
+      document.getElementById('access-loading').textContent = 'Failed to load access requests'
+    }
+  }
+
+  const inviteAccessRequest = async (id, email) => {
+    if (!confirm(`Send invite to ${email}?`)) return
+    try {
+      const res = await fetch(`/admin/access-requests/${id}/invite`, { method: 'POST', credentials: 'include' })
+      const data = await res.json()
+      if (!data.success) { showToast(data.error || 'Invite failed', 'error'); return }
+      showToast(`Invite sent to ${email}`, 'success')
+      accessLoaded = false
+      loadAccessRequests(true)
+    } catch { showToast('Something went wrong', 'error') }
+  }
+
+  const declineAccessRequest = async (id) => {
+    if (!confirm('Decline this access request?')) return
+    try {
+      const res = await fetch(`/admin/access-requests/${id}/decline`, { method: 'POST', credentials: 'include' })
+      const data = await res.json()
+      if (!data.success) { showToast(data.error || 'Failed', 'error'); return }
+      showToast('Request declined', 'success')
+      accessLoaded = false
+      loadAccessRequests(true)
+    } catch { showToast('Something went wrong', 'error') }
   }
 
   let complianceLoaded = false

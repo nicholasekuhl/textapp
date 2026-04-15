@@ -249,4 +249,88 @@ const backfillStatuses = async (req, res) => {
   }
 }
 
-module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides, addUserCredits, backfillStatuses }
+// ── Access Requests ──────────────────────────────────────────
+const createAccessRequest = async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' })
+    const normalised = email.trim().toLowerCase()
+    // Silently deduplicate
+    const { data: existing } = await supabase
+      .from('access_requests')
+      .select('id')
+      .eq('email', normalised)
+      .single()
+    if (existing) return res.json({ success: true })
+    const { error } = await supabase
+      .from('access_requests')
+      .insert([{ email: normalised, status: 'pending' }])
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    console.error('createAccessRequest error:', err.message)
+    res.status(500).json({ error: 'Failed to save' })
+  }
+}
+
+const getAccessRequests = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('access_requests')
+      .select('id, email, status, requested_at, notes, invited_at')
+      .order('requested_at', { ascending: false })
+    if (error) throw error
+    res.json({ requests: data || [] })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const inviteFromAccessRequest = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { data: ar, error: fetchErr } = await supabase
+      .from('access_requests')
+      .select('id, email, status')
+      .eq('id', id)
+      .single()
+    if (fetchErr || !ar) return res.status(404).json({ error: 'Request not found' })
+
+    // Reuse inviteAgent handler with a synthetic req/res
+    const { inviteAgent } = require('./authController')
+    const mockRes = { _status: 200, _data: null }
+    mockRes.status = (code) => { mockRes._status = code; return mockRes }
+    mockRes.json = (data) => { mockRes._data = data; return mockRes }
+    await inviteAgent({ ...req, body: { email: ar.email } }, mockRes)
+    if (mockRes._status !== 200 || !mockRes._data?.success) {
+      return res.status(mockRes._status || 500).json({ error: mockRes._data?.error || 'Invite failed' })
+    }
+
+    const now = new Date().toISOString()
+    await supabase
+      .from('access_requests')
+      .update({ status: 'invited', invited_at: now })
+      .eq('id', id)
+
+    res.json({ success: true, email: ar.email })
+  } catch (err) {
+    console.error('inviteFromAccessRequest error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const declineAccessRequest = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { error } = await supabase
+      .from('access_requests')
+      .update({ status: 'declined' })
+      .eq('id', id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides, addUserCredits, backfillStatuses, createAccessRequest, getAccessRequests, inviteFromAccessRequest, declineAccessRequest }

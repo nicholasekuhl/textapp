@@ -77,6 +77,11 @@ app.get('/', (req, res) => {
 
 app.use(express.static(path.join(__dirname, '../public'), { maxAge: '5m', etag: true, lastModified: true }))
 
+app.post('/access-requests', async (req, res) => {
+  const { createAccessRequest } = require('./controllers/adminController')
+  return createAccessRequest(req, res)
+})
+
 app.post('/api/waitlist', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })

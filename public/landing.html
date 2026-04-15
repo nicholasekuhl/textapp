@@ -409,7 +409,7 @@
       });
     });
 
-    // Waitlist form submission
+    // Access request form submission
     const form = document.getElementById('access-form');
     if (form) {
       form.addEventListener('submit', async e => {
@@ -419,18 +419,18 @@
         btn.textContent = 'Sending...';
         btn.disabled = true;
         try {
-          const res = await fetch('/api/waitlist', {
+          const res = await fetch('/access-requests', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
           });
           if (res.ok) {
-            form.innerHTML = '<p style="color:#00d4b4;font-size:15px;font-weight:500">&#10003; Got it! We\'ll be in touch within 24 hours.</p>';
+            form.innerHTML = '<p style="color:#00d4b4;font-size:15px;font-weight:500">&#10003; You\'re on the list — we\'ll be in touch soon.</p>';
           } else {
             throw new Error();
           }
         } catch {
-          form.innerHTML = '<p style="color:#00d4b4;font-size:15px;font-weight:500">&#10003; Got it! We\'ll be in touch within 24 hours.</p>';
+          form.innerHTML = '<p style="color:#f87171;font-size:15px;font-weight:500">Something went wrong, please try again.</p>';
         }
       });
     }
