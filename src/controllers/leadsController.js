@@ -836,7 +836,6 @@ const getLeadById = async (req, res) => {
       .from('leads')
       .select('*')
       .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
       .single()
     if (error || !data) {
       return res.status(404).json({ error: 'Lead not found' })
