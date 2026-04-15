@@ -128,8 +128,20 @@ const executeActions = async (lead, actions, dispositionTagId, profile) => {
           if (message && lead.phone) {
             console.log('Disposition action triggered:', action.action_type)
             console.log('Sending to:', lead.phone)
-            const firstName = lead.first_name || 'there'
-            const body = spintext(message).replace(/\[First Name\]/g, firstName)
+            const body = spintext(message)
+              .replace(/\[First Name\]/gi, lead.first_name || 'there')
+              .replace(/\[Last Name\]/gi, lead.last_name || '')
+              .replace(/\[Phone\]/gi, lead.phone || '')
+              .replace(/\[Email\]/gi, lead.email || '')
+              .replace(/\[State\]/gi, lead.state || '')
+              .replace(/\[Zip Code\]/gi, lead.zip_code || '')
+              .replace(/\[Date of Birth\]/gi, lead.date_of_birth || '')
+              .replace(/\{first_name\}/gi, lead.first_name || 'there')
+              .replace(/\{last_name\}/gi, lead.last_name || '')
+              .replace(/\{phone\}/gi, lead.phone || '')
+              .replace(/\{email\}/gi, lead.email || '')
+              .replace(/\{state\}/gi, lead.state || '')
+              .replace(/\{zip_code\}/gi, lead.zip_code || '')
             const fromNumber = await getNumberForLead(lead.user_id, lead.state)
             const result = await sendSMS(lead.phone, body, fromNumber)
             if (result.success) {
