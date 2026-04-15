@@ -832,15 +832,23 @@ const updateQuotes = async (req, res) => {
 
 const getLeadById = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const leadId = req.params.id
+    const { data: lead, error } = await supabase
       .from('leads')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', leadId)
       .single()
-    if (error || !data) {
+
+    if (error || !lead) {
       return res.status(404).json({ error: 'Lead not found' })
     }
-    return res.json({ lead: data })
+
+    const isAdmin = req.user.email === process.env.ADMIN_EMAIL
+    if (lead.user_id !== req.user.id && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    return res.json({ lead })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
