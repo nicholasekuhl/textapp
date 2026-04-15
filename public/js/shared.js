@@ -424,7 +424,7 @@ const renderSidebar = () => {
     <span class="nav-section-label">Outreach</span>
     <a href="/conversations.html" class="nav-item${a('/conversations.html')}">${SVG_CONV}<span>Conversations</span><span class="notif-badge-inline nav-badge alert" id="notif-badge" style="display:none;"></span></a>
     <a href="/campaigns.html" class="nav-item${a('/campaigns.html')}">${SVG_CAMP}<span>Campaigns</span></a>
-    <a href="/settings.html?panel=dispositions" class="nav-item${aSettings('dispositions')}">
+    <a href="/dispositions.html" class="nav-item${a('/dispositions.html')}">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h12M4 5V3.5A1.5 1.5 0 015.5 2h5A1.5 1.5 0 0112 3.5V5M6 9l1.5 1.5L11 7"/></svg>
       <span>Dispositions</span>
     </a>
