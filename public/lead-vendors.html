@@ -218,11 +218,11 @@
       </div>
     </div>
     <div class="form-group" style="margin-top:10px;">
-      <label>Send preset text on receipt <span style="font-weight:400;color:rgba(255,255,255,0.25);">(optional)</span></label>
-      <select id="vendor-template">
-        <option value="">None — do not send a text</option>
+      <label>Apply Disposition Tag on Receipt <span style="font-weight:400;color:rgba(255,255,255,0.25);">(optional)</span></label>
+      <select id="vendor-disposition-tag">
+        <option value="">Select disposition tag (optional)</option>
       </select>
-      <div class="help-text">Automatically send this template message when a lead is received</div>
+      <div class="help-text">When a lead arrives from this vendor, this disposition tag will be applied automatically, triggering any attached automated actions and drip sequences.</div>
     </div>
 
     <div class="modal-footer">
@@ -255,7 +255,7 @@
 <script src="/js/shared.js?v=2"></script>
 <script>
 let vendors = []
-let templates = []
+let dispositionTags = []
 let editingVendorId = null
 
 const PRESET_COLORS = ['#f59e0b','#ef4444','#10b981','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6']
@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadNotifBadge()
   loadCalBadge()
   loadVendors()
-  loadTemplates()
+  loadDispositionTags()
 })
 
 // ─── LOAD VENDORS ───────────────────────────────────────────────────────────
@@ -289,12 +289,12 @@ const loadVendors = async () => {
   }
 }
 
-const loadTemplates = async () => {
+const loadDispositionTags = async () => {
   try {
-    const res = await fetch('/templates', { credentials: 'include' })
+    const res = await fetch('/dispositions', { credentials: 'include' })
     const data = await res.json()
-    templates = data.templates || []
-  } catch (err) { console.error('Failed to load templates:', err) }
+    dispositionTags = data.tags || []
+  } catch (err) { console.error('Failed to load disposition tags:', err) }
 }
 
 // ─── RENDER ─────────────────────────────────────────────────────────────────
@@ -444,10 +444,10 @@ const openVendorModal = (vendor) => {
     autopilotEl.classList.remove('on')
   }
 
-  // Templates dropdown
-  const templateSelect = document.getElementById('vendor-template')
-  templateSelect.innerHTML = '<option value="">None — do not send a text</option>' +
-    templates.map(t => `<option value="${t.id}"${vendor && vendor.on_receipt_text_template_id === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')
+  // Disposition tags dropdown
+  const dispSelect = document.getElementById('vendor-disposition-tag')
+  dispSelect.innerHTML = '<option value="">Select disposition tag (optional)</option>' +
+    dispositionTags.map(t => `<option value="${t.id}"${vendor && vendor.on_receipt_disposition_tag_id === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')
 
   document.getElementById('vendor-modal').classList.add('open')
 }
@@ -498,7 +498,7 @@ const saveVendor = async () => {
   })
 
   const autopilot = document.getElementById('vendor-autopilot').classList.contains('on')
-  const templateId = document.getElementById('vendor-template').value || null
+  const dispositionTagId = document.getElementById('vendor-disposition-tag').value || null
 
   const body = {
     name,
@@ -507,7 +507,7 @@ const saveVendor = async () => {
     color: selectedColor,
     field_mapping: fieldMapping,
     on_receipt_autopilot: autopilot,
-    on_receipt_text_template_id: templateId
+    on_receipt_disposition_tag_id: dispositionTagId
   }
 
   try {

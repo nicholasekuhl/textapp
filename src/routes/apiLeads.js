@@ -140,77 +140,67 @@ router.post('/inbound', async (req, res) => {
       })
     })
 
-    // If vendor has on_receipt_text_template_id and lead was created, schedule text
-    if (vendor.on_receipt_text_template_id && result.action === 'created') {
+    // If vendor has on_receipt_disposition_tag_id and lead was created, apply disposition
+    if (vendor.on_receipt_disposition_tag_id && result.action === 'created') {
       try {
-        const { data: template } = await supabase
-          .from('templates')
-          .select('body')
-          .eq('id', vendor.on_receipt_text_template_id)
-          .eq('user_id', vendor.user_id)
+        const { data: tag } = await supabase
+          .from('disposition_tags')
+          .select('*, disposition_actions (*)')
+          .eq('id', vendor.on_receipt_disposition_tag_id)
           .single()
 
-        if (template) {
-          const { data: lead } = await supabase
-            .from('leads')
-            .select('*')
-            .eq('id', result.lead_id)
-            .single()
+        if (tag) {
+          // Apply disposition to lead
+          await supabase.from('leads').update({
+            disposition_tag_id: tag.id,
+            disposition_color: tag.color,
+            updated_at: new Date().toISOString()
+          }).eq('id', result.lead_id)
 
-          if (lead) {
-            const { sendSMS, getNumberForLead, buildMessageBody } = require('../twilio')
+          await supabase.from('lead_dispositions').insert({
+            lead_id: result.lead_id,
+            disposition_tag_id: tag.id,
+            user_id: vendor.user_id,
+            applied_at: new Date().toISOString(),
+            notes: 'Applied automatically on lead receipt'
+          })
 
-            // Replace template variables
-            let messageBody = template.body
-              .replace(/\{first_name\}/gi, lead.first_name || 'there')
-              .replace(/\{last_name\}/gi, lead.last_name || '')
-              .replace(/\{phone\}/gi, lead.phone || '')
-              .replace(/\{email\}/gi, lead.email || '')
-              .replace(/\{state\}/gi, lead.state || '')
-              .replace(/\{zip_code\}/gi, lead.zip_code || '')
+          // Execute disposition_actions if any
+          if (tag.disposition_actions && tag.disposition_actions.length > 0) {
+            const { data: lead } = await supabase
+              .from('leads').select('*').eq('id', result.lead_id).single()
+            if (lead) {
+              const { executeActions } = require('../controllers/actionsController')
+              executeActions(lead, tag.disposition_actions, tag.id, userProfile)
+                .catch(err => console.error('[webhook] disposition action execution error:', err.message))
+            }
+          }
 
-            const fromNumber = await getNumberForLead(vendor.user_id, lead.state)
-
-            // Build with compliance footer
-            const profile = userProfile
-            messageBody = buildMessageBody(messageBody, profile, lead, !lead.first_message_sent)
-
-            const smsResult = await sendSMS(lead.phone, messageBody, fromNumber)
-
-            if (smsResult.success) {
-              // Create conversation and message record
-              const { data: conversation } = await supabase
-                .from('conversations')
-                .upsert(
-                  { lead_id: result.lead_id, user_id: vendor.user_id, status: 'active' },
-                  { onConflict: 'lead_id,user_id', ignoreDuplicates: false }
-                )
-                .select('id').single()
-
-              if (conversation) {
-                await supabase.from('messages').insert({
-                  conversation_id: conversation.id,
-                  user_id: vendor.user_id,
-                  direction: 'outbound',
-                  body: messageBody,
-                  sent_at: new Date().toISOString(),
-                  twilio_sid: smsResult.sid,
-                  status: 'sent',
-                  is_ai: false
-                })
+          // Execute linked automated_action if any
+          if (tag.automated_action_id) {
+            const { data: autoAction } = await supabase
+              .from('automated_actions')
+              .select('*')
+              .eq('id', tag.automated_action_id)
+              .single()
+            if (autoAction && autoAction.actions && autoAction.actions.length > 0) {
+              const { data: lead } = await supabase
+                .from('leads').select('*').eq('id', result.lead_id).single()
+              if (lead) {
+                const { executeActions } = require('../controllers/actionsController')
+                const mappedActions = autoAction.actions.map((a, i) => ({
+                  action_type: a.type,
+                  action_value: a.value || {},
+                  action_order: i
+                }))
+                executeActions(lead, mappedActions, tag.id, userProfile)
+                  .catch(err => console.error('[webhook] automated action execution error:', err.message))
               }
-
-              await supabase.from('leads').update({
-                status: 'contacted',
-                first_message_sent: true,
-                last_contacted_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }).eq('id', result.lead_id)
             }
           }
         }
       } catch (err) {
-        console.error('[webhook] on_receipt text send failed:', err.message)
+        console.error('[webhook] on_receipt disposition apply failed:', err.message)
       }
     }
 

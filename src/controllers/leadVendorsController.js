@@ -18,7 +18,7 @@ const getLeadVendors = async (req, res) => {
 const createLeadVendor = async (req, res) => {
   try {
     const { name, contact_email, color, default_cost, field_mapping,
-            on_receipt_autopilot, on_receipt_text_template_id } = req.body
+            on_receipt_autopilot, on_receipt_disposition_tag_id } = req.body
     if (!name) return res.status(400).json({ error: 'Vendor name is required' })
 
     const apiKey = crypto.randomBytes(24).toString('hex')
@@ -32,7 +32,7 @@ const createLeadVendor = async (req, res) => {
         default_cost: default_cost || null,
         field_mapping: field_mapping || {},
         on_receipt_autopilot: on_receipt_autopilot || false,
-        on_receipt_text_template_id: on_receipt_text_template_id || null,
+        on_receipt_disposition_tag_id: on_receipt_disposition_tag_id || null,
         api_key: apiKey,
         user_id: req.user.id,
         leads_received: 0
@@ -49,7 +49,7 @@ const createLeadVendor = async (req, res) => {
 const updateLeadVendor = async (req, res) => {
   try {
     const { name, contact_email, color, default_cost, field_mapping,
-            on_receipt_autopilot, on_receipt_text_template_id } = req.body
+            on_receipt_autopilot, on_receipt_disposition_tag_id } = req.body
 
     const updates = {}
     if (name !== undefined) updates.name = name
@@ -58,7 +58,7 @@ const updateLeadVendor = async (req, res) => {
     if (default_cost !== undefined) updates.default_cost = default_cost
     if (field_mapping !== undefined) updates.field_mapping = field_mapping
     if (on_receipt_autopilot !== undefined) updates.on_receipt_autopilot = on_receipt_autopilot
-    if (on_receipt_text_template_id !== undefined) updates.on_receipt_text_template_id = on_receipt_text_template_id || null
+    if (on_receipt_disposition_tag_id !== undefined) updates.on_receipt_disposition_tag_id = on_receipt_disposition_tag_id || null
     updates.updated_at = new Date().toISOString()
 
     const { data: vendor, error } = await supabase
