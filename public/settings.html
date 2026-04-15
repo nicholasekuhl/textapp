@@ -723,6 +723,55 @@
       border-color: rgba(0,201,167,0.25) !important;
       color: #00d4b4 !important;
     }
+
+    /* ── Color picker ── */
+    .color-picker-row {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      align-items: center !important;
+      gap: 8px !important;
+      margin-top: 4px !important;
+    }
+    .color-swatch {
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 50% !important;
+      cursor: pointer !important;
+      flex-shrink: 0 !important;
+      transition: transform 0.12s, box-shadow 0.12s !important;
+      border: none !important;
+      outline: 2px solid transparent !important;
+      outline-offset: 2px !important;
+    }
+    .color-swatch:hover { transform: scale(1.15) !important; }
+    .color-swatch.selected {
+      outline-color: #fff !important;
+      transform: scale(1.1) !important;
+    }
+    .color-picker-divider {
+      width: 1px !important;
+      height: 28px !important;
+      background: rgba(255,255,255,0.1) !important;
+      margin: 0 2px !important;
+    }
+    .color-custom-wrap {
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+    .color-custom-input {
+      width: 36px !important;
+      height: 28px !important;
+      border-radius: 6px !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      cursor: pointer !important;
+      padding: 0 !important;
+      background: none !important;
+    }
+    .color-custom-label {
+      font-size: 12px !important;
+      color: rgba(255,255,255,0.35) !important;
+    }
   </style>
 </head>
 <body>
@@ -1110,7 +1159,7 @@
   let complianceFooterEnabled = true
   let profileSetupMode = false
 
-  const COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#64748b','#1a1a2e','#059669']
+  const COLORS = ['#f87171','#fb923c','#fbbf24','#34d399','#00d4b4','#38bdf8','#818cf8','#c084fc','#f472b6','#94a3b8']
 
   const ACTION_TYPES = [
     { value: 'pause_campaigns', label: 'Pause all active campaigns' },
@@ -1283,7 +1332,7 @@
 
   const openCreateDispositionModal = () => {
     editingDispositionId = null
-    selectedDispColor = '#6366f1'
+    selectedDispColor = '#818cf8'
     actionRowCount = 0
     document.getElementById('disp-tag-name').value = ''
     document.getElementById('disp-tag-description').value = ''
@@ -1299,9 +1348,19 @@
 
   const renderColorPicker = () => {
     const row = document.getElementById('color-picker-row')
+    const isPreset = COLORS.includes(selectedDispColor)
     row.innerHTML = COLORS.map(c => `
       <div class="color-swatch ${c === selectedDispColor ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${c}')"></div>
-    `).join('')
+    `).join('') + `
+      <div class="color-picker-divider"></div>
+      <div class="color-custom-wrap">
+        <input type="color" class="color-custom-input" id="color-custom-input"
+          value="${selectedDispColor}"
+          oninput="selectCustomColor(this.value)"
+          title="Custom color">
+        <span class="color-custom-label">Custom</span>
+      </div>
+    `
   }
 
   const selectColor = (color) => {
@@ -1309,11 +1368,17 @@
     renderColorPicker()
   }
 
+  const selectCustomColor = (color) => {
+    selectedDispColor = color
+    // Deselect preset swatches visually without re-rendering (avoids resetting the native picker)
+    document.querySelectorAll('#color-picker-row .color-swatch').forEach(el => el.classList.remove('selected'))
+  }
+
   const editDispositionTag = async (id) => {
     const tag = allDispositionTags.find(t => t.id === id)
     if (!tag) return
     editingDispositionId = id
-    selectedDispColor = tag.color || '#6366f1'
+    selectedDispColor = tag.color || '#818cf8'
     actionRowCount = 0
     document.getElementById('disp-tag-name').value = tag.name
     document.getElementById('disp-tag-description').value = tag.description || ''
