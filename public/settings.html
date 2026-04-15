@@ -102,6 +102,10 @@
 
     /* ── Modal overlay ── */
     .modal-overlay, [class*="modal-overlay"], [id*="modal-overlay"] {
+      display: none !important;
+    }
+    .modal-overlay.open {
+      display: flex !important;
       background: rgba(0,0,0,0.75) !important;
       backdrop-filter: blur(4px) !important;
     }
@@ -542,10 +546,13 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
     }
 
-    /* ── Modal overlay — full screen, centered ── */
+    /* ── Modal overlay — hidden by default, shown when .open ── */
     .modal-overlay, [class*="modal-overlay"],
     [id*="modal-overlay"], [id*="tag-modal-overlay"],
     [id*="disposition-modal-overlay"] {
+      display: none !important;
+    }
+    .modal-overlay.open {
       position: fixed !important;
       top: 0 !important; left: 0 !important;
       width: 100vw !important; height: 100vh !important;
