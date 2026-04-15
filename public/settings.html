@@ -790,6 +790,7 @@
       <div class="settings-nav-item" onclick="showSettingsPanel('phone-numbers', this)">Phone Numbers</div>
       <div class="settings-nav-item" onclick="showSettingsPanel('team', this)">Team &amp; Invites</div>
       <div class="settings-nav-item" onclick="showSettingsPanel('account', this)">Account</div>
+      <div class="settings-nav-item" onclick="showSettingsPanel('integrations', this)">Integrations</div>
     </div>
     <div>
       <div class="settings-nav-mobile">
@@ -799,6 +800,7 @@
           <option value="phone-numbers">Phone Numbers</option>
           <option value="team">Team &amp; Invites</option>
           <option value="account">Account</option>
+          <option value="integrations">Integrations</option>
         </select>
       </div>
       <!-- DISPOSITION TAGS PANEL -->
@@ -1033,6 +1035,46 @@
           <button class="btn-primary" onclick="savePrioritySettings()">Save Priority Settings</button>
         </div>
       </div>
+
+      <!-- INTEGRATIONS PANEL -->
+      <div class="settings-panel" id="panel-integrations">
+        <div class="settings-card">
+          <h2>Lead Integrations</h2>
+          <p>Connect lead vendors to automatically receive leads into your Priority queue.</p>
+
+          <div class="settings-section-title" style="margin-top:20px;">Your Webhook URL</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <input type="text" id="webhook-url" readonly style="flex:1;padding:9px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:13px;color:rgba(255,255,255,0.5);font-family:monospace;cursor:text;" value="Loading...">
+            <button class="btn-edit" id="webhook-copy-btn" onclick="copyWebhookUrl()">Copy</button>
+          </div>
+          <div class="help-text" style="margin-bottom:20px;">Send a POST request to this URL with your lead data. Each lead will appear in your Priority queue.</div>
+
+          <div class="settings-section-title">Webhook Secret</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">
+            Secret key: Contact your Veloxo administrator to receive your webhook secret key.
+          </div>
+
+          <div class="settings-section-title" style="cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="toggleSetupInstructions()">
+            <span id="setup-arrow" style="font-size:10px;transition:transform 0.15s;">&#9654;</span> How to set this up
+          </div>
+          <div id="setup-instructions" style="display:none;margin-top:10px;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.8;">
+            1. Copy your webhook URL above<br>
+            2. In Make.com, create a new scenario with Gmail, Text Parser, and HTTP modules<br>
+            3. Set the HTTP module URL to your webhook URL<br>
+            4. Add your secret key to the request body as 'secret'<br>
+            5. New leads will automatically appear in your Priority queue
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2>Recent Priority Leads</h2>
+          <p>The last 5 leads received via webhook.</p>
+          <div id="recent-webhook-leads">
+            <div style="font-size:13px;color:rgba(255,255,255,0.35);">Loading...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div><!-- /main-content -->
@@ -1210,6 +1252,79 @@
     if (panel === 'team') loadInvites()
     if (panel === 'phone-numbers') loadPhoneNumbers()
     if (panel === 'account') loadAccountEarnings()
+    if (panel === 'integrations') loadIntegrationsPanel()
+  }
+
+  const loadIntegrationsPanel = async () => {
+    try {
+      const res = await fetch('/auth/me', { credentials: 'include' })
+      const data = await res.json()
+      const userId = data.id || data.user?.id
+      if (userId) {
+        document.getElementById('webhook-url').value = 'https://app.veloxo.io/api/leads/inbound/' + userId
+      }
+    } catch (err) { console.error('Failed to load user ID for webhook URL:', err) }
+
+    try {
+      const res = await fetch('/leads?tier=priority&limit=5&sort=queued_at', { credentials: 'include' })
+      const data = await res.json()
+      const leads = data.leads || []
+      const container = document.getElementById('recent-webhook-leads')
+      if (!leads.length) {
+        container.innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">No leads received yet</div>'
+        return
+      }
+      container.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Name</th>
+              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Phone</th>
+              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Source</th>
+              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Received</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${leads.map(l => `
+              <tr>
+                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.65);border-bottom:1px solid rgba(255,255,255,0.04);">${[l.first_name, l.last_name].filter(Boolean).join(' ') || 'Unknown'}</td>
+                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.04);font-family:monospace;">${l.phone || ''}</td>
+                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.04);">${l.lead_source || 'webhook'}</td>
+                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.4);border-bottom:1px solid rgba(255,255,255,0.04);">${l.queued_at ? timeAgo(l.queued_at) : formatDate(l.created_at)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`
+    } catch (err) {
+      console.error('Failed to load recent webhook leads:', err)
+      document.getElementById('recent-webhook-leads').innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">Could not load recent leads</div>'
+    }
+  }
+
+  const copyWebhookUrl = () => {
+    const input = document.getElementById('webhook-url')
+    const btn = document.getElementById('webhook-copy-btn')
+    navigator.clipboard.writeText(input.value).then(() => {
+      btn.textContent = 'Copied!'
+      setTimeout(() => { btn.textContent = 'Copy' }, 2000)
+    }).catch(() => {
+      input.select()
+      document.execCommand('copy')
+      btn.textContent = 'Copied!'
+      setTimeout(() => { btn.textContent = 'Copy' }, 2000)
+    })
+  }
+
+  const toggleSetupInstructions = () => {
+    const el = document.getElementById('setup-instructions')
+    const arrow = document.getElementById('setup-arrow')
+    if (el.style.display === 'none') {
+      el.style.display = 'block'
+      arrow.style.transform = 'rotate(90deg)'
+    } else {
+      el.style.display = 'none'
+      arrow.style.transform = 'rotate(0deg)'
+    }
   }
 
   // Required fields for profile completion: [fieldId, profileKey]
