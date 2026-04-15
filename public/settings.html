@@ -98,6 +98,285 @@
     .delivery-pct { color: #fbbf24 !important; font-weight: 500 !important; }
     .phone-search-input, input[placeholder*="state"], input[placeholder*="555"] { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 8px !important; color: rgba(255,255,255,0.7) !important; padding: 8px 12px !important; font-size: 13px !important; outline: none !important; width: 100% !important; }
     .phone-search-input:focus, input[placeholder*="state"]:focus, input[placeholder*="555"]:focus { border-color: rgba(0,201,167,0.35) !important; background: rgba(0,201,167,0.04) !important; }
+
+    /* ── Modal overlay ── */
+    .modal-overlay, [class*="modal-overlay"], [id*="modal-overlay"] {
+      background: rgba(0,0,0,0.75) !important;
+      backdrop-filter: blur(4px) !important;
+    }
+
+    /* ── Modal container ── */
+    .modal, [class*="modal-container"], [id*="disposition-modal"],
+    [id*="tag-modal"], [class*="modal-content"] {
+      background: #1a2228 !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-radius: 14px !important;
+      padding: 28px !important;
+      width: 100% !important;
+      max-width: 560px !important;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5) !important;
+    }
+
+    /* ── Modal title ── */
+    .modal h2, .modal h3, [class*="modal-title"] {
+      font-size: 16px !important;
+      font-weight: 600 !important;
+      color: #fff !important;
+      margin-bottom: 20px !important;
+    }
+
+    /* ── Close button ── */
+    .modal-close, [class*="modal-close"] {
+      color: rgba(255,255,255,0.4) !important;
+      background: none !important;
+      border: none !important;
+      cursor: pointer !important;
+      font-size: 18px !important;
+      padding: 4px !important;
+      transition: color 0.12s !important;
+    }
+    .modal-close:hover { color: #fff !important; }
+
+    /* ── Form field labels ── */
+    .modal label, [class*="modal"] label {
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      color: rgba(255,255,255,0.45) !important;
+      display: block !important;
+      margin-bottom: 6px !important;
+      margin-top: 14px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.06em !important;
+    }
+
+    /* ── Text inputs inside modal ── */
+    .modal input[type="text"],
+    .modal input[type="number"],
+    .modal input[type="time"],
+    .modal textarea,
+    [class*="modal"] input[type="text"],
+    [class*="modal"] input[type="number"],
+    [class*="modal"] input[type="time"],
+    [class*="modal"] textarea {
+      width: 100% !important;
+      padding: 9px 12px !important;
+      background: rgba(255,255,255,0.05) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-radius: 8px !important;
+      color: rgba(255,255,255,0.8) !important;
+      font-size: 13px !important;
+      outline: none !important;
+      font-family: inherit !important;
+      box-sizing: border-box !important;
+      transition: border-color 0.12s !important;
+    }
+    .modal input:focus, .modal textarea:focus,
+    [class*="modal"] input:focus,
+    [class*="modal"] textarea:focus {
+      border-color: rgba(0,201,167,0.4) !important;
+      background: rgba(0,201,167,0.04) !important;
+    }
+    .modal input::placeholder,
+    .modal textarea::placeholder {
+      color: rgba(255,255,255,0.22) !important;
+    }
+
+    /* ── Section headers inside modal ── */
+    .modal [class*="section-title"],
+    .modal [class*="section-header"],
+    .modal h4, .modal strong {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: rgba(255,255,255,0.7) !important;
+      margin-bottom: 4px !important;
+    }
+    .modal [class*="section-sub"],
+    .modal [class*="section-desc"],
+    .modal p {
+      font-size: 12px !important;
+      color: rgba(255,255,255,0.3) !important;
+      margin-bottom: 10px !important;
+    }
+
+    /* ── Dividers between sections ── */
+    .modal hr, .modal [class*="divider"] {
+      border: none !important;
+      border-top: 1px solid rgba(255,255,255,0.06) !important;
+      margin: 16px 0 !important;
+    }
+
+    /* ── + Add Action / + Add Message buttons ── */
+    .modal [class*="add-action"],
+    .modal [class*="add-message"],
+    .modal button[class*="add"] {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      padding: 6px 14px !important;
+      border-radius: 7px !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      color: #00d4b4 !important;
+      background: rgba(0,201,167,0.1) !important;
+      border: 1px solid rgba(0,201,167,0.2) !important;
+      cursor: pointer !important;
+      transition: all 0.12s !important;
+    }
+    .modal button[class*="add"]:hover {
+      background: rgba(0,201,167,0.18) !important;
+    }
+
+    /* ── Info/hint box ── */
+    .modal [class*="hint"], .modal [class*="info-box"],
+    .modal [class*="tip"], .modal [class*="variable-hint"] {
+      background: rgba(0,201,167,0.07) !important;
+      border: 1px solid rgba(0,201,167,0.18) !important;
+      border-radius: 8px !important;
+      padding: 10px 14px !important;
+      font-size: 12px !important;
+      color: rgba(255,255,255,0.5) !important;
+      line-height: 1.6 !important;
+      margin: 10px 0 !important;
+    }
+
+    /* ── Message block (Message 1, Send on day X at time) ── */
+    .modal [class*="message-block"],
+    .modal [class*="drip-message"] {
+      background: rgba(255,255,255,0.03) !important;
+      border: 1px solid rgba(255,255,255,0.07) !important;
+      border-radius: 9px !important;
+      padding: 14px !important;
+      margin-top: 10px !important;
+    }
+    .modal [class*="message-header"],
+    .modal [class*="message-label"] {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 10px !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      color: rgba(255,255,255,0.6) !important;
+    }
+
+    /* ── Remove button on message blocks ── */
+    .modal [class*="remove-btn"],
+    .modal button[class*="remove"] {
+      font-size: 11px !important;
+      color: #f87171 !important;
+      background: rgba(239,68,68,0.08) !important;
+      border: 1px solid rgba(239,68,68,0.15) !important;
+      border-radius: 6px !important;
+      padding: 3px 10px !important;
+      cursor: pointer !important;
+    }
+
+    /* ── Send on day row ── */
+    .modal [class*="send-day"],
+    .modal [class*="day-row"] {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      margin-bottom: 8px !important;
+      font-size: 13px !important;
+      color: rgba(255,255,255,0.5) !important;
+    }
+    .modal [class*="send-day"] input[type="number"] {
+      width: 60px !important;
+      margin-bottom: 0 !important;
+    }
+    .modal [class*="send-day"] input[type="time"] {
+      width: 120px !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* ── Variable pills inside modal ── */
+    .modal [class*="variable-pills"],
+    .modal [class*="insert-variable"] {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 5px !important;
+      margin-top: 8px !important;
+    }
+    .modal [class*="variable-pill"],
+    .modal [class*="variable-btn"],
+    .modal [class*="insert-variable"] span,
+    .modal [class*="insert-variable"] button {
+      padding: 3px 10px !important;
+      border-radius: 6px !important;
+      font-size: 11.5px !important;
+      font-weight: 500 !important;
+      background: rgba(255,255,255,0.07) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      color: rgba(255,255,255,0.55) !important;
+      cursor: pointer !important;
+      transition: all 0.12s !important;
+    }
+    .modal [class*="variable-pill"]:hover,
+    .modal [class*="variable-btn"]:hover {
+      background: rgba(0,201,167,0.12) !important;
+      border-color: rgba(0,201,167,0.25) !important;
+      color: #00d4b4 !important;
+    }
+
+    /* ── Char counter ── */
+    .modal [class*="char-count"] {
+      font-size: 11px !important;
+      color: rgba(255,255,255,0.25) !important;
+      text-align: right !important;
+      margin-top: 4px !important;
+    }
+
+    /* ── Footer buttons ── */
+    .modal [class*="modal-footer"],
+    .modal [class*="modal-actions"],
+    .modal [class*="btn-row"],
+    .modal-footer {
+      display: flex !important;
+      justify-content: flex-end !important;
+      gap: 8px !important;
+      margin-top: 20px !important;
+      padding-top: 16px !important;
+      border-top: 1px solid rgba(255,255,255,0.06) !important;
+    }
+
+    /* ── Cancel button ── */
+    .modal [class*="cancel"],
+    .modal button[class*="cancel"] {
+      padding: 8px 18px !important;
+      border-radius: 8px !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      color: rgba(255,255,255,0.5) !important;
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      cursor: pointer !important;
+      transition: all 0.12s !important;
+    }
+    .modal [class*="cancel"]:hover {
+      background: rgba(255,255,255,0.1) !important;
+      color: #fff !important;
+    }
+
+    /* ── Save / primary button ── */
+    .modal [class*="save"],
+    .modal [class*="submit"],
+    .modal button[type="submit"] {
+      padding: 8px 18px !important;
+      border-radius: 8px !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #0b0f12 !important;
+      background: linear-gradient(135deg, #00c9a7, #0ea5e9) !important;
+      border: none !important;
+      cursor: pointer !important;
+      box-shadow: 0 2px 12px rgba(0,201,167,0.3) !important;
+      transition: all 0.12s !important;
+    }
+    .modal [class*="save"]:hover {
+      box-shadow: 0 4px 18px rgba(0,201,167,0.45) !important;
+      transform: translateY(-1px) !important;
+    }
   </style>
 </head>
 <body>
