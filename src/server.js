@@ -77,6 +77,22 @@ app.get('/', (req, res) => {
 
 app.use(express.static(path.join(__dirname, '../public'), { maxAge: '5m', etag: true, lastModified: true }))
 
+app.post('/api/waitlist', async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ error: 'Email required' })
+  try {
+    const supabase = require('./db')
+    const { error } = await supabase
+      .from('waitlist')
+      .insert([{ email, created_at: new Date().toISOString() }])
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    console.error('Waitlist error:', err)
+    res.status(500).json({ error: 'Failed to save' })
+  }
+})
+
 app.use('/auth', authRouter)
 
 // Profile patch — uses authMiddlewareBasic so it works during onboarding (profile_complete = false)
