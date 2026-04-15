@@ -671,9 +671,9 @@ const renderLeads = (leads) => {
     const bucket = lead.bucket_id ? allBuckets.find(b => b.id === lead.bucket_id) : null
     return `
       <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}">
-        <div class="lead-card-body" style="display:grid;grid-template-columns:290px 2fr 0.85fr 215px 170px;width:100%;min-width:0;">
+        <div class="lead-card-body" style="display:grid;grid-template-columns:290px 2fr 0.85fr 215px 170px;width:100%;min-width:0;gap:0;">
 
-          <div class="col-contact">
+          <div class="col-contact" style="padding:12px 16px;border-right:1px solid rgba(255,255,255,0.05);min-width:0;overflow:hidden;">
             <div class="col-contact-top">
               <input type="checkbox" class="lead-cb lead-select-cb" data-id="${lead.id}" onchange="toggleLead(this)" ${selectedLeads.has(lead.id) ? 'checked' : ''}>
               <div class="lead-avatar" style="background:rgba(0,201,167,0.15);color:#00d4b4">${initials}</div>
@@ -705,30 +705,30 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-notes">
+          <div class="col-notes" style="padding:12px 16px;border-right:1px solid rgba(255,255,255,0.05);min-width:0;overflow:hidden;display:flex;flex-direction:column;">
             <div class="notes-label">Notes</div>
-            <textarea class="notes-textarea" style="min-height:120px;width:100%;box-sizing:border-box;" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+            <textarea class="notes-textarea" style="width:100%;min-height:130px;flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:9px 11px;font-size:13px;color:rgba(255,255,255,0.7);font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
             <div class="notes-footer">
               <span class="notes-timestamp">${lead.notes_updated_at ? 'Last edited ' + timeAgo(lead.notes_updated_at) : 'No notes yet'}</span>
               <button class="notes-save-btn" onclick="saveNotes('${lead.id}', this.closest('.col-notes').querySelector('.notes-textarea').value)">Save</button>
             </div>
           </div>
 
-          <div class="col-quotes">
+          <div class="col-quotes" style="padding:12px 16px;border-right:1px solid rgba(255,255,255,0.05);min-width:0;overflow:hidden;display:flex;flex-direction:column;">
             <div class="notes-label">Quoted Plans</div>
-            <textarea class="notes-textarea quotes-textarea" style="min-height:120px;width:100%;box-sizing:border-box;" placeholder="e.g. PPO $245/mo&#10;Dental add-on $32/mo" data-lead-id="${lead.id}" onblur="saveQuotes('${lead.id}', this.value)">${lead.quotes || ''}</textarea>
+            <textarea class="notes-textarea quotes-textarea" style="width:100%;min-height:130px;flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:9px 11px;font-size:13px;color:rgba(255,255,255,0.7);font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;" placeholder="e.g. PPO $245/mo&#10;Dental add-on $32/mo" data-lead-id="${lead.id}" onblur="saveQuotes('${lead.id}', this.value)">${lead.quotes || ''}</textarea>
             <div class="notes-footer">
               <span class="notes-timestamp">${lead.quotes_updated_at ? 'Updated ' + timeAgo(lead.quotes_updated_at) : 'No quotes yet'}</span>
               <button class="notes-save-btn" onclick="saveQuotes('${lead.id}', this.closest('.col-quotes').querySelector('.quotes-textarea').value)">Save</button>
             </div>
           </div>
 
-          <div class="col-actions">
-            <button class="btn-call" style="width:100%;padding:13px 10px;font-size:14px;" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
+          <div class="col-actions" style="padding:12px 20px;border-right:1px solid rgba(255,255,255,0.05);min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:8px;">
+            <button class="btn-call" style="width:100%;padding:11px 10px;font-size:13.5px;font-weight:600;color:#0b0f12;background:linear-gradient(135deg,#00c9a7,#0ea5e9);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 2px 10px rgba(0,201,167,0.3);" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0b0f12" stroke-width="1.5"><path d="M14 3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h3l2 2 2-2h3a1 1 0 001-1V3z"/><path d="M5 6h6M5 9h4"/></svg>
               Send Text
             </button>
-            <button class="btn-disposition" style="width:100%;padding:12px 10px;font-size:14px;" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">Disposition</button>
+            <button class="btn-disposition" style="width:100%;padding:10px 10px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;" onclick="event.stopPropagation();openDispositionModal('${lead.id}','${safeName}')">Disposition</button>
             <div class="action-tags">
               ${leadDispTags.map(t => `<span class="action-tag" style="background:${t.color}18;border-color:${t.color}30;color:${t.color}">${t.name}</span>`).join('')}
               ${campProgress ? `<span class="action-tag teal">${hasActiveCampaign ? (lead.campaign_day != null ? `⚡ Day ${lead.campaign_day}` : '⚡ Active') : '✓ Done'}</span>` : ''}
@@ -742,7 +742,7 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-meta">
+          <div class="col-meta" style="padding:12px 16px;min-width:0;overflow:hidden;">
             <div class="meta-sms-line">Last contact: <strong>${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '—'}</strong></div>
             <div class="divider"></div>
             <div class="meta-row"><span class="meta-key">Added</span><span class="meta-val">${lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
