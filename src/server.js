@@ -25,6 +25,7 @@ const adminRouter = require('./routes/admin')
 const creditsRouter = require('./routes/credits')
 const apiLeadsRouter = require('./routes/apiLeads')
 const leadVendorsRouter = require('./routes/leadVendors')
+const dripsRouter = require('./routes/drips')
 const { smsQueue } = require('./smsQueue')
 
 if (!process.env.MAKE_WEBHOOK_SECRET) {
@@ -130,6 +131,7 @@ app.use('/api/numbers', authMiddleware, numbersRouter)
 app.use('/admin', authMiddleware, adminMiddleware, adminRouter)
 app.use('/api/credits', authMiddleware, creditsRouter)
 app.use('/lead-vendors', authMiddleware, leadVendorsRouter)
+app.use('/drips', authMiddleware, dripsRouter)
 
 app.get('/health', (req, res) => {
   res.json({ status: 'server is running' })

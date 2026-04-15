@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='18' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300c9a7'/%3E%3Cstop offset='100%25' stop-color='%230ea5e9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M10 10L16 18L10 26' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/%3E%3Cpath d='M16 10L24 18L16 26' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M22 10L28 18L22 26' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.7'/%3E%3C/svg%3E">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Follow-up Drips — Veloxo</title>
+  <link rel="stylesheet" href="/css/shared.css?v=2">
+  <script src="/toast.js?v=2"></script>
+  <style>
+    .page-header { padding: 28px 28px 0; max-width: 1200px; margin: 0 auto; }
+    .page-header h1 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+    .page-header p { font-size: 13px; color: rgba(255,255,255,0.45); margin: 0; line-height: 1.5; }
+    .page-body { padding: 20px 28px 40px; max-width: 1200px; margin: 0 auto; }
+
+    .drip-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .drip-card h2 { font-size: 15px; font-weight: 600; color: #fff; margin: 0 0 4px; }
+    .drip-card > .card-desc { font-size: 12px; color: rgba(255,255,255,0.35); margin-bottom: 18px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input { width: 100%; padding: 8px 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; box-sizing: border-box; }
+    .form-input:focus { border-color: rgba(0,201,167,0.35); background: rgba(0,201,167,0.04); }
+    .form-input::placeholder { color: rgba(255,255,255,0.2); }
+    select.form-input { cursor: pointer; }
+    textarea.form-input { resize: vertical; min-height: 80px; }
+    .help-text { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+    .char-count { font-size: 11px; color: rgba(255,255,255,0.3); text-align: right; margin-top: 2px; }
+
+    .form-row { display: flex; gap: 12px; align-items: flex-end; }
+    .form-row .form-group { flex: 1; }
+    .form-row .form-group.narrow { flex: 0 0 100px; }
+
+    .var-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .var-chip { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 5px; padding: 3px 9px; font-size: 11px; color: rgba(255,255,255,0.45); cursor: pointer; font-family: inherit; transition: all 0.12s; }
+    .var-chip:hover { background: rgba(0,201,167,0.1); border-color: rgba(0,201,167,0.2); color: #00d4b4; }
+
+    .btn-save { background: linear-gradient(135deg, #00c9a7, #0ea5e9); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-save:hover { filter: brightness(1.1); }
+    .btn-cancel { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; display: none; }
+    .btn-cancel:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .form-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+    .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.25); margin-bottom: 10px; }
+
+    /* Filter row */
+    .filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .filter-row select { width: 220px; }
+
+    /* Drip table */
+    .drip-table { width: 100%; border-collapse: collapse; }
+    .drip-table th { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.28); padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .drip-table td { padding: 12px; font-size: 13px; color: rgba(255,255,255,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .drip-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .drip-tag-cell { display: flex; align-items: center; gap: 7px; }
+    .drip-tag-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .drip-msg-preview { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: rgba(255,255,255,0.5); }
+    .drip-btns { display: flex; gap: 4px; }
+    .drip-btn { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; padding: 5px 6px; border-radius: 5px; transition: all 0.12s; display: flex; align-items: center; }
+    .drip-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+    .drip-btn.danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+
+    .empty-state { text-align: center; padding: 40px 16px; color: rgba(255,255,255,0.3); font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .page-header, .page-body { padding-left: 16px; padding-right: 16px; }
+      .form-row { flex-direction: column; }
+      .form-row .form-group.narrow { flex: none; }
+      .filter-row select { width: 100%; }
+      .drip-table th:nth-child(4), .drip-table td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="sidebar-root"></div>
+<div id="nav-overlay" class="nav-overlay" onclick="closeNavDrawer()"></div>
+
+<div class="main-content">
+  <div class="page-header">
+    <h1>Follow-up Drips</h1>
+    <p>Schedule messages to send automatically after a disposition is applied.</p>
+  </div>
+
+  <div class="page-body">
+    <!-- CREATE / EDIT FORM -->
+    <div class="drip-card">
+      <h2 id="form-title">Create New Drip Message</h2>
+      <div class="card-desc" id="form-desc">Set up an automatic follow-up that sends X days after a disposition tag is applied.</div>
+
+      <div class="form-group">
+        <label>Disposition Tag</label>
+        <select class="form-input" id="drip-tag">
+          <option value="">Select disposition tag...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Message</label>
+        <textarea class="form-input" id="drip-body" maxlength="1700" placeholder="Type your follow-up message..." rows="4"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="help-text">Variables are replaced with lead data when sent</div>
+          <div class="char-count" id="drip-char-count">0 / 1700</div>
+        </div>
+        <div class="var-chips">
+          <button type="button" class="var-chip" onclick="insertVar('{first_name}')">{first_name}</button>
+          <button type="button" class="var-chip" onclick="insertVar('{last_name}')">{last_name}</button>
+          <button type="button" class="var-chip" onclick="insertVar('{state}')">{state}</button>
+          <button type="button" class="var-chip" onclick="insertVar('{zip_code}')">{zip_code}</button>
+          <button type="button" class="var-chip" onclick="insertVar('{email}')">{email}</button>
+          <button type="button" class="var-chip" onclick="insertVar('{phone}')">{phone}</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group narrow">
+          <label>Send After</label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" class="form-input" id="drip-day" value="1" min="0" style="text-align:center;">
+            <span style="font-size:12px;color:rgba(255,255,255,0.4);white-space:nowrap;">days</span>
+          </div>
+          <div class="help-text">0 = send immediately</div>
+        </div>
+        <div class="form-group narrow">
+          <label>Send At</label>
+          <input type="time" class="form-input" id="drip-time" value="09:00">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-save" id="drip-save-btn" onclick="saveDrip()">Save Follow-up Text</button>
+        <button class="btn-cancel" id="drip-cancel-btn" onclick="cancelEdit()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- CURRENT DRIPS TABLE -->
+    <div class="drip-card">
+      <h2>Current Drip Messages</h2>
+      <div class="card-desc">All scheduled follow-up messages grouped by disposition tag.</div>
+
+      <div class="filter-row">
+        <select class="form-input" id="drip-filter" onchange="renderDrips()">
+          <option value="">All disposition tags</option>
+        </select>
+      </div>
+
+      <div id="drip-list">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/shared.js?v=2"></script>
+<script>
+let drips = []
+let dispositionTags = []
+let editingDripId = null
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const ok = await checkAuth()
+  if (!ok) return
+  loadProfile()
+  loadNotifBadge()
+  loadCalBadge()
+
+  // Char counter
+  const bodyEl = document.getElementById('drip-body')
+  bodyEl.addEventListener('input', () => {
+    document.getElementById('drip-char-count').textContent = `${bodyEl.value.length} / 1700`
+  })
+
+  await loadDispositionTags()
+  await loadDrips()
+})
+
+// ─── DATA LOADING ───────────────────────────────────────────────────────────
+
+const loadDispositionTags = async () => {
+  try {
+    const res = await fetch('/dispositions', { credentials: 'include' })
+    const data = await res.json()
+    dispositionTags = data.tags || []
+    populateTagDropdowns()
+  } catch (err) { console.error('Failed to load tags:', err) }
+}
+
+const loadDrips = async () => {
+  try {
+    const res = await fetch('/drips', { credentials: 'include' })
+    const data = await res.json()
+    drips = data.drips || []
+    renderDrips()
+  } catch (err) {
+    console.error('Failed to load drips:', err)
+    document.getElementById('drip-list').innerHTML = '<div class="empty-state">Failed to load drips</div>'
+  }
+}
+
+// ─── DROPDOWNS ──────────────────────────────────────────────────────────────
+
+const populateTagDropdowns = () => {
+  const tagOpts = dispositionTags.map(t =>
+    `<option value="${t.id}">${esc(t.name)}</option>`
+  ).join('')
+
+  document.getElementById('drip-tag').innerHTML =
+    '<option value="">Select disposition tag...</option>' + tagOpts
+
+  document.getElementById('drip-filter').innerHTML =
+    '<option value="">All disposition tags</option>' + tagOpts
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+
+const renderDrips = () => {
+  const container = document.getElementById('drip-list')
+  const filterTag = document.getElementById('drip-filter').value
+
+  let filtered = drips
+  if (filterTag) filtered = drips.filter(d => d.disposition_tag_id === filterTag)
+
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state">No follow-up drips yet. Create your first drip message above.</div>'
+    return
+  }
+
+  // Sort by tag name then day
+  filtered.sort((a, b) => {
+    const ta = a.disposition_tags?.name || ''
+    const tb = b.disposition_tags?.name || ''
+    if (ta !== tb) return ta.localeCompare(tb)
+    return (a.day_number || 0) - (b.day_number || 0)
+  })
+
+  container.innerHTML = `
+    <table class="drip-table">
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Time</th>
+          <th>Disposition Tag</th>
+          <th>Message</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(d => {
+          const tag = d.disposition_tags || {}
+          const timeDisplay = formatSendTime(d.send_time)
+          const dayLabel = d.day_number === 0 ? 'Immediate' : `Day ${d.day_number}`
+          return `
+          <tr>
+            <td style="font-weight:600;color:rgba(255,255,255,0.7);white-space:nowrap;">${dayLabel}</td>
+            <td style="white-space:nowrap;">${timeDisplay}</td>
+            <td>
+              <div class="drip-tag-cell">
+                <div class="drip-tag-dot" style="background:${tag.color || '#6366f1'}"></div>
+                <span>${esc(tag.name || 'Unknown')}</span>
+              </div>
+            </td>
+            <td><div class="drip-msg-preview">${esc(d.message_body)}</div></td>
+            <td>
+              <div class="drip-btns">
+                <button class="drip-btn" title="Edit" onclick="editDrip('${d.id}')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="drip-btn danger" title="Delete" onclick="deleteDrip('${d.id}')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>`
+        }).join('')}
+      </tbody>
+    </table>`
+}
+
+const formatSendTime = (time) => {
+  if (!time) return '9:00 AM'
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hr = h % 12 || 12
+  return `${hr}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+// ─── INSERT VARIABLE ────────────────────────────────────────────────────────
+
+const insertVar = (v) => {
+  const ta = document.getElementById('drip-body')
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  ta.value = ta.value.substring(0, start) + v + ta.value.substring(end)
+  const pos = start + v.length
+  ta.setSelectionRange(pos, pos)
+  ta.focus()
+  ta.dispatchEvent(new Event('input'))
+}
+
+// ─── CRUD ───────────────────────────────────────────────────────────────────
+
+const editDrip = (id) => {
+  const drip = drips.find(d => d.id === id)
+  if (!drip) return
+  editingDripId = id
+  document.getElementById('drip-tag').value = drip.disposition_tag_id
+  document.getElementById('drip-body').value = drip.message_body
+  document.getElementById('drip-day').value = drip.day_number
+  document.getElementById('drip-time').value = drip.send_time || '09:00'
+  document.getElementById('drip-char-count').textContent = `${drip.message_body.length} / 1700`
+  document.getElementById('drip-save-btn').textContent = 'Update Follow-up Text'
+  document.getElementById('drip-cancel-btn').style.display = 'inline-flex'
+  document.getElementById('form-title').textContent = 'Edit Drip Message'
+  document.getElementById('drip-tag').focus()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const cancelEdit = () => {
+  editingDripId = null
+  document.getElementById('drip-tag').value = ''
+  document.getElementById('drip-body').value = ''
+  document.getElementById('drip-day').value = '1'
+  document.getElementById('drip-time').value = '09:00'
+  document.getElementById('drip-char-count').textContent = '0 / 1700'
+  document.getElementById('drip-save-btn').textContent = 'Save Follow-up Text'
+  document.getElementById('drip-cancel-btn').style.display = 'none'
+  document.getElementById('form-title').textContent = 'Create New Drip Message'
+}
+
+const saveDrip = async () => {
+  const disposition_tag_id = document.getElementById('drip-tag').value
+  const message_body = document.getElementById('drip-body').value.trim()
+  const day_number = parseInt(document.getElementById('drip-day').value)
+  const send_time = document.getElementById('drip-time').value
+
+  if (!disposition_tag_id) { toast.error('Select a disposition tag'); return }
+  if (!message_body) { toast.error('Message is required'); return }
+  if (isNaN(day_number) || day_number < 0) { toast.error('Day must be 0 or more'); return }
+
+  const body = { disposition_tag_id, message_body, day_number, send_time }
+
+  try {
+    const url = editingDripId ? `/drips/${editingDripId}` : '/drips'
+    const method = editingDripId ? 'PATCH' : 'POST'
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to save drip')
+
+    toast.success(editingDripId ? 'Drip updated' : 'Drip created')
+    cancelEdit()
+    loadDrips()
+  } catch (err) {
+    toast.error(err.message)
+  }
+}
+
+const deleteDrip = async (id) => {
+  if (!confirm('Delete this drip message?')) return
+  try {
+    const res = await fetch(`/drips/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) throw new Error('Failed to delete')
+    toast.success('Drip deleted')
+    loadDrips()
+  } catch (err) { toast.error(err.message) }
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+const esc = (s) => {
+  if (!s) return ''
+  const d = document.createElement('div')
+  d.textContent = s
+  return d.innerHTML
+}
+</script>
+</body>
+</html>

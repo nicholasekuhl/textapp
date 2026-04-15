@@ -436,6 +436,10 @@ const renderSidebar = () => {
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>
       <span>Templates</span>
     </a>
+    <a href="/drips.html" class="nav-item${a('/drips.html')}">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4M8 10v4"/><path d="M4 6h8"/><path d="M5 10h6"/><circle cx="8" cy="6" r="1" fill="currentColor"/><circle cx="8" cy="10" r="1" fill="currentColor"/></svg>
+      <span>Follow-up Drips</span>
+    </a>
 
     <span class="nav-section-label">Insights</span>
     <a href="/stats.html" class="nav-item${a('/stats.html')}">${SVG_STATS}<span>Stats</span></a>

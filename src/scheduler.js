@@ -1164,11 +1164,176 @@ const scheduleMidnightReset = () => {
   }, msUntilMidnight)
 }
 
+// ─── DISPOSITION DRIPS ──────────────────────────────────────────────────────
+
+const processDrips = async () => {
+  try {
+    // Get all drip definitions
+    const { data: allDrips, error: dripsErr } = await supabase
+      .from('disposition_drips')
+      .select('*, disposition_tags (id, name, color)')
+    if (dripsErr || !allDrips || allDrips.length === 0) return
+
+    const now = new Date()
+    let sent = 0
+    let skipped = 0
+
+    for (const drip of allDrips) {
+      // Find leads that had this disposition applied exactly day_number days ago
+      const targetDate = new Date(now)
+      targetDate.setDate(targetDate.getDate() - drip.day_number)
+      const dayStart = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 0, 0, 0))
+      const dayEnd = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 23, 59, 59))
+
+      // For day 0 drips, look at leads dispositioned in the last 5 minutes (handled per scheduler tick)
+      let matchQuery
+      if (drip.day_number === 0) {
+        const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
+        matchQuery = supabase
+          .from('lead_dispositions')
+          .select('lead_id')
+          .eq('disposition_tag_id', drip.disposition_tag_id)
+          .gte('applied_at', fiveMinAgo)
+      } else {
+        matchQuery = supabase
+          .from('lead_dispositions')
+          .select('lead_id')
+          .eq('disposition_tag_id', drip.disposition_tag_id)
+          .gte('applied_at', dayStart.toISOString())
+          .lte('applied_at', dayEnd.toISOString())
+      }
+
+      const { data: matches } = await matchQuery
+      if (!matches || matches.length === 0) continue
+
+      const leadIds = [...new Set(matches.map(m => m.lead_id))]
+
+      // Check which leads already received this drip
+      const { data: alreadySent } = await supabase
+        .from('disposition_drip_sends')
+        .select('lead_id')
+        .eq('drip_id', drip.id)
+        .in('lead_id', leadIds)
+      const sentSet = new Set((alreadySent || []).map(s => s.lead_id))
+
+      const unsent = leadIds.filter(id => !sentSet.has(id))
+      if (unsent.length === 0) continue
+
+      // Get lead details
+      const { data: leads } = await supabase
+        .from('leads')
+        .select('*')
+        .in('id', unsent)
+        .eq('opted_out', false)
+        .eq('is_blocked', false)
+        .eq('is_sold', false)
+
+      if (!leads || leads.length === 0) continue
+
+      for (const lead of leads) {
+        try {
+          // Check quiet hours
+          const tz = lead.timezone || 'America/New_York'
+          if (isWithinQuietHours && isWithinQuietHours(tz)) {
+            skipped++
+            continue
+          }
+
+          // Resolve variables
+          let body = drip.message_body
+            .replace(/\{first_name\}/gi, lead.first_name || 'there')
+            .replace(/\{last_name\}/gi, lead.last_name || '')
+            .replace(/\{phone\}/gi, lead.phone || '')
+            .replace(/\{email\}/gi, lead.email || '')
+            .replace(/\{state\}/gi, lead.state || '')
+            .replace(/\{zip_code\}/gi, lead.zip_code || '')
+
+          const fromNumber = await pickNumberForLead(lead.user_id, lead.state)
+          if (!fromNumber) {
+            console.error(`[drips] No from number for user ${lead.user_id}`)
+            continue
+          }
+
+          // Get user profile for compliance footer
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', lead.user_id)
+            .single()
+
+          if (profile && buildMessageBody) {
+            body = buildMessageBody(body, profile, lead, !lead.first_message_sent)
+          }
+
+          const smsResult = await sendSMS(lead.phone, body, fromNumber)
+
+          if (smsResult.success) {
+            // Record send to prevent duplicates
+            await supabase.from('disposition_drip_sends').insert({
+              drip_id: drip.id,
+              lead_id: lead.id
+            }).catch(() => {}) // UNIQUE constraint = already sent
+
+            // Create conversation/message record
+            let { data: conversation } = await supabase
+              .from('conversations')
+              .select('id')
+              .eq('lead_id', lead.id)
+              .eq('user_id', lead.user_id)
+              .single()
+
+            if (!conversation) {
+              const { data: newConv } = await supabase
+                .from('conversations')
+                .insert({ lead_id: lead.id, user_id: lead.user_id, status: 'active' })
+                .select('id')
+                .single()
+              conversation = newConv
+            }
+
+            if (conversation) {
+              await supabase.from('messages').insert({
+                conversation_id: conversation.id,
+                user_id: lead.user_id,
+                direction: 'outbound',
+                body,
+                sent_at: new Date().toISOString(),
+                twilio_sid: smsResult.sid,
+                status: 'sent',
+                is_ai: false
+              })
+            }
+
+            // Update lead status
+            await supabase.from('leads').update({
+              status: lead.status === 'new' ? 'contacted' : lead.status,
+              first_message_sent: true,
+              last_contacted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('id', lead.id)
+
+            sent++
+          }
+        } catch (err) {
+          console.error(`[drips] Error sending drip ${drip.id} to lead ${lead.id}:`, err.message)
+        }
+      }
+    }
+
+    if (sent > 0 || skipped > 0) {
+      console.log(`[drips] processDrips complete: ${sent} sent, ${skipped} skipped (quiet hours)`)
+    }
+  } catch (err) {
+    console.error('[drips] processDrips error:', err.message)
+  }
+}
+
 // ─── Concurrency guards — prevent overlapping scheduler ticks ─────────────────
 let isProcessingScheduled = false
 let isProcessingGhosted = false
 let isProcessingQuickFollowups = false
 let isProcessingColdLeads = false
+let isProcessingDrips = false
 
 const guardedProcessScheduledMessages = async () => {
   if (isProcessingScheduled) {
@@ -1222,12 +1387,27 @@ const guardedCheckColdLeads = async () => {
   }
 }
 
+const guardedProcessDrips = async () => {
+  if (isProcessingDrips) {
+    console.log('[scheduler] processDrips already running — skipping')
+    return
+  }
+  isProcessingDrips = true
+  try {
+    await processDrips()
+  } finally {
+    isProcessingDrips = false
+  }
+}
+
 const startScheduler = () => {
   console.log('Campaign scheduler started — master Twilio account active')
   setInterval(guardedProcessScheduledMessages, 90000)   // every 90 seconds
   setInterval(guardedCheckGhostedConversations, 120000) // every 2 minutes
   setInterval(guardedProcessQuickFollowups, 60000)
   setInterval(checkPipelineGhosts, 120000)              // every 2 minutes
+
+  setInterval(guardedProcessDrips, 300000)              // every 5 minutes
 
   scheduleMidnightReset()
   scheduleDailyAt9am()
@@ -1236,6 +1416,7 @@ const startScheduler = () => {
   guardedCheckGhostedConversations()
   checkPipelineGhosts()
   guardedCheckColdLeads()
+  guardedProcessDrips()
 }
 
 module.exports = { startScheduler }
