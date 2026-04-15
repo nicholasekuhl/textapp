@@ -671,7 +671,7 @@ const renderLeads = (leads) => {
     const bucket = lead.bucket_id ? allBuckets.find(b => b.id === lead.bucket_id) : null
     return `
       <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}">
-        <div class="lead-card-body" style="display:grid;grid-template-columns:320px 1.8fr 1fr 260px 185px;width:100%;">
+        <div class="lead-card-body" style="display:grid;grid-template-columns:340px 1.8fr 1fr 240px 175px;width:100%;">
 
           <div class="col-contact">
             <div class="col-contact-top">
@@ -707,7 +707,7 @@ const renderLeads = (leads) => {
 
           <div class="col-notes">
             <div class="notes-label">Notes</div>
-            <textarea class="notes-textarea" style="min-height:180px;" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
+            <textarea class="notes-textarea" style="min-height:120px;" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
             <div class="notes-footer">
               <span class="notes-timestamp">${lead.notes_updated_at ? 'Last edited ' + timeAgo(lead.notes_updated_at) : 'No notes yet'}</span>
               <button class="notes-save-btn" onclick="saveNotes('${lead.id}', this.closest('.col-notes').querySelector('.notes-textarea').value)">Save</button>
@@ -716,7 +716,7 @@ const renderLeads = (leads) => {
 
           <div class="col-quotes">
             <div class="notes-label">Quoted Plans</div>
-            <textarea class="notes-textarea quotes-textarea" style="min-height:180px;" placeholder="e.g. PPO $245/mo&#10;Dental add-on $32/mo" data-lead-id="${lead.id}" onblur="saveQuotes('${lead.id}', this.value)">${lead.quotes || ''}</textarea>
+            <textarea class="notes-textarea quotes-textarea" style="min-height:120px;" placeholder="e.g. PPO $245/mo&#10;Dental add-on $32/mo" data-lead-id="${lead.id}" onblur="saveQuotes('${lead.id}', this.value)">${lead.quotes || ''}</textarea>
             <div class="notes-footer">
               <span class="notes-timestamp">${lead.quotes_updated_at ? 'Updated ' + timeAgo(lead.quotes_updated_at) : 'No quotes yet'}</span>
               <button class="notes-save-btn" onclick="saveQuotes('${lead.id}', this.closest('.col-quotes').querySelector('.quotes-textarea').value)">Save</button>

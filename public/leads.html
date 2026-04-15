@@ -367,6 +367,38 @@
       visibility: visible !important;
       padding: 14px 28px 0 28px !important;
     }
+
+    /* ── COL FLEX LAYOUT ── */
+    .col-notes {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 12px 16px !important;
+    }
+    .col-quotes {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 12px 16px !important;
+    }
+    .col-notes .notes-textarea {
+      flex: 1 !important;
+    }
+    .col-quotes .quotes-textarea {
+      flex: 1 !important;
+    }
+
+    /* ── CARD + COLUMN PADDING ── */
+    .lead-card {
+      min-height: unset !important;
+    }
+    .col-contact {
+      padding: 12px 16px !important;
+    }
+    .col-actions {
+      padding: 12px 20px !important;
+    }
+    .col-meta {
+      padding: 12px 16px !important;
+    }
   </style>
   <script src="/toast.js?v=2"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
