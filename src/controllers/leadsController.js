@@ -838,8 +838,10 @@ const getLeadById = async (req, res) => {
       .eq('id', req.params.id)
       .eq('user_id', req.user.id)
       .single()
-    if (error) throw error
-    res.json({ lead: data })
+    if (error || !data) {
+      return res.status(404).json({ error: 'Lead not found' })
+    }
+    return res.json({ lead: data })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
