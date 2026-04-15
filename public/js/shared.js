@@ -420,6 +420,10 @@ const renderSidebar = () => {
     <a href="/buckets.html" class="nav-item${a('/buckets.html')}">${SVG_BUCKETS}<span>Buckets</span></a>
     <a href="/archive.html" class="nav-item${a('/archive.html')}">${SVG_ARCHIVE}<span>Archive</span></a>
     <a href="/pipeline.html" class="nav-item${a('/pipeline.html')}">${SVG_PIPELINE}<span>Pipeline</span></a>
+    <a href="/lead-vendors.html" class="nav-item${a('/lead-vendors.html')}">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1.5 13.5c0-3 2-4.5 4.5-4.5s4.5 1.5 4.5 4.5"/><path d="M11 7l2 2 2-2"/><path d="M13 9V3"/></svg>
+      <span>Lead Vendors</span>
+    </a>
 
     <span class="nav-section-label">Outreach</span>
     <a href="/conversations.html" class="nav-item${a('/conversations.html')}">${SVG_CONV}<span>Conversations</span><span class="notif-badge-inline nav-badge alert" id="notif-badge" style="display:none;"></span></a>

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='18' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300c9a7'/%3E%3Cstop offset='100%25' stop-color='%230ea5e9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M10 10L16 18L10 26' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/%3E%3Cpath d='M16 10L24 18L16 26' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M22 10L28 18L22 26' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.7'/%3E%3C/svg%3E">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Vendors — Veloxo</title>
+  <link rel="stylesheet" href="/css/shared.css?v=2">
+  <script src="/toast.js?v=2"></script>
+  <style>
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 28px 28px 0; max-width: 1200px; margin: 0 auto; }
+    .page-header-text h1 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+    .page-header-text p { font-size: 13px; color: rgba(255,255,255,0.45); margin: 0; line-height: 1.5; }
+    .page-body { padding: 20px 28px 40px; max-width: 1200px; margin: 0 auto; }
+
+    .btn-add { background: linear-gradient(135deg, #00c9a7, #0ea5e9); color: white; border: none; padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .btn-add:hover { filter: brightness(1.1); }
+
+    /* Vendor table */
+    .vendor-table { width: 100%; border-collapse: collapse; }
+    .vendor-table th { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.28); padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .vendor-table td { padding: 14px; font-size: 13px; color: rgba(255,255,255,0.65); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .vendor-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .vendor-name-cell { display: flex; align-items: center; gap: 10px; }
+    .vendor-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .vendor-name { font-weight: 600; color: #fff; }
+    .vendor-email { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+    .vendor-status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 6px; }
+    .vendor-status.active { background: rgba(0,201,167,0.12); color: #00d4b4; }
+    .vendor-status.inactive { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); }
+    .vendor-actions { display: flex; gap: 4px; }
+    .vendor-action-btn { background: none; border: none; color: rgba(255,255,255,0.35); cursor: pointer; padding: 5px 7px; border-radius: 6px; transition: all 0.12s; display: flex; align-items: center; justify-content: center; }
+    .vendor-action-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+    .vendor-action-btn.danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+
+    .vendor-card { background: #131a1f; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 64px 24px; }
+    .empty-state-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+    .empty-state-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+    .empty-state-desc { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 20px; line-height: 1.5; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1000; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a2228; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 28px; width: 100%; max-width: 680px; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-header h2 { font-size: 16px; font-weight: 600; color: #fff; margin: 0; }
+    .modal-close { color: rgba(255,255,255,0.4); background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px; }
+    .modal-close:hover { color: #fff; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.07); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; box-sizing: border-box; }
+    .form-group input:focus, .form-group select:focus { border-color: rgba(0,201,167,0.35); background: rgba(0,201,167,0.04); }
+    .form-group input::placeholder { color: rgba(255,255,255,0.2); }
+    .help-text { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+
+    .section-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 20px 0; }
+    .section-title { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 14px; }
+
+    /* API credential fields */
+    .cred-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .cred-input { flex: 1; padding: 9px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.5); font-family: monospace; cursor: text; }
+    .cred-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.12s; white-space: nowrap; }
+    .cred-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .cred-btn.danger { color: rgba(239,68,68,0.7); border-color: rgba(239,68,68,0.2); }
+    .cred-btn.danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+
+    /* Field mapping table */
+    .mapping-table { width: 100%; border-collapse: collapse; }
+    .mapping-table th { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.28); padding: 8px 0; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .mapping-table td { padding: 6px 0; vertical-align: middle; }
+    .mapping-table td:first-child { font-size: 13px; color: rgba(255,255,255,0.55); width: 40%; padding-right: 12px; }
+    .mapping-table td:last-child { width: 60%; }
+    .mapping-table input { width: 100%; padding: 7px 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: inherit; outline: none; box-sizing: border-box; }
+    .mapping-table input:focus { border-color: rgba(0,201,167,0.35); }
+    .mapping-table input::placeholder { color: rgba(255,255,255,0.18); }
+
+    /* Color picker */
+    .color-picker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+    .color-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; flex-shrink: 0; transition: transform 0.12s; border: none; outline: 2px solid transparent; outline-offset: 2px; }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.selected { outline-color: #fff; transform: scale(1.1); }
+    .color-picker-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.1); margin: 0 2px; }
+    .color-custom-wrap { display: flex; align-items: center; gap: 6px; }
+    .color-custom-input { width: 36px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; padding: 0; background: none; }
+    .color-custom-label { font-size: 12px; color: rgba(255,255,255,0.35); }
+
+    /* Toggle switch */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+    .toggle-label { font-size: 13px; color: rgba(255,255,255,0.65); }
+    .toggle-desc { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+    .toggle-switch { position: relative; width: 38px; height: 22px; background: rgba(255,255,255,0.1); border-radius: 11px; cursor: pointer; transition: background 0.15s; flex-shrink: 0; }
+    .toggle-switch.on { background: #00c9a7; }
+    .toggle-switch .toggle-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.15s; }
+    .toggle-switch.on .toggle-knob { transform: translateX(16px); }
+
+    .btn-save { background: linear-gradient(135deg, #00c9a7, #0ea5e9); color: white; border: none; padding: 9px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-cancel { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .btn-cancel:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    @media (max-width: 768px) {
+      .page-header { flex-direction: column; gap: 12px; padding: 20px 16px 0; }
+      .page-body { padding: 16px 16px 40px; }
+      .vendor-table th:nth-child(3), .vendor-table td:nth-child(3),
+      .vendor-table th:nth-child(4), .vendor-table td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="sidebar-root"></div>
+<div id="nav-overlay" class="nav-overlay" onclick="closeNavDrawer()"></div>
+
+<div class="main-content">
+  <div class="page-header">
+    <div class="page-header-text">
+      <h1>Lead Vendors</h1>
+      <p>Connect lead sources to automatically receive leads into your Priority queue.</p>
+    </div>
+    <button class="btn-add" onclick="openVendorModal()">+ Add Lead Vendor</button>
+  </div>
+
+  <div class="page-body">
+    <div class="vendor-card">
+      <div id="vendor-list">
+        <div style="padding:20px;font-size:13px;color:rgba(255,255,255,0.35);">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT VENDOR MODAL -->
+<div class="modal-overlay" id="vendor-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="vendor-modal-title">Add Lead Vendor</h2>
+      <button class="modal-close" onclick="closeVendorModal()">&times;</button>
+    </div>
+
+    <!-- SECTION 1: Vendor Details -->
+    <div class="section-title">Vendor Details</div>
+    <div class="form-group">
+      <label>Vendor Name <span style="color:rgba(239,68,68,0.7);">*</span></label>
+      <input type="text" id="vendor-name" placeholder="e.g. Lead Provider A">
+    </div>
+    <div class="form-group">
+      <label>Contact Email <span style="font-weight:400;color:rgba(255,255,255,0.25);">(optional)</span></label>
+      <input type="email" id="vendor-email" placeholder="vendor@example.com">
+      <div class="help-text">Used to send integration setup instructions</div>
+    </div>
+    <div class="form-group">
+      <label>Default Cost Per Lead <span style="font-weight:400;color:rgba(255,255,255,0.25);">(optional)</span></label>
+      <input type="number" id="vendor-cost" placeholder="0.00" step="0.01" min="0">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker-row" id="vendor-color-picker"></div>
+    </div>
+
+    <!-- SECTION 2: API Credentials (shown after save) -->
+    <div id="cred-section" style="display:none;">
+      <hr class="section-divider">
+      <div class="section-title">API Credentials</div>
+      <div class="form-group">
+        <label>API Endpoint</label>
+        <div class="cred-row">
+          <input type="text" class="cred-input" value="https://app.veloxo.io/api/leads/inbound" readonly>
+          <button class="cred-btn" onclick="copyCred(this, 'https://app.veloxo.io/api/leads/inbound')">Copy</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <div class="cred-row">
+          <input type="text" class="cred-input" id="vendor-api-key" readonly style="letter-spacing:0.5px;">
+          <button class="cred-btn" id="toggle-key-btn" onclick="toggleKeyVisibility()">Show</button>
+          <button class="cred-btn" onclick="copyCred(this, document.getElementById('vendor-api-key').dataset.key)">Copy</button>
+          <button class="cred-btn danger" onclick="confirmRegenerateKey()">Regenerate</button>
+        </div>
+        <div class="help-text">Include this as "api_key" in the JSON request body</div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Field Mapping -->
+    <hr class="section-divider">
+    <div class="section-title">Field Mapping</div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:12px;">Map your vendor's field names to Veloxo fields. Leave blank to use default names.</p>
+    <table class="mapping-table">
+      <thead>
+        <tr><th>Veloxo Field</th><th>Vendor Field Name</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Phone Number</td><td><input type="text" id="map-phone" placeholder="phone"></td></tr>
+        <tr><td>First Name</td><td><input type="text" id="map-first_name" placeholder="first_name"></td></tr>
+        <tr><td>Last Name</td><td><input type="text" id="map-last_name" placeholder="last_name"></td></tr>
+        <tr><td>Email</td><td><input type="text" id="map-email" placeholder="email"></td></tr>
+        <tr><td>State</td><td><input type="text" id="map-state" placeholder="state"></td></tr>
+        <tr><td>Zip Code</td><td><input type="text" id="map-zip_code" placeholder="zip_code"></td></tr>
+        <tr><td>Date of Birth</td><td><input type="text" id="map-date_of_birth" placeholder="date_of_birth"></td></tr>
+        <tr><td>Income</td><td><input type="text" id="map-income" placeholder="income"></td></tr>
+        <tr><td>Household</td><td><input type="text" id="map-household" placeholder="household"></td></tr>
+        <tr><td>Gender</td><td><input type="text" id="map-gender" placeholder="gender"></td></tr>
+        <tr><td>Lead Cost</td><td><input type="text" id="map-lead_cost" placeholder="lead_cost"></td></tr>
+      </tbody>
+    </table>
+
+    <!-- SECTION 4: On Receipt Settings -->
+    <hr class="section-divider">
+    <div class="section-title">On Receipt Settings</div>
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Auto-enable AI autopilot</div>
+        <div class="toggle-desc">Automatically enable AI autopilot for leads from this vendor</div>
+      </div>
+      <div class="toggle-switch" id="vendor-autopilot" onclick="this.classList.toggle('on')">
+        <div class="toggle-knob"></div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:10px;">
+      <label>Send preset text on receipt <span style="font-weight:400;color:rgba(255,255,255,0.25);">(optional)</span></label>
+      <select id="vendor-template">
+        <option value="">None — do not send a text</option>
+      </select>
+      <div class="help-text">Automatically send this template message when a lead is received</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeVendorModal()">Cancel</button>
+      <button class="btn-save" id="vendor-save-btn" onclick="saveVendor()">Save Vendor</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP EMAIL MODAL -->
+<div class="modal-overlay" id="setup-email-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h2>Send Setup Email</h2>
+      <button class="modal-close" onclick="closeSetupEmailModal()">&times;</button>
+    </div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:16px;" id="setup-email-text"></p>
+    <div class="form-group" id="setup-email-input-group" style="display:none;">
+      <label>Contact Email</label>
+      <input type="email" id="setup-email-address" placeholder="vendor@example.com">
+      <div class="help-text">This will also be saved to the vendor's contact email</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeSetupEmailModal()">Cancel</button>
+      <button class="btn-save" onclick="sendSetupEmail()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/shared.js?v=2"></script>
+<script>
+let vendors = []
+let templates = []
+let editingVendorId = null
+
+const PRESET_COLORS = ['#f59e0b','#ef4444','#10b981','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6']
+let selectedColor = '#f59e0b'
+
+const MAPPING_FIELDS = ['phone','first_name','last_name','email','state','zip_code','date_of_birth','income','household','gender','lead_cost']
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const ok = await checkAuth()
+  if (!ok) return
+  loadProfile()
+  loadNotifBadge()
+  loadCalBadge()
+  loadVendors()
+  loadTemplates()
+})
+
+// ─── LOAD VENDORS ───────────────────────────────────────────────────────────
+
+const loadVendors = async () => {
+  try {
+    const res = await fetch('/lead-vendors', { credentials: 'include' })
+    const data = await res.json()
+    vendors = data.vendors || []
+    renderVendors()
+  } catch (err) {
+    console.error('Failed to load vendors:', err)
+    document.getElementById('vendor-list').innerHTML = '<div style="padding:20px;font-size:13px;color:rgba(255,255,255,0.35);">Failed to load vendors</div>'
+  }
+}
+
+const loadTemplates = async () => {
+  try {
+    const res = await fetch('/templates', { credentials: 'include' })
+    const data = await res.json()
+    templates = data.templates || []
+  } catch (err) { console.error('Failed to load templates:', err) }
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+
+const renderVendors = () => {
+  const container = document.getElementById('vendor-list')
+
+  if (!vendors.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <div class="empty-state-title">No lead vendors yet</div>
+        <div class="empty-state-desc">Add your first lead vendor to start receiving leads automatically.</div>
+        <button class="btn-add" onclick="openVendorModal()">+ Add Lead Vendor</button>
+      </div>`
+    return
+  }
+
+  container.innerHTML = `
+    <table class="vendor-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Leads Received</th>
+          <th>Last Lead</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${vendors.map(v => {
+          const hasLead = v.last_lead_at || v.leads_received > 0
+          const status = hasLead ? 'active' : 'inactive'
+          return `
+          <tr>
+            <td>
+              <div class="vendor-name-cell">
+                <div class="vendor-color-dot" style="background:${v.color || '#f59e0b'}"></div>
+                <div>
+                  <div class="vendor-name">${esc(v.name)}</div>
+                  ${v.contact_email ? `<div class="vendor-email">${esc(v.contact_email)}</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td><span class="vendor-status ${status}">${status === 'active' ? 'Active' : 'Inactive'}</span></td>
+            <td>${v.leads_received || 0}</td>
+            <td>${v.last_lead_at ? timeAgo(v.last_lead_at) : '—'}</td>
+            <td>
+              <div class="vendor-actions">
+                <button class="vendor-action-btn" title="Edit" onclick="editVendor('${v.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="vendor-action-btn" title="Send Setup Email" onclick="openSetupEmail('${v.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </button>
+                <button class="vendor-action-btn" title="Regenerate API Key" onclick="confirmRegenerateKeyFor('${v.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </button>
+                <button class="vendor-action-btn danger" title="Delete" onclick="confirmDeleteVendor('${v.id}','${esc(v.name)}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>`
+        }).join('')}
+      </tbody>
+    </table>`
+}
+
+const esc = (s) => {
+  if (!s) return ''
+  const d = document.createElement('div')
+  d.textContent = s
+  return d.innerHTML
+}
+
+// ─── COLOR PICKER ───────────────────────────────────────────────────────────
+
+const renderColorPicker = (containerId) => {
+  const container = document.getElementById(containerId)
+  container.innerHTML = PRESET_COLORS.map(c =>
+    `<button type="button" class="color-swatch${c === selectedColor ? ' selected' : ''}" style="background:${c};" onclick="selectColor('${c}')"></button>`
+  ).join('') +
+  `<div class="color-picker-divider"></div>
+   <div class="color-custom-wrap">
+     <input type="color" class="color-custom-input" id="vendor-custom-color" value="${selectedColor}" onchange="selectColor(this.value)">
+     <span class="color-custom-label">Custom</span>
+   </div>`
+}
+
+const selectColor = (color) => {
+  selectedColor = color
+  document.querySelectorAll('#vendor-color-picker .color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.style.background === color || rgbToHex(s.style.background) === color)
+  })
+  document.getElementById('vendor-custom-color').value = color
+}
+
+const rgbToHex = (rgb) => {
+  if (rgb.startsWith('#')) return rgb
+  const m = rgb.match(/(\d+)/g)
+  if (!m) return rgb
+  return '#' + m.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('')
+}
+
+// ─── MODAL ──────────────────────────────────────────────────────────────────
+
+const openVendorModal = (vendor) => {
+  editingVendorId = vendor ? vendor.id : null
+  document.getElementById('vendor-modal-title').textContent = vendor ? 'Edit Lead Vendor' : 'Add Lead Vendor'
+  document.getElementById('vendor-save-btn').textContent = vendor ? 'Save Changes' : 'Create Vendor'
+
+  document.getElementById('vendor-name').value = vendor ? vendor.name : ''
+  document.getElementById('vendor-email').value = vendor ? (vendor.contact_email || '') : ''
+  document.getElementById('vendor-cost').value = vendor ? (vendor.default_cost || '') : ''
+
+  selectedColor = vendor ? (vendor.color || '#f59e0b') : '#f59e0b'
+  renderColorPicker('vendor-color-picker')
+
+  // API credentials section
+  const credSection = document.getElementById('cred-section')
+  if (vendor) {
+    credSection.style.display = 'block'
+    const keyInput = document.getElementById('vendor-api-key')
+    keyInput.dataset.key = vendor.api_key
+    keyInput.value = maskKey(vendor.api_key)
+    keyInput.dataset.visible = 'false'
+    document.getElementById('toggle-key-btn').textContent = 'Show'
+  } else {
+    credSection.style.display = 'none'
+  }
+
+  // Field mapping
+  const mapping = (vendor && vendor.field_mapping) ? vendor.field_mapping : {}
+  MAPPING_FIELDS.forEach(f => {
+    const input = document.getElementById('map-' + f)
+    if (input) input.value = mapping[f] || ''
+  })
+
+  // On receipt settings
+  const autopilotEl = document.getElementById('vendor-autopilot')
+  if (vendor && vendor.on_receipt_autopilot) {
+    autopilotEl.classList.add('on')
+  } else {
+    autopilotEl.classList.remove('on')
+  }
+
+  // Templates dropdown
+  const templateSelect = document.getElementById('vendor-template')
+  templateSelect.innerHTML = '<option value="">None — do not send a text</option>' +
+    templates.map(t => `<option value="${t.id}"${vendor && vendor.on_receipt_text_template_id === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')
+
+  document.getElementById('vendor-modal').classList.add('open')
+}
+
+const closeVendorModal = () => {
+  document.getElementById('vendor-modal').classList.remove('open')
+  editingVendorId = null
+}
+
+const editVendor = (id) => {
+  const vendor = vendors.find(v => v.id === id)
+  if (vendor) openVendorModal(vendor)
+}
+
+const maskKey = (key) => {
+  if (!key) return ''
+  return key.substring(0, 8) + '••••••••••••••••' + key.substring(key.length - 4)
+}
+
+const toggleKeyVisibility = () => {
+  const input = document.getElementById('vendor-api-key')
+  const btn = document.getElementById('toggle-key-btn')
+  if (input.dataset.visible === 'true') {
+    input.value = maskKey(input.dataset.key)
+    input.dataset.visible = 'false'
+    btn.textContent = 'Show'
+  } else {
+    input.value = input.dataset.key
+    input.dataset.visible = 'true'
+    btn.textContent = 'Hide'
+  }
+}
+
+// ─── SAVE VENDOR ────────────────────────────────────────────────────────────
+
+const saveVendor = async () => {
+  const name = document.getElementById('vendor-name').value.trim()
+  if (!name) { toast.error('Vendor name is required'); return }
+
+  const contactEmail = document.getElementById('vendor-email').value.trim()
+  const defaultCost = parseFloat(document.getElementById('vendor-cost').value) || null
+
+  // Build field mapping (only non-empty values)
+  const fieldMapping = {}
+  MAPPING_FIELDS.forEach(f => {
+    const val = document.getElementById('map-' + f).value.trim()
+    if (val) fieldMapping[f] = val
+  })
+
+  const autopilot = document.getElementById('vendor-autopilot').classList.contains('on')
+  const templateId = document.getElementById('vendor-template').value || null
+
+  const body = {
+    name,
+    contact_email: contactEmail || null,
+    default_cost: defaultCost,
+    color: selectedColor,
+    field_mapping: fieldMapping,
+    on_receipt_autopilot: autopilot,
+    on_receipt_text_template_id: templateId
+  }
+
+  try {
+    const url = editingVendorId ? `/lead-vendors/${editingVendorId}` : '/lead-vendors'
+    const method = editingVendorId ? 'PATCH' : 'POST'
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to save vendor')
+
+    toast.success(editingVendorId ? 'Vendor updated' : 'Vendor created')
+    closeVendorModal()
+    loadVendors()
+  } catch (err) {
+    toast.error(err.message)
+  }
+}
+
+// ─── DELETE VENDOR ──────────────────────────────────────────────────────────
+
+const confirmDeleteVendor = (id, name) => {
+  if (!confirm(`Delete vendor "${name}"? This cannot be undone.`)) return
+  deleteVendor(id)
+}
+
+const deleteVendor = async (id) => {
+  try {
+    const res = await fetch(`/lead-vendors/${id}`, { method: 'DELETE', credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to delete')
+    toast.success('Vendor deleted')
+    loadVendors()
+  } catch (err) {
+    toast.error(err.message)
+  }
+}
+
+// ─── REGENERATE KEY ─────────────────────────────────────────────────────────
+
+const confirmRegenerateKey = () => {
+  if (!editingVendorId) return
+  if (!confirm('Regenerate API key? The old key will stop working immediately.')) return
+  regenerateKey(editingVendorId, true)
+}
+
+const confirmRegenerateKeyFor = (id) => {
+  if (!confirm('Regenerate API key? The old key will stop working immediately.')) return
+  regenerateKey(id, false)
+}
+
+const regenerateKey = async (id, updateModal) => {
+  try {
+    const res = await fetch(`/lead-vendors/${id}/regenerate-key`, { method: 'POST', credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to regenerate key')
+    toast.success('API key regenerated')
+
+    if (updateModal && data.api_key) {
+      const keyInput = document.getElementById('vendor-api-key')
+      keyInput.dataset.key = data.api_key
+      keyInput.value = maskKey(data.api_key)
+      keyInput.dataset.visible = 'false'
+      document.getElementById('toggle-key-btn').textContent = 'Show'
+    }
+    loadVendors()
+  } catch (err) {
+    toast.error(err.message)
+  }
+}
+
+// ─── COPY CREDENTIAL ────────────────────────────────────────────────────────
+
+const copyCred = async (btn, text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    const orig = btn.textContent
+    btn.textContent = 'Copied!'
+    btn.style.color = '#00d4b4'
+    setTimeout(() => { btn.textContent = orig; btn.style.color = '' }, 2000)
+  } catch { toast.error('Could not copy') }
+}
+
+// ─── SETUP EMAIL ────────────────────────────────────────────────────────────
+
+let setupEmailVendorId = null
+
+const openSetupEmail = (id) => {
+  const vendor = vendors.find(v => v.id === id)
+  if (!vendor) return
+  setupEmailVendorId = id
+
+  const textEl = document.getElementById('setup-email-text')
+  const inputGroup = document.getElementById('setup-email-input-group')
+
+  if (vendor.contact_email) {
+    textEl.textContent = `Send integration setup instructions to ${vendor.contact_email}?`
+    inputGroup.style.display = 'none'
+  } else {
+    textEl.textContent = 'This vendor has no contact email. Enter an email to send setup instructions.'
+    inputGroup.style.display = 'block'
+    document.getElementById('setup-email-address').value = ''
+  }
+
+  document.getElementById('setup-email-modal').classList.add('open')
+}
+
+const closeSetupEmailModal = () => {
+  document.getElementById('setup-email-modal').classList.remove('open')
+  setupEmailVendorId = null
+}
+
+const sendSetupEmail = async () => {
+  if (!setupEmailVendorId) return
+  const vendor = vendors.find(v => v.id === setupEmailVendorId)
+
+  // If no contact email, save the entered one first
+  if (!vendor.contact_email) {
+    const email = document.getElementById('setup-email-address').value.trim()
+    if (!email) { toast.error('Email is required'); return }
+
+    try {
+      await fetch(`/lead-vendors/${setupEmailVendorId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contact_email: email }),
+        credentials: 'include'
+      })
+    } catch (err) {
+      toast.error('Failed to save email')
+      return
+    }
+  }
+
+  try {
+    const res = await fetch(`/lead-vendors/${setupEmailVendorId}/send-setup-email`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to send email')
+    toast.success('Setup email sent')
+    closeSetupEmailModal()
+    loadVendors()
+  } catch (err) {
+    toast.error(err.message)
+  }
+}
+
+// ─── KEYBOARD ───────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('setup-email-modal').classList.contains('open')) {
+      closeSetupEmailModal()
+    } else if (document.getElementById('vendor-modal').classList.contains('open')) {
+      closeVendorModal()
+    }
+  }
+})
+</script>
+</body>
+</html>

@@ -1039,8 +1039,14 @@
       <!-- INTEGRATIONS PANEL -->
       <div class="settings-panel" id="panel-integrations">
         <div class="settings-card">
-          <h2>Lead Integrations</h2>
-          <p>Connect lead vendors to automatically receive leads into your Priority queue.</p>
+          <h2>Lead Vendors</h2>
+          <p>Your lead vendor integrations are managed on the Lead Vendors page.</p>
+          <a href="/lead-vendors.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin-top:8px;">Go to Lead Vendors &rarr;</a>
+        </div>
+
+        <div class="settings-card">
+          <h2>Legacy Webhook (Make.com)</h2>
+          <p>For custom integrations or Make.com scenarios, use the webhook URL and secret below.</p>
 
           <div class="settings-section-title" style="margin-top:20px;">Your Webhook URL</div>
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
@@ -1063,22 +1069,6 @@
             3. Set the HTTP module URL to your webhook URL<br>
             4. Add your secret key to the request body as 'secret'<br>
             5. New leads will automatically appear in your Priority queue
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h2>Recent Priority Leads</h2>
-          <p>The last 5 leads received via webhook.</p>
-          <div id="recent-webhook-leads">
-            <div style="font-size:13px;color:rgba(255,255,255,0.35);">Loading...</div>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h2>Outbound Webhooks</h2>
-          <p>When a disposition tag with a webhook URL is applied to a lead, Veloxo sends the lead data to that URL automatically.</p>
-          <div id="outbound-webhooks-list">
-            <div style="font-size:13px;color:rgba(255,255,255,0.35);">Loading...</div>
           </div>
         </div>
       </div>
@@ -1278,82 +1268,6 @@
         document.getElementById('webhook-url').value = 'https://app.veloxo.io/api/leads/inbound/' + userId
       }
     } catch (err) { console.error('Failed to load user ID for webhook URL:', err) }
-
-    try {
-      const res = await fetch('/leads?tier=priority&limit=5&sort=queued_at', { credentials: 'include' })
-      const data = await res.json()
-      const leads = data.leads || []
-      const container = document.getElementById('recent-webhook-leads')
-      if (!leads.length) {
-        container.innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">No leads received yet</div>'
-        return
-      }
-      container.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Name</th>
-              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Phone</th>
-              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Source</th>
-              <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Received</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${leads.map(l => `
-              <tr>
-                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.65);border-bottom:1px solid rgba(255,255,255,0.04);">${[l.first_name, l.last_name].filter(Boolean).join(' ') || 'Unknown'}</td>
-                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.04);font-family:monospace;">${l.phone || ''}</td>
-                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.04);">${l.lead_source || 'webhook'}</td>
-                <td style="padding:10px 12px;font-size:13px;color:rgba(255,255,255,0.4);border-bottom:1px solid rgba(255,255,255,0.04);">${l.queued_at ? timeAgo(l.queued_at) : formatDate(l.created_at)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`
-    } catch (err) {
-      console.error('Failed to load recent webhook leads:', err)
-      document.getElementById('recent-webhook-leads').innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">Could not load recent leads</div>'
-    }
-
-    // Load outbound webhooks
-    try {
-      const res = await fetch('/dispositions', { credentials: 'include' })
-      const data = await res.json()
-      const tags = (data.tags || []).filter(t => t.webhook_url)
-      const container = document.getElementById('outbound-webhooks-list')
-      if (!tags.length) {
-        container.innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">No outbound webhooks configured. Add a webhook URL to any disposition tag to get started.</div>'
-      } else {
-        container.innerHTML = `
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr>
-                <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Tag</th>
-                <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Webhook URL</th>
-                <th style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tags.map(t => `
-                <tr>
-                  <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);">
-                    <span style="display:inline-flex;align-items:center;gap:7px;">
-                      <span style="width:8px;height:8px;border-radius:50%;background:${t.color};flex-shrink:0;"></span>
-                      <span style="color:rgba(255,255,255,0.65);">${t.name}</span>
-                    </span>
-                  </td>
-                  <td style="padding:10px 12px;font-size:12px;color:rgba(255,255,255,0.4);border-bottom:1px solid rgba(255,255,255,0.04);font-family:monospace;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.webhook_url}</td>
-                  <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);">
-                    <button class="btn-edit" onclick="showSettingsPanel('dispositions', document.querySelector('.settings-nav-item'));setTimeout(() => editDispositionTag('${t.id}'), 200)">Edit</button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>`
-      }
-    } catch (err) {
-      console.error('Failed to load outbound webhooks:', err)
-      document.getElementById('outbound-webhooks-list').innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);">Could not load outbound webhooks</div>'
-    }
   }
 
   const copyWebhookUrl = () => {
