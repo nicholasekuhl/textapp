@@ -290,6 +290,7 @@ const uploadLeads = async (req, res) => {
     const campaignId = req.body.campaign_id || null
     const campaignStartDate = new Date().toISOString()
     const dispositionTagId = req.body.disposition_tag_id || null
+    const leadTier = req.body.lead_tier || 'pool'
     const importedAt = new Date().toISOString()
     const columnMap = req.body.column_map ? JSON.parse(req.body.column_map) : null
 
@@ -347,6 +348,12 @@ const uploadLeads = async (req, res) => {
     }
 
     if (bucketId) newLeads.forEach(l => { l.bucket_id = bucketId })
+
+    // Apply lead tier
+    newLeads.forEach(l => {
+      l.lead_tier = leadTier === 'priority' ? 'priority' : 'standard'
+      if (leadTier === 'priority') l.queued_at = importedAt
+    })
 
     const BATCH_SIZE = 100
     const insertedLeads = []
@@ -626,6 +633,7 @@ const uploadLeads = async (req, res) => {
       dnc_flagged: dncFlaggedCount,
       skipped_rows: skippedRows,
       message: parts.join(', '),
+      lead_tier: leadTier,
       campaign_sends_queued: !!(campaignId && importedCount > 0),
       leads: data
     })

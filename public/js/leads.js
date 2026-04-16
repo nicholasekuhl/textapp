@@ -2042,11 +2042,13 @@ const submitImport = async (riskFilter = 'all') => {
 
   const autopilot = document.getElementById('import-autopilot').checked
   const campaignId = document.getElementById('import-campaign').value
+  const leadTier = document.querySelector('input[name="import-lead-tier"]:checked')?.value || 'pool'
   const formData = new FormData()
   formData.append('file', importFile)
   if (bucketId) formData.append('bucket_id', bucketId)
   formData.append('autopilot', autopilot.toString())
   formData.append('risk_filter', riskFilter)
+  formData.append('lead_tier', leadTier)
   if (campaignId) formData.append('campaign_id', campaignId)
   const dispositionTagId = document.getElementById('import-disposition').value
   if (dispositionTagId) formData.append('disposition_tag_id', dispositionTagId)
@@ -2106,7 +2108,8 @@ const submitImport = async (riskFilter = 'all') => {
         }
       }
 
-      toast.success('Import complete', `${importedCount} lead${importedCount !== 1 ? 's' : ''} imported${skipped > 0 ? `, ${skipped} skipped` : ''}`)
+      const tierLabel = leadTier === 'priority' ? 'into Priority queue' : 'into Lead Pool'
+      toast.success('Import complete', `${importedCount} lead${importedCount !== 1 ? 's' : ''} imported ${tierLabel}${skipped > 0 ? `, ${skipped} skipped` : ''}`)
       // Auto-close after 2 seconds then show results summary
       setTimeout(() => {
         closeUploadModal()
