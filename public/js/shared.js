@@ -129,6 +129,35 @@ const loadProfile = async () => {
     const priorityAp = document.getElementById('priority-autopilot-enabled')
     if (priorityAp) priorityAp.checked = p.priority_autopilot === true
     if (typeof loadChecklist === 'function') loadChecklist(p)
+    // Populate sidebar credits
+    const formatCredits = (n) => {
+      if (n === undefined || n === null) return '—'
+      const num = parseFloat(n)
+      if (isNaN(num)) return '—'
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+      return Math.floor(num).toString()
+    }
+    const smsEl = document.getElementById('sidebar-sms-credits')
+    const aiEl = document.getElementById('sidebar-ai-credits')
+    const dncEl = document.getElementById('sidebar-dnc-credits')
+    if (smsEl) {
+      smsEl.textContent = formatCredits(p.sms_credits)
+      smsEl.classList.remove('low', 'critical')
+      if (parseFloat(p.sms_credits) < 100) smsEl.classList.add('low')
+      if (parseFloat(p.sms_credits) < 25) smsEl.classList.add('critical')
+    }
+    if (aiEl) {
+      aiEl.textContent = formatCredits(p.ai_credits)
+      aiEl.classList.remove('low', 'critical')
+      if (parseFloat(p.ai_credits) < 50) aiEl.classList.add('low')
+      if (parseFloat(p.ai_credits) < 10) aiEl.classList.add('critical')
+    }
+    if (dncEl) {
+      dncEl.textContent = formatCredits(p.dnc_credits)
+      dncEl.classList.remove('low', 'critical')
+      if (parseFloat(p.dnc_credits) < 50) dncEl.classList.add('low')
+      if (parseFloat(p.dnc_credits) < 10) dncEl.classList.add('critical')
+    }
   } catch (err) { console.error('Profile load error:', err) }
 }
 
@@ -449,6 +478,24 @@ const renderSidebar = () => {
     <a href="/settings.html" class="nav-item${a('/settings.html')}">${SVG_SETTINGS}<span>Settings</span></a>
     <a href="/admin.html" id="admin-nav-link" class="nav-item${a('/admin.html')}" style="display:none;">${SVG_ADMIN}<span>Admin</span></a>
   </nav>
+  <div class="sidebar-credits" id="sidebar-credits" onclick="window.location.href='/billing.html'" style="cursor:pointer" title="View Billing">
+    <div class="credits-row">
+      <span class="credits-icon">💬</span>
+      <span class="credits-label">SMS</span>
+      <span class="credits-value" id="sidebar-sms-credits">—</span>
+    </div>
+    <div class="credits-row">
+      <span class="credits-icon">🤖</span>
+      <span class="credits-label">AI</span>
+      <span class="credits-value" id="sidebar-ai-credits">—</span>
+    </div>
+    <div class="credits-row">
+      <span class="credits-icon">🛡️</span>
+      <span class="credits-label">DNC</span>
+      <span class="credits-value" id="sidebar-dnc-credits">—</span>
+    </div>
+    <div class="credits-buy-link">+ Buy Credits</div>
+  </div>
   <div class="sidebar-footer">
     <div id="notif-wrap" style="padding:0 8px 4px;">
       <button class="nav-item" id="notification-bell" onclick="toggleNotifPanel(event)" style="width:100%;border:none;cursor:pointer;font-family:inherit;">
