@@ -591,10 +591,13 @@ const saveTag = async () => {
 }
 
 const deleteTag = async (id, name) => {
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return
+  if (!confirm(`Delete "${name}"? Leads with this tag will have it removed. This cannot be undone.`)) return
   try {
     const res = await fetch(`/dispositions/${id}`, { method: 'DELETE', credentials: 'include' })
-    if (!res.ok) throw new Error('Failed to delete')
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to delete tag')
+    }
     toast.success('Tag deleted')
     loadTags()
   } catch (err) { toast.error(err.message) }

@@ -111,13 +111,41 @@ const updateDispositionTag = async (req, res) => {
 
 const deleteDispositionTag = async (req, res) => {
   try {
-    const { error } = await supabase.from('disposition_tags')
+    const { id } = req.params
+    const userId = req.user.id
+
+    const { data: tag, error: tagError } = await supabase
+      .from('disposition_tags')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single()
+
+    if (tagError || !tag) {
+      return res.status(404).json({ error: 'Tag not found' })
+    }
+
+    // Null out disposition_tag_id on any leads referencing this tag
+    await supabase
+      .from('leads')
+      .update({ disposition_tag_id: null })
+      .eq('disposition_tag_id', id)
+      .eq('user_id', userId)
+
+    // Delete associated actions, then the tag
+    await supabase.from('disposition_actions').delete().eq('disposition_tag_id', id)
+
+    const { error: deleteError } = await supabase
+      .from('disposition_tags')
       .delete()
-      .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
-    if (error) throw error
+      .eq('id', id)
+      .eq('user_id', userId)
+
+    if (deleteError) throw deleteError
+
     res.json({ success: true })
   } catch (err) {
+    console.error('Delete disposition error:', err)
     res.status(500).json({ error: err.message })
   }
 }
