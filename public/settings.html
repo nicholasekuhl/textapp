@@ -785,20 +785,18 @@
   </div>
   <div class="settings-layout">
     <div class="settings-nav">
-      <div class="settings-nav-item active" onclick="showSettingsPanel('templates', this)">Preset Templates</div>
+      <div class="settings-nav-item active" onclick="showSettingsPanel('account', this)">Account</div>
+      <a href="/billing.html" class="settings-nav-item" style="text-decoration:none;">Billing &amp; Credits</a>
       <div class="settings-nav-item" onclick="showSettingsPanel('phone-numbers', this)">Phone Numbers</div>
       <div class="settings-nav-item" onclick="showSettingsPanel('team', this)">Team &amp; Invites</div>
-      <div class="settings-nav-item" onclick="showSettingsPanel('account', this)">Account</div>
-      <a href="/billing.html" class="settings-nav-item" style="text-decoration:none;">Billing &amp; Credits</a>
       <div class="settings-nav-item" onclick="showSettingsPanel('integrations', this)">Integrations</div>
     </div>
     <div>
       <div class="settings-nav-mobile">
         <select id="settings-nav-select" onchange="showSettingsPanelMobile(this.value)">
-          <option value="templates">Preset Templates</option>
+          <option value="account">Account</option>
           <option value="phone-numbers">Phone Numbers</option>
           <option value="team">Team &amp; Invites</option>
-          <option value="account">Account</option>
           <option value="integrations">Integrations</option>
         </select>
       </div>
@@ -815,7 +813,7 @@
         </div>
       </div>
       <!-- TEMPLATES PANEL -->
-      <div class="settings-panel active" id="panel-templates">
+      <div class="settings-panel" id="panel-templates">
         <div class="settings-card">
           <h2>Preset Templates</h2>
           <p>Save your best messages and fire them with one click from any conversation.</p>
@@ -885,7 +883,7 @@
         </div>
       </div>
       <!-- ACCOUNT PANEL -->
-      <div class="settings-panel" id="panel-account">
+      <div class="settings-panel active" id="panel-account">
         <div id="profile-setup-banner" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;">
           <div style="font-size:14px;font-weight:700;color:#f87171;margin-bottom:4px;">Complete your profile before using Veloxo.</div>
           <div style="font-size:13px;color:#f87171;opacity:0.85;">These fields are required for the AI to work correctly. Fill in the highlighted fields below and click Save.</div>
@@ -1037,15 +1035,10 @@
 
       <!-- INTEGRATIONS PANEL -->
       <div class="settings-panel" id="panel-integrations">
+        <!-- Inbound Webhook -->
         <div class="settings-card">
-          <h2>Lead Vendors</h2>
-          <p>Your lead vendor integrations are managed on the Lead Vendors page.</p>
-          <a href="/lead-vendors.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin-top:8px;">Go to Lead Vendors &rarr;</a>
-        </div>
-
-        <div class="settings-card">
-          <h2>Legacy Webhook (Make.com)</h2>
-          <p>For custom integrations or Make.com scenarios, use the webhook URL and secret below.</p>
+          <h2>Inbound Webhook URL</h2>
+          <p>Use this URL to send leads into Veloxo from external tools like Make.com, Zapier, or your own system.</p>
 
           <div class="settings-section-title" style="margin-top:20px;">Your Webhook URL</div>
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
@@ -1064,11 +1057,28 @@
           </div>
           <div id="setup-instructions" style="display:none;margin-top:10px;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.8;">
             1. Copy your webhook URL above<br>
-            2. In Make.com, create a new scenario with Gmail, Text Parser, and HTTP modules<br>
-            3. Set the HTTP module URL to your webhook URL<br>
-            4. Add your secret key to the request body as 'secret'<br>
+            2. In your automation tool, create an HTTP POST module pointed at this URL<br>
+            3. Include your secret key in the request body as <code>secret</code><br>
+            4. Send lead fields: <code>first_name</code>, <code>last_name</code>, <code>phone</code>, <code>email</code>, <code>zip_code</code>, <code>state</code><br>
             5. New leads will automatically appear in your Priority queue
           </div>
+        </div>
+
+        <!-- Outbound Webhooks -->
+        <div class="settings-card">
+          <h2>Outbound Webhooks</h2>
+          <p>Outbound webhooks fire automatically when a disposition tag is applied to a lead. Configure them per-tag on the Dispositions page.</p>
+          <a href="/dispositions.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin-top:4px;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h12M4 5V3.5A1.5 1.5 0 015.5 2h5A1.5 1.5 0 0112 3.5V5M6 9l1.5 1.5L11 7"/></svg>
+            Go to Dispositions &rarr;
+          </a>
+        </div>
+
+        <!-- Lead Vendors -->
+        <div class="settings-card">
+          <h2>Lead Vendors</h2>
+          <p>Manage your lead vendor integrations, posting URLs, and field mappings.</p>
+          <a href="/lead-vendors.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin-top:4px;">Go to Lead Vendors &rarr;</a>
         </div>
       </div>
 

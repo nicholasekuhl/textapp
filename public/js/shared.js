@@ -411,9 +411,7 @@ const renderSidebar = () => {
   const root = document.getElementById('sidebar-root')
   if (!root) return
   const p = window.location.pathname
-  const q = window.location.search
   const a = (href) => (p === href || p.endsWith(href)) ? ' active' : ''
-  const aSettings = (panel) => (p.endsWith('/settings.html') && q.includes(`panel=${panel}`)) ? ' active' : ''
 
   const SVG_LEADS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1.5 13.5c0-3 2-4.5 4.5-4.5s4.5 1.5 4.5 4.5"/><circle cx="12.5" cy="6" r="1.8"/><path d="M10.5 13.5c0-2 1-3 2-3s2 1 2 3"/></svg>`
   const SVG_BUCKETS = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="2"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>`
@@ -461,7 +459,7 @@ const renderSidebar = () => {
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h12M4 5V3.5A1.5 1.5 0 015.5 2h5A1.5 1.5 0 0112 3.5V5M6 9l1.5 1.5L11 7"/></svg>
       <span>Dispositions</span>
     </a>
-    <a href="/settings.html?panel=templates" class="nav-item${aSettings('templates')}">
+    <a href="/templates.html" class="nav-item${a('/templates.html')}">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>
       <span>Templates</span>
     </a>
