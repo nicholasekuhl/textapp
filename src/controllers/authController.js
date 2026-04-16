@@ -171,7 +171,7 @@ const inviteAgent = async (req, res) => {
 
     if (process.env.RESEND_API_KEY) {
       await resend.emails.send({
-        from: process.env.RESEND_FROM || 'invites@veloxo.io',
+        from: 'invites@veloxo.io',
         to: email,
         subject: 'You have been invited to Veloxo',
         html: `

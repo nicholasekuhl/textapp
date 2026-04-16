@@ -146,9 +146,10 @@ const sendSetupEmail = async (req, res) => {
     const ccList = agentEmail ? [agentEmail] : []
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM || 'integrations@veloxo.io',
+      from: 'noreply@veloxo.io',
       to: vendor.contact_email,
       cc: ccList,
+      replyTo: agentEmail,
       subject: `Veloxo Lead Integration Setup — ${vendor.name}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
