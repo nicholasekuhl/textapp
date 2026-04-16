@@ -1,18 +1,25 @@
-// Sending addresses:
-// invites@veloxo.io — agent invites
-// noreply@veloxo.io — system / lead vendor setup
-// billing@veloxo.io — credit purchase receipts
-// support@veloxo.io — support (inbound via Cloudflare)
+// Sending addresses (set via env or defaults):
+// RESEND_FROM_INVITES=invites@veloxo.io
+// RESEND_FROM_NOREPLY=noreply@veloxo.io
+// RESEND_FROM_BILLING=billing@veloxo.io
+// RESEND_FROM_SUPPORT=support@veloxo.io
 
 const { Resend } = require('resend')
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+const FROM = {
+  invites: process.env.RESEND_FROM_INVITES || 'invites@veloxo.io',
+  noreply: process.env.RESEND_FROM_NOREPLY || 'noreply@veloxo.io',
+  billing: process.env.RESEND_FROM_BILLING || 'billing@veloxo.io',
+  support: process.env.RESEND_FROM_SUPPORT || 'support@veloxo.io',
+}
 
 const sendCreditPurchaseEmail = async ({
   toEmail, agentName, creditType,
   creditAmount, dollarAmount, newBalance
 }) => {
   await resend.emails.send({
-    from: 'billing@veloxo.io',
+    from: FROM.billing,
     to: toEmail,
     subject: `Credit Purchase Confirmed — ${creditAmount} ${creditType} Credits`,
     html: `
@@ -51,4 +58,4 @@ const sendCreditPurchaseEmail = async ({
   })
 }
 
-module.exports = { sendCreditPurchaseEmail }
+module.exports = { sendCreditPurchaseEmail, FROM, resend }

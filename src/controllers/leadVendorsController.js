@@ -121,8 +121,7 @@ const sendSetupEmail = async (req, res) => {
       return res.status(500).json({ error: 'Email service not configured' })
     }
 
-    const { Resend } = require('resend')
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const { resend, FROM } = require('../utils/email')
 
     const webhookUrl = `https://app.veloxo.io/api/leads/inbound`
     const profile = req.user.profile || {}
@@ -146,7 +145,7 @@ const sendSetupEmail = async (req, res) => {
     const ccList = agentEmail ? [agentEmail] : []
 
     await resend.emails.send({
-      from: 'noreply@veloxo.io',
+      from: FROM.noreply,
       to: vendor.contact_email,
       cc: ccList,
       replyTo: agentEmail,

@@ -1,6 +1,6 @@
 const supabase = require('../db')
 const crypto = require('crypto')
-const { Resend } = require('resend')
+const { resend, FROM } = require('../utils/email')
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -8,8 +8,6 @@ const COOKIE_OPTS = {
   sameSite: 'lax',
   path: '/'
 }
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 const generateSlug = async (name) => {
   let base = name.toLowerCase()
@@ -198,7 +196,7 @@ const inviteAgent = async (req, res) => {
 
     if (process.env.RESEND_API_KEY) {
       await resend.emails.send({
-        from: 'invites@veloxo.io',
+        from: FROM.invites,
         to: email,
         subject: 'You have been invited to Veloxo',
         html: `
