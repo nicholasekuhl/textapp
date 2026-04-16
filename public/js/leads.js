@@ -839,7 +839,7 @@ const renderLeads = (leads) => {
       : ''
     const bucket = lead.bucket_id ? allBuckets.find(b => b.id === lead.bucket_id) : null
     return `
-      <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}">
+      <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}" ${lead.do_not_contact ? 'style="opacity:0.55;"' : ''}>
         <div class="lead-card-body" style="display:grid;grid-template-columns:290px 2fr 0.85fr 215px 170px;width:100%;min-width:0;gap:0;">
 
           <div class="col-contact" style="padding:12px 16px;border-right:1px solid rgba(255,255,255,0.05);min-width:0;overflow:hidden;">
@@ -850,6 +850,7 @@ const renderLeads = (leads) => {
                 <div style="display:flex;align-items:center;gap:6px">
                   <div class="lead-name">
                     <a href="/lead.html?id=${lead.id}" target="_blank" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#00d4b4'" onmouseout="this.style.color='inherit'">${name}</a>
+                    ${lead.do_not_contact ? '<span style="font-size:10px;font-weight:700;color:#ef4444;margin-left:4px;background:rgba(239,68,68,0.12);padding:1px 5px;border-radius:4px;">DNC</span>' : ''}
                     ${lead.opted_out ? '<span style="font-size:10px;font-weight:700;color:#f87171;margin-left:4px;">🚫 OPT-OUT</span>' : ''}
                     ${lead.is_sold ? '<span style="font-size:10px;font-weight:700;color:#34d399;margin-left:4px;">✓ SOLD</span>' : ''}
                     ${(lead.lead_tier === 'priority' || (lead.lead_tier === 'standard' && lead.lead_source)) ? '<span class="priority-lead-badge">★ Priority</span>' : ''}
@@ -2584,6 +2585,7 @@ const openLeadDetail = async (leadId) => {
     ${name}
     ${detailDispTags.map(t => `<span class="disposition-pill" style="background:${t.color}">${t.name}</span>`).join('')}
     <span class="tag tag-${lead.status}">${lead.status}</span>
+    ${lead.do_not_contact ? '<span class="tag" style="background:#fecaca;color:#991b1b;">DNC</span>' : ''}
     ${lead.is_sold ? '<span class="tag" style="background:#d1fae5;color:#065f46;">✓ Sold</span>' : ''}
   `
   document.getElementById('detail-meta').innerHTML = `

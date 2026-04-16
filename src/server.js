@@ -1,3 +1,11 @@
+// Required env vars for DNC compliance:
+// REAL_PHONE_VALIDATION_API_KEY —
+//   from realphonevalidation.com
+//   Enables automatic DNC checking on
+//   lead import and webhook receipt
+//   Without this key, DNC checking is
+//   disabled — NOT RECOMMENDED for production
+
 const express = require('express')
 const cors = require('cors')
 const path = require('path')

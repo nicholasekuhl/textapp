@@ -292,7 +292,13 @@ const processInboundMessage = async (body) => {
       return
     }
 
-    if (['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'].includes(Body.trim().toUpperCase())) {
+    // Exact-match opt-out keywords (Twilio STOP words + extras)
+    const STOP_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'QUIT', 'END', 'REMOVE', 'OPTOUT']
+    const bodyUpper = Body.trim().toUpperCase()
+    if (STOP_KEYWORDS.includes(bodyUpper) || bodyUpper === 'OPT OUT' || bodyUpper === 'DO NOT CONTACT'
+        || bodyUpper === 'REMOVE ME' || bodyUpper === 'TAKE ME OFF'
+        || bodyUpper === 'DONT TEXT ME' || bodyUpper === "DON'T TEXT ME"
+        || bodyUpper === 'DONT CALL ME' || bodyUpper === "DON'T CALL ME") {
       const now = new Date().toISOString()
       const optOutBucketId = await getOrCreateOptOutBucket(userId)
       await supabase.from('leads')
@@ -300,9 +306,23 @@ const processInboundMessage = async (body) => {
         .eq('phone', From).eq('user_id', userId)
       const { data: stoppedLead } = await supabase.from('leads').select('id').eq('phone', From).eq('user_id', userId).single()
       if (stoppedLead) {
-        await supabase.from('campaign_leads')
-          .update({ status: 'cancelled' })
-          .eq('lead_id', stoppedLead.id).in('status', ['pending', 'active'])
+        await Promise.all([
+          supabase.from('campaign_leads')
+            .update({ status: 'cancelled' })
+            .eq('lead_id', stoppedLead.id).in('status', ['pending', 'active']),
+          supabase.from('scheduled_messages')
+            .delete()
+            .eq('lead_id', stoppedLead.id)
+            .eq('status', 'pending')
+        ])
+        // Log to compliance_log
+        supabase.from('compliance_log').insert({
+          user_id: userId,
+          lead_id: stoppedLead.id,
+          lead_phone: From,
+          event_type: 'opt_out',
+          event_detail: `Lead texted: ${Body.trim()}`
+        }).then(() => {}).catch(err => console.error('[compliance] log error:', err.message))
       }
       return
     }
@@ -506,7 +526,7 @@ const processInboundMessage = async (body) => {
           const OPT_OUT_PHRASES = [
             'take me off', 'remove me', 'stop texting', 'dont text', "don't text",
             'unsubscribe', 'not interested', 'leave me alone', 'stop contacting',
-            'do not contact', 'opt out', 'opt-out'
+            'do not contact', 'opt out', 'opt-out', 'dont call me', "don't call me"
           ]
           const lastBodyLower = lastInboundBody.toLowerCase().trim()
           const isOptOutIntent = OPT_OUT_PHRASES.some(p => lastBodyLower.includes(p))
@@ -535,8 +555,20 @@ const processInboundMessage = async (body) => {
                 ...(optOutBucketId ? { bucket_id: optOutBucketId } : {})
               }).eq('id', capturedLead.id),
               supabase.from('campaign_leads').update({ status: 'cancelled' })
-                .eq('lead_id', capturedLead.id).in('status', ['pending', 'active'])
+                .eq('lead_id', capturedLead.id).in('status', ['pending', 'active']),
+              supabase.from('scheduled_messages')
+                .delete()
+                .eq('lead_id', capturedLead.id)
+                .eq('status', 'pending')
             ])
+            // Log to compliance_log
+            supabase.from('compliance_log').insert({
+              user_id: capturedUserId,
+              lead_id: capturedLead.id,
+              lead_phone: capturedLead.phone,
+              event_type: 'opt_out',
+              event_detail: `AI detected opt-out intent: "${lastInboundBody.trim()}"`
+            }).then(() => {}).catch(err => console.error('[compliance] log error:', err.message))
             return
           }
 

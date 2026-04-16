@@ -178,7 +178,7 @@ const checkGhostedConversations = async () => {
         .eq('id', conv.lead_id)
         .single()
 
-      if (!lead || !lead.autopilot || lead.opted_out || lead.is_blocked) continue
+      if (!lead || !lead.autopilot || lead.opted_out || lead.is_blocked || lead.do_not_contact) continue
       if (!isInBusinessHoursForTimezone(safeTimezone(lead.timezone))) continue
 
       // TCPA quiet hours — hard block on follow-ups
@@ -310,7 +310,7 @@ const processQuickFollowups = async () => {
       .from('campaign_leads')
       .select(`
         *,
-        leads (id, first_name, last_name, phone, state, status, opted_out, timezone, first_message_sent, outbound_initiated_today),
+        leads (id, first_name, last_name, phone, state, status, opted_out, do_not_contact, timezone, first_message_sent, outbound_initiated_today),
         campaigns (id, name, status, message_1, message_1_spintext, message_2, message_2_delay_minutes, message_2_spintext, message_3, message_3_delay_minutes, message_3_spintext, cancel_on_reply)
       `)
       .in('status', ['pending', 'active'])
@@ -375,8 +375,8 @@ const processQuickFollowups = async () => {
       const campaign = enrollment.campaigns
       const conv = convMap[lead.id]
 
-      if (lead.opted_out || lead.status === 'opted_out') {
-        await supabase.from('campaign_leads').update({ status: 'opted_out' }).eq('id', enrollment.id)
+      if (lead.opted_out || lead.status === 'opted_out' || lead.do_not_contact) {
+        await supabase.from('campaign_leads').update({ status: lead.do_not_contact ? 'cancelled' : 'opted_out' }).eq('id', enrollment.id)
         continue
       }
 
@@ -652,7 +652,7 @@ const processScheduledMessages = async () => {
       .from('campaign_leads')
       .select(`
         *,
-        leads (id, first_name, last_name, phone, state, status, opted_out, timezone, first_message_sent, outbound_initiated_today),
+        leads (id, first_name, last_name, phone, state, status, opted_out, do_not_contact, timezone, first_message_sent, outbound_initiated_today),
         campaigns (id, name, status, message_1)
       `)
       .eq('status', 'pending')
@@ -708,10 +708,10 @@ const processScheduledMessages = async () => {
       // Quick follow-up campaigns: let processQuickFollowups handle until step_1 is sent
       if (enrollment.campaigns.message_1 && !enrollment.step_1_sent_at) continue
 
-      if (enrollment.leads.opted_out || enrollment.leads.status === 'opted_out') {
+      if (enrollment.leads.opted_out || enrollment.leads.status === 'opted_out' || enrollment.leads.do_not_contact) {
         await supabase
           .from('campaign_leads')
-          .update({ status: 'opted_out' })
+          .update({ status: enrollment.leads.do_not_contact ? 'cancelled' : 'opted_out' })
           .eq('id', enrollment.id)
         continue
       }
@@ -896,7 +896,7 @@ const processScheduledMessages = async () => {
     // Process one-off scheduled messages
     const { data: dueOneOff } = await supabase
       .from('scheduled_messages')
-      .select('*, leads (id, first_name, phone, state, timezone, status, is_blocked, outbound_initiated_today)')
+      .select('*, leads (id, first_name, phone, state, timezone, status, is_blocked, do_not_contact, outbound_initiated_today)')
       .eq('status', 'pending')
       .lte('send_at', now.toISOString())
 
@@ -916,7 +916,7 @@ const processScheduledMessages = async () => {
 
       for (const sm of throttledOneOff) {
         if (!sm.leads) continue
-        if (sm.leads.status === 'opted_out' || sm.leads.is_blocked) {
+        if (sm.leads.status === 'opted_out' || sm.leads.is_blocked || sm.leads.do_not_contact) {
           await supabase.from('scheduled_messages').update({ status: 'cancelled' }).eq('id', sm.id)
           continue
         }
@@ -1091,13 +1091,13 @@ const checkColdLeads = async () => {
       // Load the lead — must have autopilot on, not already cold/blocked/opted-out
       const { data: lead } = await supabase
         .from('leads')
-        .select('id, autopilot, is_cold, is_blocked, opted_out, user_id')
+        .select('id, autopilot, is_cold, is_blocked, opted_out, do_not_contact, user_id')
         .eq('id', conv.lead_id)
         .single()
 
       if (!lead) continue
       if (!lead.autopilot) continue
-      if (lead.is_cold || lead.is_blocked || lead.opted_out) continue
+      if (lead.is_cold || lead.is_blocked || lead.opted_out || lead.do_not_contact) continue
 
       // Fetch last 5 messages to count consecutive outbound at the tail
       const { data: recentMessages } = await supabase
@@ -1227,6 +1227,7 @@ const processDrips = async () => {
         .eq('opted_out', false)
         .eq('is_blocked', false)
         .eq('is_sold', false)
+        .eq('do_not_contact', false)
 
       if (!leads || leads.length === 0) continue
 

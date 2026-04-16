@@ -214,8 +214,9 @@ const enrollLeads = async (req, res) => {
     // Scope lead lookup to this user — prevents enrolling another user's leads
     const { data: leadsData } = await supabase
       .from('leads')
-      .select('id, timezone')
+      .select('id, timezone, do_not_contact')
       .eq('user_id', req.user.id)
+      .eq('do_not_contact', false)
       .in('id', lead_ids)
 
     const enrollments = leadsData.map((lead) => {
@@ -371,7 +372,7 @@ const enrollBucket = async (req, res) => {
 
     const { data: leadsData, error: leadsErr } = await supabase
       .from('leads').select('id, timezone')
-      .eq('bucket_id', bucketId).eq('user_id', req.user.id).eq('opted_out', false)
+      .eq('bucket_id', bucketId).eq('user_id', req.user.id).eq('opted_out', false).eq('do_not_contact', false)
     if (leadsErr) throw leadsErr
     if (!leadsData || leadsData.length === 0) return res.status(400).json({ error: 'No eligible leads in this bucket' })
 

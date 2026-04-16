@@ -333,4 +333,20 @@ const declineAccessRequest = async (req, res) => {
   }
 }
 
-module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides, addUserCredits, backfillStatuses, createAccessRequest, getAccessRequests, inviteFromAccessRequest, declineAccessRequest }
+const getComplianceLogs = async (req, res) => {
+  try {
+    const { user_id, event_type, date_from, date_to } = req.query
+    let query = supabase.from('compliance_log').select('*').order('created_at', { ascending: false }).limit(500)
+    if (user_id) query = query.eq('user_id', user_id)
+    if (event_type) query = query.eq('event_type', event_type)
+    if (date_from) query = query.gte('created_at', date_from)
+    if (date_to) query = query.lte('created_at', date_to + 'T23:59:59Z')
+    const { data, error } = await query
+    if (error) throw error
+    res.json({ logs: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+module.exports = { getUsers, getStats, suspendUser, unsuspendUser, deleteUser, getComplianceOverrides, addUserCredits, backfillStatuses, createAccessRequest, getAccessRequests, inviteFromAccessRequest, declineAccessRequest, getComplianceLogs }

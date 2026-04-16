@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const supabase = require('../db')
+const { checkDNC } = require('../utils/dncCheck')
 
 // Helper: normalize phone to E.164
 const normalizePhone = (phone) => {
@@ -127,6 +128,39 @@ router.post('/inbound', async (req, res) => {
 
     if (result.error) {
       return res.status(result.status).json({ error: result.error })
+    }
+
+    // DNC check on newly created leads
+    if (result.action === 'created') {
+      try {
+        const dnc = await checkDNC(fields.phone)
+        if (dnc.is_dnc) {
+          await supabase.from('leads').update({
+            do_not_contact: true,
+            autopilot: false,
+            updated_at: new Date().toISOString()
+          }).eq('id', result.lead_id)
+          result.dnc_flagged = true
+          supabase.from('compliance_log').insert({
+            user_id: vendor.user_id,
+            lead_id: result.lead_id,
+            lead_phone: normalizePhone(fields.phone),
+            event_type: 'dnc_flagged',
+            event_detail: 'DNC detected on webhook lead intake'
+          }).then(() => {}).catch(err => console.error('[DNC] compliance log error:', err.message))
+        }
+        if (dnc.is_litigator) {
+          supabase.from('compliance_log').insert({
+            user_id: vendor.user_id,
+            lead_id: result.lead_id,
+            lead_phone: normalizePhone(fields.phone),
+            event_type: 'litigator_flagged',
+            event_detail: 'Known litigator detected on webhook lead intake'
+          }).then(() => {}).catch(err => console.error('[DNC] compliance log error:', err.message))
+        }
+      } catch (dncErr) {
+        console.error('[DNC] check failed during webhook intake:', dncErr.message)
+      }
     }
 
     // Update vendor stats

@@ -183,6 +183,35 @@
   </div>
 </div>
 
+<!-- COMPLIANCE ACKNOWLEDGMENT MODAL -->
+<div class="modal-overlay" id="compliance-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h2>Compliance Acknowledgment Required</h2>
+      <button class="modal-close" onclick="closeComplianceModal()">×</button>
+    </div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:16px;">Before activating this campaign, you must acknowledge the following:</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5;">
+        <input type="checkbox" class="compliance-cb" onchange="checkComplianceReady()" style="margin-top:3px;flex-shrink:0;">
+        I confirm all leads in this campaign have provided express written consent to receive automated SMS messages from my business.
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5;">
+        <input type="checkbox" class="compliance-cb" onchange="checkComplianceReady()" style="margin-top:3px;flex-shrink:0;">
+        I confirm this lead list has been scrubbed against the National DNC Registry, or I accept full legal responsibility for any violations resulting from contacting registered numbers.
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5;">
+        <input type="checkbox" class="compliance-cb" onchange="checkComplianceReady()" style="margin-top:3px;flex-shrink:0;">
+        I understand Veloxo is a messaging platform and I am solely responsible for TCPA compliance, including obtaining proper consent and honoring all opt-out requests.
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeComplianceModal()">Cancel</button>
+      <button class="btn-primary" id="compliance-launch-btn" disabled onclick="confirmComplianceLaunch()">Launch Campaign</button>
+    </div>
+  </div>
+</div>
+
 <!-- TAG LEADS MODAL -->
 <div class="modal-overlay" id="enroll-modal">
   <div class="modal">
@@ -323,7 +352,50 @@
 
   document.addEventListener('click', (e) => { if (!e.target.closest('.actions-menu')) document.querySelectorAll('.actions-dropdown').forEach(d => d.classList.remove('open')) })
 
-  const startCampaign = async (id) => { await fetch(`/campaigns/${id}/start`, { method: 'POST' }); loadCampaigns(); toast.success('Campaign active', 'Campaign is now running') }
+  let pendingCampaignActivateId = null
+
+  const startCampaign = (id) => {
+    pendingCampaignActivateId = id
+    document.querySelectorAll('.compliance-cb').forEach(cb => cb.checked = false)
+    document.getElementById('compliance-launch-btn').disabled = true
+    document.getElementById('compliance-modal').classList.add('open')
+  }
+
+  const closeComplianceModal = () => {
+    document.getElementById('compliance-modal').classList.remove('open')
+    pendingCampaignActivateId = null
+  }
+
+  const checkComplianceReady = () => {
+    const all = document.querySelectorAll('.compliance-cb')
+    const allChecked = [...all].every(cb => cb.checked)
+    document.getElementById('compliance-launch-btn').disabled = !allChecked
+  }
+
+  const confirmComplianceLaunch = async () => {
+    if (!pendingCampaignActivateId) return
+    const id = pendingCampaignActivateId
+    const campaign = allCampaigns.find(c => c.id === id)
+    const enrolled = campaign?.campaign_leads?.length || 0
+
+    // Log compliance acknowledgment
+    try {
+      await fetch('/campaigns/compliance-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_id: id,
+          campaign_name: campaign?.name || '',
+          lead_count: enrolled
+        })
+      })
+    } catch (err) { console.error('Compliance log failed:', err) }
+
+    await fetch(`/campaigns/${id}/start`, { method: 'POST' })
+    closeComplianceModal()
+    loadCampaigns()
+    toast.success('Campaign active', 'Campaign is now running')
+  }
   const pauseCampaign = async (id) => { await fetch(`/campaigns/${id}/pause`, { method: 'POST' }); loadCampaigns(); toast.info('Campaign paused', 'No new messages will be sent') }
   const duplicateCampaign = async (id) => {
     const res = await fetch(`/campaigns/${id}/duplicate`, { method: 'POST' })

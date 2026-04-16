@@ -5,6 +5,7 @@ const supabase = require('../db')
 const { sendSMS, buildMessageBody, pickNumberForLead } = require('../twilio')
 const { spintext } = require('../spintext')
 const { isWithinQuietHours, checkSystemInitiatedLimit } = require('../compliance')
+const { checkDNC } = require('../utils/dncCheck')
 
 const normalizePhone = (phone) => {
   if (!phone) return null
@@ -357,6 +358,37 @@ const uploadLeads = async (req, res) => {
     }
     const data = insertedLeads
 
+    // Batch DNC check on imported leads
+    let dncFlaggedCount = 0
+    if (process.env.REAL_PHONE_VALIDATION_API_KEY && data.length > 0) {
+      const DNC_BATCH = 10
+      for (let i = 0; i < data.length; i += DNC_BATCH) {
+        const batch = data.slice(i, i + DNC_BATCH)
+        const results = await Promise.allSettled(batch.map(l => checkDNC(l.phone)))
+        for (let j = 0; j < results.length; j++) {
+          if (results[j].status !== 'fulfilled') continue
+          const dnc = results[j].value
+          const lead = batch[j]
+          if (dnc.is_dnc) {
+            dncFlaggedCount++
+            await supabase.from('leads').update({
+              do_not_contact: true, autopilot: false, updated_at: new Date().toISOString()
+            }).eq('id', lead.id)
+            supabase.from('compliance_log').insert({
+              user_id: userId, lead_id: lead.id, lead_phone: lead.phone,
+              event_type: 'dnc_flagged', event_detail: 'DNC detected during CSV import'
+            }).then(() => {}).catch(err => console.error('[DNC] log error:', err.message))
+          }
+          if (dnc.is_litigator) {
+            supabase.from('compliance_log').insert({
+              user_id: userId, lead_id: lead.id, lead_phone: lead.phone,
+              event_type: 'litigator_flagged', event_detail: 'Known litigator detected during CSV import'
+            }).then(() => {}).catch(err => console.error('[DNC] log error:', err.message))
+          }
+        }
+      }
+    }
+
     if (campaignId && data.length > 0) {
       const { data: campaign } = await supabase
         .from('campaigns')
@@ -582,6 +614,7 @@ const uploadLeads = async (req, res) => {
     const parts = [`Imported ${importedCount} new lead${importedCount !== 1 ? 's' : ''}`]
     if (skippedDuplicates > 0) parts.push(`${skippedDuplicates} duplicate${skippedDuplicates !== 1 ? 's' : ''} skipped`)
     if (parseSkipped.length > 0) parts.push(`${parseSkipped.length} invalid phone${parseSkipped.length !== 1 ? 's' : ''} skipped`)
+    if (dncFlaggedCount > 0) parts.push(`${dncFlaggedCount} DNC-flagged`)
     if (bucket) parts.push(`into bucket "${bucket}"`)
 
     res.json({
@@ -590,6 +623,7 @@ const uploadLeads = async (req, res) => {
       imported: importedCount,
       skipped_duplicates: skippedDuplicates,
       skipped_invalid_phone: parseSkipped.length,
+      dnc_flagged: dncFlaggedCount,
       skipped_rows: skippedRows,
       message: parts.join(', '),
       campaign_sends_queued: !!(campaignId && importedCount > 0),
