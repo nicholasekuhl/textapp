@@ -777,33 +777,48 @@
     }
     .color-swatch:hover { transform: scale(1.15) !important; }
     .color-swatch.selected {
-      outline-color: #fff !important;
+      outline-color: var(--text-primary) !important;
       transform: scale(1.1) !important;
     }
-    .color-picker-divider {
-      width: 1px !important;
-      height: 28px !important;
-      background: var(--input-border) !important;
-      margin: 0 2px !important;
-    }
-    .color-custom-wrap {
+    .rainbow-trigger {
+      background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red) !important;
       display: flex !important;
       align-items: center !important;
-      gap: 6px !important;
+      justify-content: center !important;
     }
-    .color-custom-input {
-      width: 36px !important;
-      height: 28px !important;
-      border-radius: 6px !important;
-      border: 1px solid var(--border-strong) !important;
-      cursor: pointer !important;
-      padding: 0 !important;
-      background: none !important;
+    .saved-swatch { position: relative !important; }
+    .swatch-delete {
+      display: none;
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 9px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      line-height: 1;
     }
-    .color-custom-label {
-      font-size: 12px !important;
-      color: var(--text-muted) !important;
+    .saved-swatch:hover .swatch-delete { display: flex; }
+    .save-color-btn {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-hover);
+      background: var(--accent-subtle);
+      border: 1px solid rgba(0,201,167,0.25);
+      cursor: pointer;
+      transition: background 0.12s;
     }
+    .save-color-btn:hover { background: rgba(0,201,167,0.18); }
   </style>
 </head>
 <body>
@@ -1255,6 +1270,14 @@
     <div class="form-group">
       <label>Color</label>
       <div class="color-picker-row" id="color-picker-row"></div>
+      <input type="color" id="hidden-color-input" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <button type="button" class="save-color-btn" id="save-custom-color-btn" onclick="saveCustomColor(this.dataset.color);this.style.display='none'">Save color</button>
+      </div>
+      <div id="saved-colors-wrap" style="display:none;flex-direction:column;gap:6px;margin-top:8px;">
+        <span style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);">Saved</span>
+        <div id="saved-colors-row" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+      </div>
     </div>
 
     <div class="form-group">
@@ -1630,30 +1653,59 @@
 
   const renderColorPicker = () => {
     const row = document.getElementById('color-picker-row')
-    const isPreset = COLORS.includes(selectedDispColor)
     row.innerHTML = COLORS.map(c => `
       <div class="color-swatch ${c === selectedDispColor ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${c}')"></div>
     `).join('') + `
-      <div class="color-picker-divider"></div>
-      <div class="color-custom-wrap">
-        <input type="color" class="color-custom-input" id="color-custom-input"
-          value="${selectedDispColor}"
-          oninput="selectCustomColor(this.value)"
-          title="Custom color">
-        <span class="color-custom-label">Custom</span>
+      <div class="color-swatch rainbow-trigger" title="Custom color" onclick="document.getElementById('hidden-color-input').click()">
+        <span style="font-size:10px;color:white;text-shadow:0 0 2px rgba(0,0,0,0.5);">+</span>
       </div>
     `
+    document.getElementById('save-custom-color-btn').style.display = 'none'
+    renderSavedColors()
   }
+
+  document.getElementById('hidden-color-input').addEventListener('input', function() {
+    selectedDispColor = this.value
+    document.querySelectorAll('#color-picker-row .color-swatch').forEach(s => s.classList.remove('selected'))
+    const saveBtn = document.getElementById('save-custom-color-btn')
+    saveBtn.style.display = 'inline-flex'
+    saveBtn.dataset.color = this.value
+  })
 
   const selectColor = (color) => {
     selectedDispColor = color
+    document.getElementById('save-custom-color-btn').style.display = 'none'
     renderColorPicker()
   }
 
-  const selectCustomColor = (color) => {
-    selectedDispColor = color
-    // Deselect preset swatches visually without re-rendering (avoids resetting the native picker)
-    document.querySelectorAll('#color-picker-row .color-swatch').forEach(el => el.classList.remove('selected'))
+  const saveCustomColor = (hex) => {
+    let saved = JSON.parse(localStorage.getItem('veloxo-custom-colors') || '[]')
+    if (saved.includes(hex)) return
+    saved.unshift(hex)
+    if (saved.length > 8) saved = saved.slice(0, 8)
+    localStorage.setItem('veloxo-custom-colors', JSON.stringify(saved))
+    renderSavedColors()
+  }
+
+  const renderSavedColors = () => {
+    const saved = JSON.parse(localStorage.getItem('veloxo-custom-colors') || '[]')
+    const wrapper = document.getElementById('saved-colors-wrap')
+    const container = document.getElementById('saved-colors-row')
+    if (!wrapper || !container) return
+    if (!saved.length) { wrapper.style.display = 'none'; return }
+    wrapper.style.display = 'flex'
+    container.innerHTML = saved.map(hex => `
+      <div class="color-swatch saved-swatch ${hex === selectedDispColor ? 'selected' : ''}" style="background:${hex}" onclick="selectColor('${hex}')" title="${hex}">
+        <span class="swatch-delete" onclick="event.stopPropagation();deleteCustomColor('${hex}')">×</span>
+      </div>
+    `).join('')
+  }
+
+  const deleteCustomColor = (hex) => {
+    let saved = JSON.parse(localStorage.getItem('veloxo-custom-colors') || '[]')
+    saved = saved.filter(c => c !== hex)
+    localStorage.setItem('veloxo-custom-colors', JSON.stringify(saved))
+    renderSavedColors()
   }
 
   const editDispositionTag = async (id) => {
