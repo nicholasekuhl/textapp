@@ -1540,6 +1540,54 @@ const guardedProcessDrips = async () => {
   }
 }
 
+// ─── AI DEBOUNCE WORKER ────────────────────────────────────────────────
+// Replaces the old in-memory setTimeout-based debounce with DB polling so
+// AI responses survive deploys/restarts. Every inbound message resets
+// conversations.ai_pending_at to NOW. This job fires when that timestamp
+// is 45+ seconds old, meaning the lead has stopped typing.
+const AI_DEBOUNCE_QUIET_MS = 45000
+
+const processPendingAiResponses = async () => {
+  try {
+    const cutoff = new Date(Date.now() - AI_DEBOUNCE_QUIET_MS).toISOString()
+    const { data: pending, error } = await supabase
+      .from('conversations')
+      .select('id, ai_pending_at')
+      .not('ai_pending_at', 'is', null)
+      .lt('ai_pending_at', cutoff)
+      .limit(10)
+    if (error) {
+      console.error('[AI worker] query error:', error.message)
+      return
+    }
+    if (!pending || pending.length === 0) return
+
+    const { processPendingAi } = require('./controllers/messagesController')
+
+    for (const conv of pending) {
+      // Claim: clear the flag only if it hasn't moved (no newer inbound during
+      // our scan). If the update returns zero rows, someone else grabbed it
+      // or a new inbound reset the timer — skip this tick.
+      const { data: claimed } = await supabase
+        .from('conversations')
+        .update({ ai_pending_at: null })
+        .eq('id', conv.id)
+        .eq('ai_pending_at', conv.ai_pending_at)
+        .select('id')
+      if (!claimed || claimed.length === 0) {
+        continue
+      }
+      try {
+        await processPendingAi(conv.id)
+      } catch (err) {
+        console.error(`[AI worker] processPendingAi threw for conv ${conv.id}:`, err.message)
+      }
+    }
+  } catch (err) {
+    console.error('[AI worker] processPendingAiResponses error:', err.message)
+  }
+}
+
 const startScheduler = () => {
   console.log('Campaign scheduler started — master Twilio account active')
   setInterval(guardedProcessScheduledMessages, 90000)   // every 90 seconds
@@ -1548,6 +1596,7 @@ const startScheduler = () => {
   setInterval(checkPipelineGhosts, 120000)              // every 2 minutes
 
   setInterval(guardedProcessDrips, 300000)              // every 5 minutes
+  setInterval(processPendingAiResponses, 15000)         // every 15 seconds — AI debounce worker
 
   scheduleMidnightReset()
   scheduleDailyAt9am()
@@ -1558,6 +1607,7 @@ const startScheduler = () => {
   checkPipelineGhosts()
   guardedCheckColdLeads()
   guardedProcessDrips()
+  processPendingAiResponses()
 }
 
 module.exports = { startScheduler }

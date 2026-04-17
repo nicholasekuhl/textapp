@@ -9,10 +9,6 @@ const { deductAiCredit } = require('../services/credits')
 const { calcAge, assignRole } = require('./leadsController')
 const { bumpMessageCount } = require('../utils/messageCount')
 
-// Per-conversation debounce — prevents duplicate AI responses when a lead sends
-// multiple messages in quick succession (e.g. "Tomorrow 1:30" then "Actually 4:30")
-const pendingAiResponses = new Map() // key: conversationId, value: timeout handle
-
 const isPositiveEngagement = (history) => {
   const recentInbound = history.filter(m => m.role === 'user').slice(-5)
   const buyingSignals = [
@@ -633,301 +629,257 @@ const processInboundMessage = async (body) => {
     }
 
     if (lead.autopilot && profile) {
-      const convId = conversation.id
-
-      // Cancel any existing pending AI response for this conversation
-      if (pendingAiResponses.has(convId)) {
-        clearTimeout(pendingAiResponses.get(convId))
-        console.log(`[AI] Debounce reset for conversation ${convId} — new message arrived`)
-      }
-
-      // Capture loop-local copies for the closure
-      const capturedLead = { ...lead }
-      const capturedConversation = { ...conversation }
-      const capturedProfile = profile
-      const capturedFromNumber = fromNumber
-      const capturedUserId = userId
-      const capturedBody = Body
-
-      // Debounce 45-60 seconds — gives leads time to send multiple messages
-      // before the AI responds, so it sees the full context
-      const debounceMs = 45000 + Math.floor(Math.random() * 15000)
-      console.log(`[AI] Debounce set to ${Math.round(debounceMs / 1000)}s for conversation ${convId}`)
-      const handle = setTimeout(async () => {
-        pendingAiResponses.delete(convId)
-
-        try {
-          // Re-check autopilot — agent may have turned it off during the debounce window
-          const { data: freshLead } = await supabase
-            .from('leads').select('autopilot, first_message_sent, pipeline_stage, notes, status')
-            .eq('id', capturedLead.id).single()
-          if (!freshLead?.autopilot) {
-            console.log(`[AI] Autopilot turned off during debounce for lead ${capturedLead.id} — skipping`)
-            return
-          }
-
-          // Re-check handoff status — agent may have taken over
-          const { data: freshConv } = await supabase
-            .from('conversations').select('needs_agent_review, quote_push_count, appointment_confirmed, summary')
-            .eq('id', convId).single()
-          if (freshConv?.needs_agent_review) {
-            console.log(`[AI] Conversation ${convId} handed off during debounce — skipping`)
-            return
-          }
-
-          // Re-fetch last 30 messages fresh — captures every message sent during the debounce window
-          const { data: freshRecent } = await supabase
-            .from('messages').select('*')
-            .eq('conversation_id', convId)
-            .order('sent_at', { ascending: false })
-            .limit(30)
-          const freshMessages = (freshRecent || []).slice().reverse()
-
-          const history = freshMessages.filter(m => m.direction !== 'system').map(m => ({
-            role: m.direction === 'inbound' ? 'user' : 'assistant',
-            content: m.body
-          }))
-          if (freshConv?.summary) {
-            history.unshift({
-              role: 'user',
-              content: `[CONVERSATION SUMMARY - earlier messages]: ${freshConv.summary}`
-            })
-          }
-          console.log(`[AI] Debounce fired for conversation ${convId} — history: ${history.length} messages`)
-
-          // Use the latest inbound message for handoff trigger checks
-          const lastInbound = (freshMessages || []).filter(m => m.direction === 'inbound').slice(-1)[0]
-          const lastInboundBody = lastInbound?.body || capturedBody
-
-          // Merge fresh conversation data for handoff checks
-          const convForHandoff = { ...capturedConversation, ...freshConv }
-
-          // Opt-out intent — explicit conversational phrases not caught by Twilio STOP keyword.
-          // Run BEFORE AI and BEFORE checkHandoffTriggers so no response is ever generated.
-          const OPT_OUT_PHRASES = [
-            'take me off', 'remove me', 'stop texting', 'dont text', "don't text",
-            'unsubscribe', 'not interested', 'leave me alone', 'stop contacting',
-            'do not contact', 'opt out', 'opt-out', 'dont call me', "don't call me"
-          ]
-          const lastBodyLower = lastInboundBody.toLowerCase().trim()
-          const isOptOutIntent = OPT_OUT_PHRASES.some(p => lastBodyLower.includes(p))
-
-          if (isOptOutIntent) {
-            console.log('[AI] Opt-out intent detected for lead', capturedLead.id, '— triggering opt-out')
-            const now = new Date().toISOString()
-            const optOutBucketId = await getOrCreateOptOutBucket(capturedUserId)
-            await Promise.all([
-              supabase.from('conversations').update({
-                needs_agent_review: false,
-                handoff_reason: 'soft_decline',
-                status: 'closed',
-                updated_at: now
-              }).eq('id', convId),
-              supabase.from('leads').update({
-                opted_out: true,
-                status: 'opted_out',
-                is_cold: true,
-                autopilot: false,
-                opted_out_at: now,
-                updated_at: now,
-                pipeline_stage: null,
-                pipeline_ghosted: false,
-                pipeline_ghosted_at: null,
-                ...(optOutBucketId ? { bucket_id: optOutBucketId } : {})
-              }).eq('id', capturedLead.id),
-              supabase.from('campaign_leads').update({ status: 'cancelled' })
-                .eq('lead_id', capturedLead.id).in('status', ['pending', 'active']),
-              supabase.from('scheduled_messages')
-                .delete()
-                .eq('lead_id', capturedLead.id)
-                .eq('status', 'pending')
-            ])
-            // Log to compliance_log
-            supabase.from('compliance_log').insert({
-              user_id: capturedUserId,
-              lead_id: capturedLead.id,
-              lead_phone: capturedLead.phone,
-              event_type: 'opt_out',
-              event_detail: `AI detected opt-out intent: "${lastInboundBody.trim()}"`
-            }).then(() => {}).catch(err => console.error('[compliance] log error:', err.message))
-            return
-          }
-
-          const handoff = checkHandoffTriggers(convForHandoff, lastInboundBody, history)
-
-          if (handoff.quoteDetected) {
-            const newCount = (convForHandoff.quote_push_count || 0) + 1
-            await supabase.from('conversations')
-              .update({ quote_push_count: newCount })
-              .eq('id', convId)
-          }
-
-          if (handoff.triggered) {
-            await executeHandoff({ ...capturedLead, ...freshLead }, convForHandoff, handoff, capturedFromNumber)
-          } else {
-            const mergedLead = { ...capturedLead, ...freshLead }
-            const aiResponse = await generateAIResponse(mergedLead, history, capturedProfile, lastInboundBody, capturedUserId)
-
-            if (!aiResponse || aiResponse.trim() === '' || aiResponse.trim().toLowerCase() === 'null') {
-              console.log('[AI] Null/empty response for lead', mergedLead.id, '— flagging for agent review')
-              await supabase.from('conversations')
-                .update({ needs_agent_review: true, handoff_reason: 'ai_null_response', updated_at: new Date().toISOString() })
-                .eq('id', convId)
-              await supabase.from('leads').update({ autopilot: false }).eq('id', mergedLead.id)
-            } else if (aiResponse) {
-              // Check quiet hours — queue if outside window and user prefers queuing
-              const quietCheck = isWithinQuietHours(mergedLead.state, mergedLead.timezone)
-              const afterHoursSetting = capturedProfile.ai_afterhours_response || 'queue'
-
-              if (quietCheck.blocked && afterHoursSetting === 'queue') {
-                const nextWindow = getNextSendWindow(mergedLead.state, mergedLead.timezone)
-                const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), capturedProfile, mergedLead, false)
-                await supabase.from('scheduled_messages').insert({
-                  user_id: capturedUserId,
-                  lead_id: mergedLead.id,
-                  conversation_id: convId,
-                  body: aiBody,
-                  scheduled_at: nextWindow,
-                  send_at: nextWindow,
-                  status: 'pending',
-                  notes: 'AI response queued — outside quiet hours'
-                })
-                console.log(`[AI] Response queued until ${nextWindow} for lead ${mergedLead.id} (${quietCheck.reason})`)
-                return
-              }
-
-              // Typing delay scales with message length to feel human
-              const wordCount = aiResponse.split(' ').length
-              const baseDelay = 12000
-              const perWordDelay = 800
-              const maxDelay = 75000
-              const jitter = Math.floor(Math.random() * 6000)
-              const delay = Math.min(baseDelay + (wordCount * perWordDelay) + jitter, maxDelay)
-              await new Promise(resolve => setTimeout(resolve, delay))
-
-              const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), capturedProfile, mergedLead, false)
-              const result = await sendSMS(mergedLead.phone, aiBody, capturedFromNumber)
-              if (result.success) {
-                await supabase.from('messages').insert({
-                  conversation_id: convId,
-                  user_id: capturedUserId,
-                  direction: 'outbound',
-                  body: aiBody,
-                  sent_at: new Date().toISOString(),
-                  is_ai: true,
-                  twilio_sid: result.sid,
-                  status: 'sent'
-                })
-                await bumpMessageCount(convId)
-                if (!mergedLead.first_message_sent) {
-                  await supabase.from('leads').update({ first_message_sent: true }).eq('id', mergedLead.id)
-                }
-                await supabase.from('conversations')
-                  .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
-                  .eq('id', convId)
-
-                // ─── QUOTE STALL DETECTION ───────────────────────────────────
-                const quoteStallPhrases = ['pull something up', 'let me check', 'run some numbers', 'look that up', 'check on that', 'pull up some', 'one moment', 'give me a sec']
-                const aiBodyLower = aiBody.toLowerCase()
-                if (quoteStallPhrases.some(p => aiBodyLower.includes(p))) {
-                  console.log(`[AI] Quote stall detected for lead ${mergedLead.id} — pausing autopilot`)
-                  await supabase.from('leads').update({ autopilot: false, updated_at: new Date().toISOString() }).eq('id', mergedLead.id)
-                  const leadName = [mergedLead.first_name, mergedLead.last_name].filter(Boolean).join(' ') || mergedLead.phone
-                  createNotification(capturedUserId, 'quote_requested', 'Quote Requested', `${leadName} is asking for a quote. Enter a quote range in the conversation panel.`, mergedLead.id, convId)
-                  await supabase.from('messages').insert({
-                    conversation_id: convId,
-                    user_id: capturedUserId,
-                    direction: 'system',
-                    body: 'AI paused — waiting for agent to provide quote range',
-                    sent_at: new Date().toISOString(),
-                    is_ai: true,
-                    status: 'sent'
-                  })
-                  await bumpMessageCount(convId)
-                }
-                // ─────────────────────────────────────────────────────────────
-
-                // ─── PIPELINE STAGE DETECTION ────────────────────────────────
-                try {
-                  const { data: allMessages } = await supabase
-                    .from('messages').select('direction, body')
-                    .eq('conversation_id', convId)
-                    .order('sent_at', { ascending: true })
-
-                  const newStage = detectPipelineStage(mergedLead, allMessages || [])
-                  const pipelineUpdates = {}
-
-                  if (newStage) {
-                    const currentOrder = STAGE_ORDER.indexOf(mergedLead.pipeline_stage)
-                    const newOrder = STAGE_ORDER.indexOf(newStage)
-                    if (newOrder > currentOrder) {
-                      pipelineUpdates.pipeline_stage = newStage
-                      pipelineUpdates.pipeline_stage_set_at = new Date().toISOString()
-                      pipelineUpdates.pipeline_ghosted = false
-                      pipelineUpdates.pipeline_ghosted_at = null
-                    }
-                  }
-
-                  const extracted = extractLeadDataFromHistory(mergedLead, allMessages || [])
-                  if (extracted) Object.assign(pipelineUpdates, extracted)
-
-                  const stageChanged = newStage && newStage !== mergedLead.pipeline_stage
-                  if (stageChanged || extracted) {
-                    const summary = generateNoteSummary(
-                      { ...mergedLead, ...pipelineUpdates },
-                      pipelineUpdates.pipeline_stage || mergedLead.pipeline_stage || newStage
-                    )
-                    const timestamp = new Date().toLocaleString('en-US', {
-                      month: 'short', day: 'numeric',
-                      hour: 'numeric', minute: '2-digit', hour12: true
-                    })
-                    const noteEntry = '[Auto ' + timestamp + '] ' + summary
-                    pipelineUpdates.notes = mergedLead.notes
-                      ? mergedLead.notes + '\n' + noteEntry
-                      : noteEntry
-                  }
-
-                  if (Object.keys(pipelineUpdates).length > 0) {
-                    await supabase.from('leads').update(pipelineUpdates).eq('id', mergedLead.id)
-                  }
-                } catch (pipelineErr) {
-                  console.error('Pipeline detection error:', pipelineErr.message)
-                }
-                // ─────────────────────────────────────────────────────────────
-
-                // Check if conversation just confirmed an appointment
-                const { data: convCheck } = await supabase.from('conversations').select('appointment_confirmed').eq('id', convId).single()
-                if (!convCheck?.appointment_confirmed) {
-                  const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
-                  const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
-                  const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
-                  const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
-                  const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
-                  console.log('Checking for appointment confirmation')
-                  console.log('hasDay:', hasDay, 'hasTime:', hasTime, 'hasConfirmation:', hasConfirmation, 'hasBookingPattern:', hasBookingPattern, 'mightBeBooking:', mightBeBooking)
-                  console.log('Response text:', aiBody)
-                  if (!mightBeBooking) {
-                    console.log('Skipping detectAppointment — no booking signals in response')
-                    return
-                  }
-                  const apptData = await detectAppointment(history, aiResponse, capturedUserId)
-                  if (apptData.confirmed) {
-                    console.log('Appointment detected:', apptData)
-                    await bookAppointment(mergedLead, convId, apptData, capturedProfile, capturedFromNumber)
-                  }
-                }
-              }
-            }
-          }
-        } catch (debounceErr) {
-          console.error('[AI] Debounce handler error:', debounceErr.message)
-        }
-      }, debounceMs)
-
-      pendingAiResponses.set(convId, handle)
+      // Flag this conversation for the worker to pick up. Every new inbound
+      // resets ai_pending_at to NOW, so batching happens naturally — the worker
+      // only fires when no new messages have arrived for 45+ seconds.
+      const flagTs = new Date().toISOString()
+      await supabase.from('conversations')
+        .update({ ai_pending_at: flagTs, updated_at: flagTs })
+        .eq('id', conversation.id)
+      console.log(`[AI] ai_pending_at set for conversation ${conversation.id} — worker will process after 45s of quiet`)
     }
   } catch (err) {
     console.error('Incoming message error:', err)
+  }
+}
+
+// ─── AI WORKER ENTRY POINT ──────────────────────────────────────────────
+// Called by the scheduler for each conversation whose ai_pending_at has aged
+// past the quiet threshold. Reconstructs all state from DB — no closure vars.
+const processPendingAi = async (convId) => {
+  try {
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', convId)
+      .single()
+    if (!conv) { console.log(`[AI worker] conv ${convId} not found`); return }
+
+    if (conv.needs_agent_review) {
+      console.log(`[AI worker] conv ${convId} handed off — skipping`)
+      return
+    }
+
+    const { data: lead } = await supabase
+      .from('leads').select('*').eq('id', conv.lead_id).single()
+    if (!lead) { console.log(`[AI worker] lead ${conv.lead_id} not found`); return }
+
+    if (!lead.autopilot) {
+      console.log(`[AI worker] autopilot off for lead ${lead.id} — skipping`)
+      return
+    }
+    if (lead.is_blocked || lead.opted_out) {
+      console.log(`[AI worker] lead ${lead.id} blocked/opted-out — skipping`)
+      return
+    }
+
+    const userId = conv.user_id
+
+    const { data: profile } = await supabase
+      .from('user_profiles').select('*').eq('id', userId).single()
+    if (!profile) { console.log(`[AI worker] profile ${userId} not found`); return }
+
+    const fromNumber = await getNumberForLead(userId, lead.state)
+    if (!fromNumber) {
+      console.error(`[AI worker] no active number for user ${userId} state ${lead.state} — skipping`)
+      return
+    }
+
+    const { data: recentMessages } = await supabase
+      .from('messages').select('*')
+      .eq('conversation_id', convId)
+      .order('sent_at', { ascending: false })
+      .limit(30)
+    const messages = (recentMessages || []).slice().reverse()
+
+    const history = messages.filter(m => m.direction !== 'system').map(m => ({
+      role: m.direction === 'inbound' ? 'user' : 'assistant',
+      content: m.body
+    }))
+    if (conv.summary) {
+      history.unshift({ role: 'user', content: `[CONVERSATION SUMMARY - earlier messages]: ${conv.summary}` })
+    }
+
+    const lastInbound = messages.filter(m => m.direction === 'inbound').slice(-1)[0]
+    const lastInboundBody = lastInbound?.body || ''
+    console.log(`[AI worker] firing for conv ${convId} — history ${history.length} msgs`)
+
+    // Opt-out intent — explicit conversational phrases not caught by STOP keyword
+    const OPT_OUT_PHRASES = [
+      'take me off', 'remove me', 'stop texting', 'dont text', "don't text",
+      'unsubscribe', 'not interested', 'leave me alone', 'stop contacting',
+      'do not contact', 'opt out', 'opt-out', 'dont call me', "don't call me"
+    ]
+    const lastBodyLower = lastInboundBody.toLowerCase().trim()
+    if (OPT_OUT_PHRASES.some(p => lastBodyLower.includes(p))) {
+      console.log('[AI worker] opt-out intent detected for lead', lead.id)
+      const now = new Date().toISOString()
+      const optOutBucketId = await getOrCreateOptOutBucket(userId)
+      await Promise.all([
+        supabase.from('conversations').update({
+          needs_agent_review: false, handoff_reason: 'soft_decline', status: 'closed', updated_at: now
+        }).eq('id', convId),
+        supabase.from('leads').update({
+          opted_out: true, status: 'opted_out', is_cold: true, autopilot: false,
+          opted_out_at: now, updated_at: now,
+          pipeline_stage: null, pipeline_ghosted: false, pipeline_ghosted_at: null,
+          ...(optOutBucketId ? { bucket_id: optOutBucketId } : {})
+        }).eq('id', lead.id),
+        supabase.from('campaign_leads').update({ status: 'cancelled' })
+          .eq('lead_id', lead.id).in('status', ['pending', 'active']),
+        supabase.from('scheduled_messages').delete().eq('lead_id', lead.id).eq('status', 'pending')
+      ])
+      supabase.from('compliance_log').insert({
+        user_id: userId, lead_id: lead.id, lead_phone: lead.phone,
+        event_type: 'opt_out',
+        event_detail: `AI detected opt-out intent: "${lastInboundBody.trim()}"`
+      }).then(() => {}).catch(err => console.error('[compliance] log error:', err.message))
+      return
+    }
+
+    const handoff = checkHandoffTriggers(conv, lastInboundBody, history)
+
+    if (handoff.quoteDetected) {
+      const newCount = (conv.quote_push_count || 0) + 1
+      await supabase.from('conversations').update({ quote_push_count: newCount }).eq('id', convId)
+    }
+
+    if (handoff.triggered) {
+      await executeHandoff(lead, conv, handoff, fromNumber)
+      return
+    }
+
+    const aiResponse = await generateAIResponse(lead, history, profile, lastInboundBody, userId)
+
+    if (!aiResponse || aiResponse.trim() === '' || aiResponse.trim().toLowerCase() === 'null') {
+      console.log('[AI worker] null/empty response for lead', lead.id, '— flagging review')
+      await supabase.from('conversations')
+        .update({ needs_agent_review: true, handoff_reason: 'ai_null_response', updated_at: new Date().toISOString() })
+        .eq('id', convId)
+      await supabase.from('leads').update({ autopilot: false }).eq('id', lead.id)
+      return
+    }
+
+    // Quiet hours → queue outbound for next send window
+    const quietCheck = isWithinQuietHours(lead.state, lead.timezone)
+    const afterHoursSetting = profile.ai_afterhours_response || 'queue'
+    if (quietCheck.blocked && afterHoursSetting === 'queue') {
+      const nextWindow = getNextSendWindow(lead.state, lead.timezone)
+      const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, lead, false)
+      await supabase.from('scheduled_messages').insert({
+        user_id: userId, lead_id: lead.id, conversation_id: convId,
+        body: aiBody, scheduled_at: nextWindow, send_at: nextWindow,
+        status: 'pending', notes: 'AI response queued — outside quiet hours'
+      })
+      console.log(`[AI worker] queued until ${nextWindow} for lead ${lead.id} (${quietCheck.reason})`)
+      return
+    }
+
+    // Typing delay scales with message length to feel human
+    const wordCount = aiResponse.split(' ').length
+    const delay = Math.min(12000 + (wordCount * 800) + Math.floor(Math.random() * 6000), 75000)
+    await new Promise(resolve => setTimeout(resolve, delay))
+
+    const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, lead, false)
+    const result = await sendSMS(lead.phone, aiBody, fromNumber)
+    if (!result.success) {
+      console.error('[AI worker] SMS send failed for lead', lead.id, result.error)
+      return
+    }
+
+    const now = new Date().toISOString()
+    await supabase.from('messages').insert({
+      conversation_id: convId, user_id: userId, direction: 'outbound',
+      body: aiBody, sent_at: now, is_ai: true, twilio_sid: result.sid, status: 'sent'
+    })
+    await bumpMessageCount(convId)
+    if (!lead.first_message_sent) {
+      await supabase.from('leads').update({ first_message_sent: true }).eq('id', lead.id)
+    }
+    await supabase.from('conversations')
+      .update({ updated_at: now, last_outbound_at: now })
+      .eq('id', convId)
+
+    // ─── QUOTE STALL DETECTION ───────────────────────────────────
+    const quoteStallPhrases = ['pull something up', 'let me check', 'run some numbers', 'look that up', 'check on that', 'pull up some', 'one moment', 'give me a sec']
+    const aiBodyLower = aiBody.toLowerCase()
+    if (quoteStallPhrases.some(p => aiBodyLower.includes(p))) {
+      console.log(`[AI worker] quote stall detected for lead ${lead.id} — pausing autopilot`)
+      await supabase.from('leads').update({ autopilot: false, updated_at: new Date().toISOString() }).eq('id', lead.id)
+      const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.phone
+      createNotification(userId, 'quote_requested', 'Quote Requested', `${leadName} is asking for a quote. Enter a quote range in the conversation panel.`, lead.id, convId)
+      await supabase.from('messages').insert({
+        conversation_id: convId, user_id: userId, direction: 'system',
+        body: 'AI paused — waiting for agent to provide quote range',
+        sent_at: new Date().toISOString(), is_ai: true, status: 'sent'
+      })
+      await bumpMessageCount(convId)
+    }
+
+    // (auto-extract already ran synchronously on inbound — no need to repeat)
+
+    // ─── PIPELINE STAGE DETECTION ────────────────────────────────
+    try {
+      const { data: allMessages } = await supabase
+        .from('messages').select('direction, body')
+        .eq('conversation_id', convId)
+        .order('sent_at', { ascending: true })
+
+      const newStage = detectPipelineStage(lead, allMessages || [])
+      const pipelineUpdates = {}
+
+      if (newStage) {
+        const currentOrder = STAGE_ORDER.indexOf(lead.pipeline_stage)
+        const newOrder = STAGE_ORDER.indexOf(newStage)
+        if (newOrder > currentOrder) {
+          pipelineUpdates.pipeline_stage = newStage
+          pipelineUpdates.pipeline_stage_set_at = new Date().toISOString()
+          pipelineUpdates.pipeline_ghosted = false
+          pipelineUpdates.pipeline_ghosted_at = null
+        }
+      }
+
+      const extracted = extractLeadDataFromHistory(lead, allMessages || [])
+      if (extracted) Object.assign(pipelineUpdates, extracted)
+
+      const stageChanged = newStage && newStage !== lead.pipeline_stage
+      if (stageChanged || extracted) {
+        const summary = generateNoteSummary(
+          { ...lead, ...pipelineUpdates },
+          pipelineUpdates.pipeline_stage || lead.pipeline_stage || newStage
+        )
+        const timestamp = new Date().toLocaleString('en-US', {
+          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+        })
+        const noteEntry = '[Auto ' + timestamp + '] ' + summary
+        pipelineUpdates.notes = lead.notes ? lead.notes + '\n' + noteEntry : noteEntry
+      }
+
+      if (Object.keys(pipelineUpdates).length > 0) {
+        await supabase.from('leads').update(pipelineUpdates).eq('id', lead.id)
+      }
+    } catch (pipelineErr) {
+      console.error('[AI worker] pipeline detection error:', pipelineErr.message)
+    }
+
+    // ─── APPOINTMENT DETECTION ───────────────────────────────────
+    const { data: convCheck } = await supabase.from('conversations').select('appointment_confirmed').eq('id', convId).single()
+    if (!convCheck?.appointment_confirmed) {
+      const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
+      const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
+      const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
+      const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
+      const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
+      if (mightBeBooking) {
+        const apptData = await detectAppointment(history, aiResponse, userId)
+        if (apptData.confirmed) {
+          console.log('[AI worker] appointment detected:', apptData)
+          await bookAppointment(lead, convId, apptData, profile, fromNumber)
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[AI worker] processPendingAi error for conv ${convId}:`, err.message)
   }
 }
 
@@ -1606,4 +1558,9 @@ const getMessagesByLead = async (req, res) => {
   }
 }
 
-module.exports = { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, sendQuote, handleStatusCallback, isPositiveEngagement, getMessagesByLead }
+module.exports = {
+  sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, sendQuote,
+  handleStatusCallback, isPositiveEngagement, getMessagesByLead,
+  processPendingAi,
+  generateAIResponse, buildMessageBody, naturalizeText, removeExcessEmojis, autoExtractLeadData
+}
