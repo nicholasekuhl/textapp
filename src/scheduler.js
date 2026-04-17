@@ -5,6 +5,7 @@ const { spintext } = require('./spintext')
 const { smsQueue } = require('./smsQueue')
 const nodemailer = require('nodemailer')
 const { isValidTimezone, isWithinQuietHours, checkSystemInitiatedLimit, getNextSendWindow } = require('./compliance')
+const { bumpMessageCount } = require('./utils/messageCount')
 
 const HEALTH_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const HEALTH_ALERT_THRESHOLD_MS = 5 * 60 * 1000
@@ -195,19 +196,24 @@ const checkGhostedConversations = async () => {
         continue
       }
 
-      // Load message history
-      const { data: messages } = await supabase
+      // Load last 30 messages for AI context
+      const { data: recentMessages } = await supabase
         .from('messages')
         .select('direction, body, sent_at')
         .eq('conversation_id', conv.id)
-        .order('sent_at', { ascending: true })
+        .order('sent_at', { ascending: false })
+        .limit(30)
 
-      if (!messages || messages.length === 0) continue
+      const messages = (recentMessages || []).slice().reverse()
+      if (messages.length === 0) continue
 
-      const history = messages.map(m => ({
+      const history = messages.filter(m => m.direction !== 'system').map(m => ({
         role: m.direction === 'inbound' ? 'user' : 'assistant',
         content: m.body
       }))
+      if (conv.summary) {
+        history.unshift({ role: 'user', content: `[CONVERSATION SUMMARY - earlier messages]: ${conv.summary}` })
+      }
 
       const positive = isPositiveEngagement(history)
       const engagementStatus = positive ? 'positive_ghosted' : (lastInbound ? 'ghosted_mid' : 'dormant')
@@ -241,6 +247,7 @@ const checkGhostedConversations = async () => {
         twilio_sid: result.sid,
         status: 'sent'
       })
+      await bumpMessageCount(conv.id)
 
       // Increment system-initiated counter (re-engagement follows are system-initiated)
       await supabase.from('leads')
@@ -516,6 +523,7 @@ const processQuickFollowups = async () => {
             twilio_sid: job._twilioSid,
             status: 'sent'
           })
+          await bumpMessageCount(conversation.id)
 
           const leadUpdates = { updated_at: sentAt, outbound_initiated_today: (lead.outbound_initiated_today || 0) + 1 }
           if (canUpgrade(lead.status, 'contacted')) leadUpdates.status = 'contacted'
@@ -821,6 +829,7 @@ const processScheduledMessages = async () => {
             twilio_sid: job._twilioSid,
             status: 'sent'
           })
+          await bumpMessageCount(conversation.id)
 
           const leadUpdates = { updated_at: sentAt }
           if (canUpgrade(enrollment.leads.status, 'contacted')) leadUpdates.status = 'contacted'
@@ -974,6 +983,7 @@ const processScheduledMessages = async () => {
                 sent_at: sentAt,
                 status: 'sent'
               })
+              await bumpMessageCount(job.conversationId)
               await supabase.from('conversations').update({ updated_at: sentAt }).eq('id', job.conversationId)
             }
             if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, null).catch(err => console.error('[credits] SMS deduction failed:', err.message))
@@ -1164,6 +1174,126 @@ const scheduleMidnightReset = () => {
   }, msUntilMidnight)
 }
 
+// ─── CONVERSATION ARCHIVING (nightly @ 2am ET = 07:00 UTC) ──────────────────
+
+const summarizeConversationForArchive = async (messages) => {
+  try {
+    const Anthropic = require('@anthropic-ai/sdk')
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+    const transcript = messages.map(m => {
+      const who = m.direction === 'inbound' ? 'Lead' : (m.direction === 'system' ? 'System' : 'Agent')
+      return `${who}: ${m.body}`
+    }).join('\n')
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `Summarize this insurance sales conversation in 2-3 sentences. Include: lead's insurance needs, household info mentioned, any quotes discussed, current status, and last known intent. Be specific with numbers and dates.\n\n---\n${transcript}\n---`
+      }]
+    })
+    return response.content[0]?.text?.trim() || null
+  } catch (err) {
+    console.error('[archive] summarize error:', err.message)
+    return null
+  }
+}
+
+const archiveOldConversations = async () => {
+  try {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: batch, error } = await supabase
+      .from('conversations')
+      .select('id, updated_at, message_count')
+      .is('archived_at', null)
+      .gt('message_count', 0)
+      .lt('updated_at', cutoff)
+      .limit(100)
+
+    if (error) {
+      console.error('[archive] query error:', error.message)
+      return
+    }
+    if (!batch || batch.length === 0) {
+      console.log('[archive] nothing to archive')
+      return
+    }
+
+    console.log(`[archive] processing ${batch.length} conversation(s)`)
+    let archivedCount = 0
+    let failedCount = 0
+
+    for (const conv of batch) {
+      try {
+        // STEP 1 — summary from last 50 messages
+        const { data: recentMessages } = await supabase
+          .from('messages')
+          .select('direction, body, sent_at')
+          .eq('conversation_id', conv.id)
+          .order('sent_at', { ascending: false })
+          .limit(50)
+        const messagesForSummary = (recentMessages || []).slice().reverse()
+
+        const summary = messagesForSummary.length > 0
+          ? await summarizeConversationForArchive(messagesForSummary)
+          : null
+
+        if (summary) {
+          await supabase.from('conversations').update({ summary }).eq('id', conv.id)
+        }
+
+        // STEP 2 — copy messages to archive, then delete originals
+        const { data: allMessages } = await supabase
+          .from('messages').select('*').eq('conversation_id', conv.id)
+
+        if (allMessages && allMessages.length > 0) {
+          const { error: insertErr } = await supabase.from('messages_archive').insert(allMessages)
+          if (insertErr) {
+            console.error(`[archive] insert_archive failed for conv ${conv.id}:`, insertErr.message)
+            failedCount++
+            continue
+          }
+          const { error: delErr } = await supabase.from('messages').delete().eq('conversation_id', conv.id)
+          if (delErr) {
+            console.error(`[archive] delete_messages failed for conv ${conv.id}:`, delErr.message)
+            failedCount++
+            continue
+          }
+        }
+
+        // STEP 3 — mark conversation archived
+        await supabase.from('conversations')
+          .update({ archived_at: new Date().toISOString() })
+          .eq('id', conv.id)
+
+        archivedCount++
+      } catch (convErr) {
+        failedCount++
+        console.error(`[archive] conv ${conv.id} error:`, convErr.message)
+      }
+    }
+
+    console.log(`[archive] done — archived: ${archivedCount}, failed: ${failedCount}`)
+  } catch (err) {
+    console.error('[archive] fatal:', err.message)
+  }
+}
+
+const scheduleDailyAt2am = () => {
+  const now = new Date()
+  // 2am ET = 07:00 UTC (close enough year-round; DST drift is 1 hour but not critical for archiving)
+  const next2am = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 7, 0, 0))
+  if (next2am <= now) next2am.setUTCDate(next2am.getUTCDate() + 1)
+  const msUntil = next2am - now
+  setTimeout(() => {
+    archiveOldConversations()
+    scheduleDailyAt2am()
+  }, msUntil)
+  console.log(`[archive] next run scheduled in ${Math.round(msUntil / 60000)} minutes`)
+}
+
 // ─── DISPOSITION DRIPS ──────────────────────────────────────────────────────
 
 const processDrips = async () => {
@@ -1311,6 +1441,7 @@ const processDrips = async () => {
                 status: 'sent',
                 is_ai: false
               })
+              await bumpMessageCount(conversation.id)
             }
 
             // Update lead status
@@ -1420,6 +1551,7 @@ const startScheduler = () => {
 
   scheduleMidnightReset()
   scheduleDailyAt9am()
+  scheduleDailyAt2am()
   guardedProcessScheduledMessages()
   guardedProcessQuickFollowups()
   guardedCheckGhostedConversations()

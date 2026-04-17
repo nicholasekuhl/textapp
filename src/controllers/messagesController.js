@@ -7,6 +7,7 @@ const { getOrCreateOptOutBucket } = require('./leadsController')
 const { detectPipelineStage, extractLeadDataFromHistory, generateNoteSummary, STAGE_ORDER } = require('../pipeline')
 const { deductAiCredit } = require('../services/credits')
 const { calcAge, assignRole } = require('./leadsController')
+const { bumpMessageCount } = require('../utils/messageCount')
 
 // Per-conversation debounce — prevents duplicate AI responses when a lead sends
 // multiple messages in quick succession (e.g. "Tomorrow 1:30" then "Actually 4:30")
@@ -253,6 +254,7 @@ const sendInitialOutreach = async (req, res) => {
       twilio_sid: result.sid,
       status: 'sent'
     })
+    await bumpMessageCount(conversation.id)
 
     await Promise.all([
       supabase.from('leads').update({
@@ -416,6 +418,7 @@ const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
           twilio_sid: result.sid,
           status: 'sent'
         })
+        await bumpMessageCount(conversation.id)
       }
     }
 
@@ -517,6 +520,7 @@ const processInboundMessage = async (body) => {
           body: Body,
           sent_at: new Date().toISOString()
         })
+        await bumpMessageCount(blockedConv.id)
         await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', blockedConv.id)
       }
       return
@@ -567,6 +571,7 @@ const processInboundMessage = async (body) => {
       body: Body,
       sent_at: new Date().toISOString()
     })
+    await bumpMessageCount(conversation.id)
 
     const nowIso = new Date().toISOString()
     await supabase.from('conversations')
@@ -663,23 +668,31 @@ const processInboundMessage = async (body) => {
 
           // Re-check handoff status — agent may have taken over
           const { data: freshConv } = await supabase
-            .from('conversations').select('needs_agent_review, quote_push_count, appointment_confirmed')
+            .from('conversations').select('needs_agent_review, quote_push_count, appointment_confirmed, summary')
             .eq('id', convId).single()
           if (freshConv?.needs_agent_review) {
             console.log(`[AI] Conversation ${convId} handed off during debounce — skipping`)
             return
           }
 
-          // Re-fetch ALL messages fresh — captures every message sent during the debounce window
-          const { data: freshMessages } = await supabase
+          // Re-fetch last 30 messages fresh — captures every message sent during the debounce window
+          const { data: freshRecent } = await supabase
             .from('messages').select('*')
             .eq('conversation_id', convId)
-            .order('sent_at', { ascending: true })
+            .order('sent_at', { ascending: false })
+            .limit(30)
+          const freshMessages = (freshRecent || []).slice().reverse()
 
-          const history = (freshMessages || []).filter(m => m.direction !== 'system').map(m => ({
+          const history = freshMessages.filter(m => m.direction !== 'system').map(m => ({
             role: m.direction === 'inbound' ? 'user' : 'assistant',
             content: m.body
           }))
+          if (freshConv?.summary) {
+            history.unshift({
+              role: 'user',
+              content: `[CONVERSATION SUMMARY - earlier messages]: ${freshConv.summary}`
+            })
+          }
           console.log(`[AI] Debounce fired for conversation ${convId} — history: ${history.length} messages`)
 
           // Use the latest inbound message for handoff trigger checks
@@ -805,6 +818,7 @@ const processInboundMessage = async (body) => {
                   twilio_sid: result.sid,
                   status: 'sent'
                 })
+                await bumpMessageCount(convId)
                 if (!mergedLead.first_message_sent) {
                   await supabase.from('leads').update({ first_message_sent: true }).eq('id', mergedLead.id)
                 }
@@ -829,6 +843,7 @@ const processInboundMessage = async (body) => {
                     is_ai: true,
                     status: 'sent'
                   })
+                  await bumpMessageCount(convId)
                 }
                 // ─────────────────────────────────────────────────────────────
 
@@ -967,6 +982,7 @@ const sendManualMessage = async (req, res) => {
       twilio_sid: result.sid,
       status: 'sent'
     })
+    await bumpMessageCount(conversation_id)
 
     await supabase.from('conversations')
       .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString(), from_number: fromNumber })
@@ -1169,6 +1185,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
           twilio_sid: confirmResult.sid,
           status: 'sent'
         })
+        await bumpMessageCount(conversationId)
       }
 
       if (profile?.notify_appointment_sms !== false && profile?.personal_phone) {
@@ -1353,15 +1370,24 @@ const suggestReply = async (req, res) => {
       .from('leads').select('*').eq('id', lead_id).eq('user_id', req.user.id).single()
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
 
-    const { data: messages } = await supabase
+    const { data: conv } = await supabase
+      .from('conversations').select('summary')
+      .eq('id', conversation_id).single()
+
+    const { data: recentMessages } = await supabase
       .from('messages').select('*')
       .eq('conversation_id', conversation_id)
-      .order('sent_at', { ascending: true })
+      .order('sent_at', { ascending: false })
+      .limit(30)
+    const messages = (recentMessages || []).slice().reverse()
 
-    const history = (messages || []).map(m => ({
+    const history = messages.filter(m => m.direction !== 'system').map(m => ({
       role: m.direction === 'inbound' ? 'user' : 'assistant',
       content: m.body
     }))
+    if (conv?.summary) {
+      history.unshift({ role: 'user', content: `[CONVERSATION SUMMARY - earlier messages]: ${conv.summary}` })
+    }
 
     if (history.length === 0) {
       return res.json({ suggestion: getInitialMessage(lead) })
@@ -1404,15 +1430,24 @@ const sendQuote = async (req, res) => {
 
     if (lead.autopilot) {
       // Autopilot ON — generate AI response with quote context
-      const { data: messages } = await supabase
+      const { data: quoteConv } = await supabase
+        .from('conversations').select('summary')
+        .eq('id', conversation_id).single()
+
+      const { data: recentMessages } = await supabase
         .from('messages').select('*')
         .eq('conversation_id', conversation_id)
-        .order('sent_at', { ascending: true })
+        .order('sent_at', { ascending: false })
+        .limit(30)
+      const messages = (recentMessages || []).slice().reverse()
 
-      const history = (messages || []).map(m => ({
+      const history = messages.filter(m => m.direction !== 'system').map(m => ({
         role: m.direction === 'inbound' ? 'user' : 'assistant',
         content: m.body
       }))
+      if (quoteConv?.summary) {
+        history.unshift({ role: 'user', content: `[CONVERSATION SUMMARY - earlier messages]: ${quoteConv.summary}` })
+      }
 
       const quoteContext = `AGENT_CONTEXT: Agent has provided a quote range of $${quote_low}-$${quote_high}/mo. Use these exact numbers naturally in your next response. Present the quote casually like you just ran the numbers.`
       history.push({ role: 'user', content: quoteContext })
@@ -1437,6 +1472,7 @@ const sendQuote = async (req, res) => {
             twilio_sid: result.sid,
             status: 'sent'
           })
+          await bumpMessageCount(conversation_id)
           await supabase.from('conversations')
             .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
             .eq('id', conversation_id)
@@ -1458,6 +1494,7 @@ const sendQuote = async (req, res) => {
           twilio_sid: result.sid,
           status: 'sent'
         })
+        await bumpMessageCount(conversation_id)
         await supabase.from('conversations')
           .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
           .eq('id', conversation_id)

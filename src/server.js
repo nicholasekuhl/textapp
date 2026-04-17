@@ -11,7 +11,16 @@ const cors = require('cors')
 const path = require('path')
 const cookieParser = require('cookie-parser')
 const compression = require('compression')
+const { execSync } = require('child_process')
 require('dotenv').config()
+
+const GIT_HASH = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return Date.now().toString()
+  }
+})()
 
 const leadsRouter = require('./routes/leads')
 const messagesRouter = require('./routes/messages')
@@ -67,6 +76,19 @@ app.use((req, res, next) => {
 })
 
 app.use(compression())
+
+// Auto cache-bust: replace all ?v= params in HTML responses with current git hash
+app.use((req, res, next) => {
+  const originalSend = res.send.bind(res)
+  res.send = (body) => {
+    if (typeof body === 'string' && body.includes('</html>')) {
+      body = body.replace(/\?v=[\w\d]+/g, `?v=${GIT_HASH}`)
+    }
+    return originalSend(body)
+  }
+  next()
+})
+
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))

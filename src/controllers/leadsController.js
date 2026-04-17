@@ -6,6 +6,7 @@ const { sendSMS, buildMessageBody, pickNumberForLead } = require('../twilio')
 const { spintext } = require('../spintext')
 const { isWithinQuietHours, checkSystemInitiatedLimit } = require('../compliance')
 const { checkDNC } = require('../utils/dncCheck')
+const { bumpMessageCount } = require('../utils/messageCount')
 
 const normalizePhone = (phone) => {
   if (!phone) return null
@@ -517,6 +518,7 @@ const uploadLeads = async (req, res) => {
                   twilio_sid: result.sid,
                   status: 'sent'
                 })
+                await bumpMessageCount(conv.id)
               }
 
               await supabase.from('leads').update({
@@ -670,8 +672,13 @@ const getLeads = async (req, res) => {
       archivedBucketIds = (archivedBuckets || []).map(b => b.id)
     }
 
+    const showDeleted = req.query.deleted === 'true'
+
     const applyQueryFilters = (q) => {
       q = q.eq('user_id', req.user.id)
+      // Soft delete: default view hides deleted; ?deleted=true shows only deleted
+      if (showDeleted) q = q.not('deleted_at', 'is', null)
+      else q = q.is('deleted_at', null)
       // Exclude opted-out and archived-bucket leads from all views except bucket-scoped views
       if (!req.query.bucket_id) {
         q = q.eq('opted_out', false)
@@ -767,6 +774,7 @@ const exportLeads = async (req, res) => {
 
     let query = supabase.from('leads').select('*')
       .eq('user_id', req.user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
     if (status) query = query.eq('status', status)
@@ -1290,26 +1298,89 @@ const bulkAction = async (req, res) => {
   }
 }
 
+// Soft delete — sets deleted_at; lead is hidden from all queries but can be restored.
 const deleteLead = async (req, res) => {
   try {
     const leadId = req.params.id
     const userId = req.user.id
 
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ deleted_at: now, updated_at: now })
+      .eq('id', leadId)
+      .eq('user_id', userId)
+      .select('id')
+      .single()
+
+    if (error || !data) return res.status(404).json({ error: 'Lead not found' })
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+// Hard purge — removes the lead and all related rows. Blocked for opted-out leads (TCPA).
+const purgeLead = async (req, res) => {
+  try {
+    const leadId = req.params.id
+    const userId = req.user.id
+
     const { data: lead, error: fetchErr } = await supabase
-      .from('leads').select('id').eq('id', leadId).eq('user_id', userId).single()
+      .from('leads')
+      .select('id, opted_out')
+      .eq('id', leadId).eq('user_id', userId).single()
     if (fetchErr || !lead) return res.status(404).json({ error: 'Lead not found' })
 
-    await supabase.from('messages').delete().eq('lead_id', leadId)
-    await supabase.from('conversations').delete().eq('lead_id', leadId)
-    await supabase.from('tasks').delete().eq('lead_id', leadId)
-    await supabase.from('campaign_leads').delete().eq('lead_id', leadId)
+    if (lead.opted_out) {
+      return res.status(403).json({ error: 'Opted-out leads cannot be permanently deleted for TCPA compliance.' })
+    }
+
+    // Gather conversation ids first (messages/messages_archive reference conversation_id, not lead_id)
+    const { data: convs } = await supabase
+      .from('conversations').select('id').eq('lead_id', leadId)
+    const convIds = (convs || []).map(c => c.id)
+
+    await supabase.from('lead_household_members').delete().eq('lead_id', leadId)
     await supabase.from('lead_dispositions').delete().eq('lead_id', leadId)
+    await supabase.from('scheduled_messages').delete().eq('lead_id', leadId)
+    await supabase.from('campaign_leads').delete().eq('lead_id', leadId)
     await supabase.from('notifications').delete().eq('lead_id', leadId)
+    await supabase.from('tasks').delete().eq('lead_id', leadId)
     await supabase.from('appointments').delete().eq('lead_id', leadId)
+
+    if (convIds.length > 0) {
+      await supabase.from('messages').delete().in('conversation_id', convIds)
+      await supabase.from('messages_archive').delete().in('conversation_id', convIds)
+      await supabase.from('conversations').delete().in('id', convIds)
+    }
 
     const { error } = await supabase.from('leads').delete().eq('id', leadId).eq('user_id', userId)
     if (error) throw error
 
+    res.json({ success: true, purged: true })
+  } catch (err) {
+    console.error('purgeLead error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+// Restore — clears deleted_at.
+const restoreLead = async (req, res) => {
+  try {
+    const leadId = req.params.id
+    const userId = req.user.id
+
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ deleted_at: null, updated_at: now })
+      .eq('id', leadId)
+      .eq('user_id', userId)
+      .select('id')
+      .single()
+
+    if (error || !data) return res.status(404).json({ error: 'Lead not found' })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -1571,6 +1642,7 @@ const getPipelineLeads = async (req, res) => {
       .from('leads')
       .select('id, first_name, last_name, phone, state, zip_code, status, pipeline_stage, pipeline_stage_set_at, pipeline_ghosted, pipeline_ghosted_at, notes, updated_at')
       .eq('user_id', req.user.id)
+      .is('deleted_at', null)
       .not('pipeline_stage', 'is', null)
       .gte('pipeline_stage_set_at', since)
       .order('pipeline_stage_set_at', { ascending: false })
@@ -1771,4 +1843,4 @@ const deleteHouseholdMember = async (req, res) => {
   }
 }
 
-module.exports = { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateQuotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getOrCreateOptOutBucket, getPipelineLeads, updatePipelineStage, patchLead, getHouseholdMembers, addHouseholdMember, deleteHouseholdMember, calcAge, assignRole }
+module.exports = { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateQuotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, purgeLead, restoreLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getOrCreateOptOutBucket, getPipelineLeads, updatePipelineStage, patchLead, getHouseholdMembers, addHouseholdMember, deleteHouseholdMember, calcAge, assignRole }

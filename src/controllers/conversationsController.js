@@ -284,6 +284,36 @@ const searchConversations = async (req, res) => {
   }
 }
 
+const getArchivedMessages = async (req, res) => {
+  try {
+    const { data: conv, error: convErr } = await supabase
+      .from('conversations')
+      .select('id, archived_at, summary')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single()
+
+    if (convErr || !conv) return res.status(404).json({ error: 'Conversation not found' })
+
+    const { data: messages, error: msgErr } = await supabase
+      .from('messages_archive')
+      .select('id, direction, body, sent_at, is_ai, status, error_message')
+      .eq('conversation_id', req.params.id)
+      .order('sent_at', { ascending: true })
+
+    if (msgErr) throw msgErr
+
+    res.json({
+      archived_at: conv.archived_at,
+      summary: conv.summary,
+      messages: messages || []
+    })
+  } catch (err) {
+    console.error('getArchivedMessages error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
 module.exports = {
   getConversations,
   getConversation,
@@ -294,5 +324,6 @@ module.exports = {
   getConversationMessages,
   markConversationRead,
   deleteConversation,
-  searchConversations
+  searchConversations,
+  getArchivedMessages
 }

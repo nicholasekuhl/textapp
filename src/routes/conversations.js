@@ -10,7 +10,8 @@ const {
   getConversationMessages,
   markConversationRead,
   deleteConversation,
-  searchConversations
+  searchConversations,
+  getArchivedMessages
 } = require('../controllers/conversationsController')
 
 router.get('/', getConversations)
@@ -20,6 +21,7 @@ router.patch('/:id', updateConversation)
 router.patch('/:id/star', starConversation)
 router.patch('/:id/read', markConversationRead)
 router.get('/:id/messages', getConversationMessages)
+router.get('/:id/archived-messages', getArchivedMessages)
 router.delete('/:id', deleteConversation)
 router.get('/:id/scheduled', getScheduledMessages)
 router.post('/:id/scheduled', createScheduledMessage)

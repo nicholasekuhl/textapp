@@ -3012,6 +3012,9 @@ const openLeadActionsMenu = (leadId, leadName, btn) => {
       <button class="ami-item ami-danger" onclick="closeLeadActionsMenu();openDeleteLeadModal('${leadId}','${leadName}')">
         <span class="ami-icon">🗑️</span> Delete Lead
       </button>
+      <button class="ami-item ami-danger" onclick="closeLeadActionsMenu();openPurgeLeadModal('${leadId}','${leadName}')">
+        <span class="ami-icon">⚠️</span> Permanently Delete
+      </button>
     </div>
   `
 
@@ -3208,19 +3211,15 @@ const executeUndoOptOut = async () => {
   }
 }
 
-// ===== DELETE LEAD =====
+// ===== DELETE LEAD (soft delete — reversible) =====
 const openDeleteLeadModal = (leadId, name) => {
   deleteTargetLeadId = leadId
   deleteTargetLeadName = name
   document.getElementById('delete-modal-title').textContent = `Delete ${name}?`
-  document.getElementById('delete-confirm-input').value = ''
   const btn = document.getElementById('delete-confirm-btn')
-  btn.disabled = true
-  btn.style.opacity = '0.4'
-  btn.style.cursor = 'not-allowed'
-  btn.textContent = 'Permanently Delete'
+  btn.disabled = false
+  btn.textContent = 'Delete'
   document.getElementById('delete-lead-modal').classList.add('open')
-  setTimeout(() => document.getElementById('delete-confirm-input')?.focus(), 80)
 }
 
 const closeDeleteModal = () => {
@@ -3229,17 +3228,8 @@ const closeDeleteModal = () => {
   deleteTargetLeadName = null
 }
 
-const checkDeleteInput = () => {
-  const val = document.getElementById('delete-confirm-input').value
-  const btn = document.getElementById('delete-confirm-btn')
-  const valid = val === 'DELETE'
-  btn.disabled = !valid
-  btn.style.opacity = valid ? '1' : '0.4'
-  btn.style.cursor = valid ? 'pointer' : 'not-allowed'
-}
-
 const confirmDeleteLead = async () => {
-  if (!deleteTargetLeadId || document.getElementById('delete-confirm-input').value !== 'DELETE') return
+  if (!deleteTargetLeadId) return
   const btn = document.getElementById('delete-confirm-btn')
   btn.disabled = true
   btn.textContent = 'Deleting...'
@@ -3253,13 +3243,91 @@ const confirmDeleteLead = async () => {
       updateStats(allLeads)
       renderBucketPills()
       filterLeads()
-      toast.success('Lead deleted', name)
+      toast.success('Lead archived', `${name} moved to Archive`)
     } else toast.error('Delete failed', data.error || 'Could not delete lead')
+  } catch (err) { toast.error('Error', 'Something went wrong') }
+  finally {
+    btn.disabled = false
+    btn.textContent = 'Delete'
+  }
+}
+
+// ===== PURGE LEAD (hard delete — irreversible) =====
+let purgeTargetLeadId = null
+let purgeTargetLeadName = null
+
+const openPurgeLeadModal = (leadId, name) => {
+  purgeTargetLeadId = leadId
+  purgeTargetLeadName = name
+  document.getElementById('purge-modal-title').textContent = `Permanently Delete ${name}?`
+  document.getElementById('purge-confirm-input').value = ''
+  const btn = document.getElementById('purge-confirm-btn')
+  btn.disabled = true
+  btn.style.opacity = '0.4'
+  btn.style.cursor = 'not-allowed'
+  btn.textContent = 'Permanently Delete'
+  document.getElementById('purge-lead-modal').classList.add('open')
+  setTimeout(() => document.getElementById('purge-confirm-input')?.focus(), 80)
+}
+
+const closePurgeModal = () => {
+  document.getElementById('purge-lead-modal').classList.remove('open')
+  purgeTargetLeadId = null
+  purgeTargetLeadName = null
+}
+
+const checkPurgeInput = () => {
+  const val = document.getElementById('purge-confirm-input').value
+  const btn = document.getElementById('purge-confirm-btn')
+  const valid = val === 'DELETE'
+  btn.disabled = !valid
+  btn.style.opacity = valid ? '1' : '0.4'
+  btn.style.cursor = valid ? 'pointer' : 'not-allowed'
+}
+
+const confirmPurgeLead = async () => {
+  if (!purgeTargetLeadId || document.getElementById('purge-confirm-input').value !== 'DELETE') return
+  const btn = document.getElementById('purge-confirm-btn')
+  btn.disabled = true
+  btn.textContent = 'Purging...'
+  try {
+    const res = await fetch(`/leads/${purgeTargetLeadId}/purge`, { method: 'DELETE' })
+    const data = await res.json()
+    if (res.status === 403) {
+      toast.error('Cannot purge', data.error || 'Opted-out leads cannot be permanently deleted for TCPA compliance.')
+      btn.disabled = false
+      btn.textContent = 'Permanently Delete'
+      return
+    }
+    if (data.success) {
+      allLeads = allLeads.filter(l => l.id !== purgeTargetLeadId)
+      const name = purgeTargetLeadName
+      closePurgeModal()
+      updateStats(allLeads)
+      renderBucketPills()
+      filterLeads()
+      toast.success('Lead permanently deleted', name)
+    } else toast.error('Purge failed', data.error || 'Could not permanently delete lead')
   } catch (err) { toast.error('Error', 'Something went wrong') }
   finally {
     btn.disabled = false
     btn.textContent = 'Permanently Delete'
   }
+}
+
+// ===== RESTORE LEAD =====
+const restoreLead = async (leadId, name) => {
+  try {
+    const res = await fetch(`/leads/${leadId}/restore`, { method: 'PATCH' })
+    const data = await res.json()
+    if (data.success) {
+      allLeads = allLeads.filter(l => l.id !== leadId)
+      updateStats(allLeads)
+      renderBucketPills()
+      filterLeads()
+      toast.success('Lead restored', `${name} is back in your active list`)
+    } else toast.error('Restore failed', data.error || 'Could not restore lead')
+  } catch (err) { toast.error('Error', 'Something went wrong') }
 }
 
 // ===== SCHEDULE FOLLOW-UP =====

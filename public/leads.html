@@ -1224,21 +1224,37 @@
   </div>
 </div>
 
-<!-- DELETE LEAD MODAL -->
+<!-- DELETE LEAD MODAL (soft delete — reversible) -->
 <div class="modal-overlay" id="delete-lead-modal">
   <div class="modal" style="max-width:440px;">
     <div class="modal-header">
       <h2 style="font-size:17px;" id="delete-modal-title">Delete Lead?</h2>
       <button class="modal-close" onclick="closeDeleteModal()">×</button>
     </div>
-    <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.5;">This will permanently delete this lead and all their conversation history, tasks, and activity. This cannot be undone.</p>
-    <div class="form-group">
-      <label>Type <strong>DELETE</strong> to confirm</label>
-      <input type="text" id="delete-confirm-input" placeholder="DELETE" oninput="checkDeleteInput()" autocomplete="off">
-    </div>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.5;">This will hide the lead from your lists. You can restore it from the Archive view at any time. Conversations, messages, and tasks are preserved.</p>
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeDeleteModal()">Cancel</button>
-      <button class="btn" id="delete-confirm-btn" style="background:#ef4444;color:white;font-weight:600;opacity:0.4;cursor:not-allowed;" disabled onclick="confirmDeleteLead()">Permanently Delete</button>
+      <button class="btn" id="delete-confirm-btn" style="background:#ef4444;color:white;font-weight:600;" onclick="confirmDeleteLead()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- PURGE LEAD MODAL (hard delete — irreversible) -->
+<div class="modal-overlay" id="purge-lead-modal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h2 style="font-size:17px;" id="purge-modal-title">Permanently Delete Lead?</h2>
+      <button class="modal-close" onclick="closePurgeModal()">×</button>
+    </div>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="purge-modal-body">This will remove all messages, conversations, and data associated with this lead. This cannot be undone.</p>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.5;font-style:italic;">Note: Opted-out leads cannot be permanently deleted for TCPA compliance.</p>
+    <div class="form-group">
+      <label>Type <strong>DELETE</strong> to confirm</label>
+      <input type="text" id="purge-confirm-input" placeholder="DELETE" oninput="checkPurgeInput()" autocomplete="off">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closePurgeModal()">Cancel</button>
+      <button class="btn" id="purge-confirm-btn" style="background:#ef4444;color:white;font-weight:600;opacity:0.4;cursor:not-allowed;" disabled onclick="confirmPurgeLead()">Permanently Delete</button>
     </div>
   </div>
 </div>
@@ -1272,7 +1288,7 @@
 
 
 <script src="/js/shared.js?v=1"></script>
-<script src="/js/leads.js?v=5"></script>
+<script src="/js/leads.js?v=6"></script>
 
 <!-- Hidden bulk-bar kept for JS compatibility -->
 <div class="bulk-bar" id="bulk-actions" style="display:none !important;">

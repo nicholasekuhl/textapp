@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const multer = require('multer')
-const { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateQuotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getPipelineLeads, updatePipelineStage, patchLead, getHouseholdMembers, addHouseholdMember, deleteHouseholdMember } = require('../controllers/leadsController')
+const { parseHeaders, uploadLeads, riskCheck, getLeads, getLeadStats, getBuckets, exportLeads, getLeadById, updateAutopilot, updateNotes, updateQuotes, updateProduct, updateCommissionStatus, updateLeadBucket, createLead, resumeCampaigns, blockLead, unblockLead, markSold, unmarkSold, deleteLead, purgeLead, restoreLead, skipToday, pauseDrips, markCalled, bulkAction, optOut, undoOptOut, checkQuietHours, logComplianceOverride, getPipelineLeads, updatePipelineStage, patchLead, getHouseholdMembers, addHouseholdMember, deleteHouseholdMember } = require('../controllers/leadsController')
 const storage = multer.memoryStorage()
 const upload = multer({
   storage,
@@ -50,6 +50,8 @@ router.patch('/:id/pause-drips', pauseDrips)
 router.patch('/:id/mark-called', markCalled)
 router.post('/:id/opt-out', optOut)
 router.post('/:id/undo-opt-out', undoOptOut)
+router.patch('/:id/restore', restoreLead)
+router.delete('/:id/purge', purgeLead)
 router.delete('/:id', deleteLead)
 router.get('/:id/quiet-hours-check', checkQuietHours)
 router.post('/compliance-override-log', logComplianceOverride)

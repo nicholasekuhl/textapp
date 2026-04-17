@@ -1,6 +1,7 @@
 const supabase = require('../db')
 const { sendSMS, getNumberForLead } = require('../twilio')
 const { spintext } = require('../spintext')
+const { bumpMessageCount } = require('../utils/messageCount')
 
 const calculateSendTime = (dayNumber, sendTime, startDate, timezone) => {
   try {
@@ -169,6 +170,7 @@ const executeActions = async (lead, actions, dispositionTagId, profile) => {
                   twilio_sid: result.sid,
                   status: 'sent'
                 })
+                await bumpMessageCount(conversation.id)
               }
               await supabase.from('leads').update({
                 status: 'contacted',
