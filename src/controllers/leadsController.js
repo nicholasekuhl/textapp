@@ -1695,6 +1695,7 @@ const getHouseholdMembers = async (req, res) => {
       .from('lead_household_members')
       .select('id, date_of_birth, role, created_at')
       .eq('lead_id', req.params.id)
+      .eq('user_id', req.user.id)
       .order('created_at', { ascending: true })
     if (error) throw error
     const enriched = (members || []).map(m => ({ ...m, age: calcAge(m.date_of_birth) }))

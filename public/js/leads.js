@@ -797,9 +797,9 @@ const loadHouseholdMembers = async (leadId) => {
     const container = document.querySelector(`.hh-members-${leadId}`)
     if (!container) return
     container.innerHTML = (data.members || []).map(m => {
-      const dobFormatted = new Date(m.date_of_birth).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const dobFormatted = new Date(m.date_of_birth).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
       const roleLabel = m.role === 'spouse' ? 'Spouse' : m.role === 'dependent' ? 'Dep.' : 'Adult'
-      return `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-secondary);line-height:1.8;"><span>${roleLabel} &middot; ${dobFormatted} (Age ${m.age})</span><button onclick="event.stopPropagation();removeHouseholdMember('${leadId}','${m.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-disabled);font-size:11px;padding:0 2px;flex-shrink:0;" title="Remove">&times;</button></div>`
+      return `<div style="display:flex;align-items:center;justify-content:space-between;white-space:nowrap;font-size:12px;color:var(--text-secondary);margin-bottom:4px;"><span><strong>${roleLabel}</strong> ${dobFormatted} (${m.age})</span><button onclick="event.stopPropagation();removeHouseholdMember('${leadId}','${m.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-disabled);font-size:11px;padding:0 2px;flex-shrink:0;" title="Remove">&times;</button></div>`
     }).join('')
   } catch (err) { console.error('loadHouseholdMembers error:', err) }
 }
@@ -910,9 +910,9 @@ const renderLeads = (leads) => {
     const bucket = lead.bucket_id ? allBuckets.find(b => b.id === lead.bucket_id) : null
     return `
       <div class="lead-card ${lead.notes ? 'has-notes' : ''}" data-lead-id="${lead.id}" ${lead.do_not_contact ? 'style="opacity:0.55;"' : ''}>
-        <div class="lead-card-body" style="display:grid;grid-template-columns:220px 320px 240px 180px 200px 180px;width:100%;min-width:0;gap:0;">
+        <div class="lead-card-body" style="display:flex;width:100%;min-width:0;">
 
-          <div class="col-contact" style="padding:12px 16px;border-right:1px solid var(--border-subtle);min-width:0;overflow:hidden;">
+          <div class="col-contact" style="padding:12px 16px;border-right:1px solid var(--border-subtle);min-width:240px;width:240px;flex-shrink:0;overflow:hidden;">
             <div class="col-contact-top">
               <input type="checkbox" class="lead-cb lead-select-cb" data-id="${lead.id}" onchange="toggleLead(this)" ${selectedLeads.has(lead.id) ? 'checked' : ''}>
               <div class="lead-avatar" style="background:rgba(0,201,167,0.15);color:#00d4b4">${initials}</div>
@@ -948,7 +948,7 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-notes" style="padding:12px 16px;border-right:1px solid var(--border-subtle);min-width:0;overflow:hidden;display:flex;flex-direction:column;">
+          <div class="col-notes" style="padding:12px 16px;border-right:1px solid var(--border-subtle);flex:1 1 auto;min-width:280px;overflow:hidden;display:flex;flex-direction:column;">
             <div class="notes-label">Notes</div>
             <textarea class="notes-textarea" style="width:100%;min-height:130px;flex:1;background:var(--input-bg);border:1px solid var(--input-border);border-radius:7px;padding:9px 11px;font-size:13px;color:var(--input-text);font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Add notes about this lead…" data-lead-id="${lead.id}" onblur="saveNotes('${lead.id}', this.value)">${lead.notes || ''}</textarea>
             <div class="notes-footer">
@@ -957,7 +957,7 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-quotes" style="padding:12px 16px;border-right:1px solid var(--border-subtle);min-width:0;overflow:hidden;display:flex;flex-direction:column;">
+          <div class="col-quotes" style="padding:12px 16px;border-right:1px solid var(--border-subtle);width:240px;flex-shrink:0;overflow:hidden;display:flex;flex-direction:column;">
             <div class="notes-label">Quoted Plans</div>
             <textarea class="notes-textarea quotes-textarea" style="width:100%;min-height:130px;flex:1;background:var(--input-bg);border:1px solid var(--input-border);border-radius:7px;padding:9px 11px;font-size:13px;color:var(--input-text);font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;" placeholder="e.g. PPO $245/mo&#10;Dental add-on $32/mo" data-lead-id="${lead.id}" onblur="saveQuotes('${lead.id}', this.value)">${lead.quotes || ''}</textarea>
             <div class="notes-footer">
@@ -966,7 +966,7 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-actions" style="padding:12px 14px;border-right:1px solid var(--border-subtle);min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:8px;">
+          <div class="col-actions" style="padding:12px 14px;border-right:1px solid var(--border-subtle);width:180px;flex-shrink:0;overflow:hidden;display:flex;flex-direction:column;gap:8px;">
             <button class="btn-call" style="width:100%;padding:11px 10px;font-size:13.5px;font-weight:600;color:#0b0f12;background:linear-gradient(135deg,#00c9a7,#0ea5e9);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 2px 10px rgba(0,201,167,0.3);" onclick="event.stopPropagation();openSMSModal('${lead.id}','${safeName}')">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0b0f12" stroke-width="1.5"><path d="M14 3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h3l2 2 2-2h3a1 1 0 001-1V3z"/><path d="M5 6h6M5 9h4"/></svg>
               Send Text
@@ -985,17 +985,17 @@ const renderLeads = (leads) => {
             </div>
           </div>
 
-          <div class="col-household" style="padding:12px 16px;border-right:1px solid var(--border-subtle);min-width:0;overflow:hidden;">
+          <div class="col-household" style="padding:12px 16px;border-right:1px solid var(--border-subtle);width:230px;flex-shrink:0;overflow:hidden;">
             <div class="notes-label">Household</div>
             <div id="hh-${lead.id}" class="household-section" style="min-height:20px;">
-              ${lead.date_of_birth ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">Primary &middot; ${lead.date_of_birth} (Age ${calcLeadAge(lead.date_of_birth)})</div>` : ''}
+              ${lead.date_of_birth ? `<div style="white-space:nowrap;font-size:12px;color:var(--text-secondary);margin-bottom:4px;"><strong>Primary</strong> ${new Date(lead.date_of_birth).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'})} (${calcLeadAge(lead.date_of_birth)})</div>` : ''}
               <div class="hh-members-${lead.id}"></div>
               ${!lead.date_of_birth ? `<div style="font-size:12px;color:var(--text-muted);">—</div>` : ''}
               <button class="lead-3dot-btn" onclick="event.stopPropagation();openHouseholdModal('${lead.id}')" style="color:var(--text-muted);font-size:11px;margin-top:6px;">+ Add</button>
             </div>
           </div>
 
-          <div class="col-info" style="padding:12px 16px;min-width:0;overflow:hidden;">
+          <div class="col-info" style="padding:12px 16px;width:180px;flex-shrink:0;overflow:hidden;">
             <div class="notes-label">Lead Info</div>
             <div class="meta-row"><span class="meta-key">Last contact</span><span class="meta-val">${lead.last_contacted_at ? timeAgo(lead.last_contacted_at) : '—'}</span></div>
             <div class="meta-row"><span class="meta-key">Added</span><span class="meta-val">${lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '—'}</span></div>
