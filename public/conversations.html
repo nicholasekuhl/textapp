@@ -956,6 +956,40 @@
     } catch (err) { console.error('Pipeline stage update failed', err) }
   }
 
+  const sendQuote = async (leadId, convId) => {
+    const low = document.getElementById('conv-quote-low')?.value
+    const high = document.getElementById('conv-quote-high')?.value
+    if (!low || !high) { toast.error('Enter both low and high quote values'); return }
+    const statusEl = document.getElementById('conv-quote-status')
+    if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Sending quote...'; statusEl.style.color = 'var(--text-muted)' }
+    try {
+      const res = await fetch('/messages/send-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: leadId, conversation_id: convId, quote_low: parseFloat(low), quote_high: parseFloat(high) })
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (statusEl) { statusEl.textContent = 'Quote sent'; statusEl.style.color = '#00d4b4' }
+        // Update pipeline dropdown to quoted
+        const pipelineSelect = document.getElementById('conv-pipeline-stage')
+        if (pipelineSelect) pipelineSelect.value = 'quoted'
+        const conv = allConversations.find(c => c.id === convId)
+        if (conv?.leads) { conv.leads.quote_low = low; conv.leads.quote_high = high; conv.leads.pipeline_stage = 'quoted' }
+        // Refresh messages after delay to show AI response
+        setTimeout(() => { if (activeConvId === convId) openConversation(convId) }, 20000)
+        toast.success('Quote sent', 'AI will respond with the quote numbers')
+      } else {
+        if (statusEl) { statusEl.textContent = 'Failed'; statusEl.style.color = '#f87171' }
+        toast.error('Quote failed', data.error || 'Could not send quote')
+      }
+    } catch (err) {
+      if (statusEl) { statusEl.textContent = 'Error'; statusEl.style.color = '#f87171' }
+      toast.error('Error', 'Could not send quote')
+    }
+    if (statusEl) setTimeout(() => { statusEl.style.display = 'none' }, 4000)
+  }
+
   const contactRow = (label, val) => `<div class="conv3-contact-row"><span class="conv3-contact-label">${label}</span><span class="conv3-contact-val">${val}</span></div>`
 
   const renderRightPanel = (conv, lead, _campaigns) => {
@@ -1024,6 +1058,18 @@
           </div>
         </div>
         <div id="conv-status-saved" style="display:none;font-size:10px;color:#00d4b4;font-weight:500;margin-top:2px;">Saved</div>
+      </div>
+      <div class="conv3-right-section">
+        <div class="conv3-section-title">Quick Quote</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--text-muted);">$</span>
+          <input type="number" id="conv-quote-low" placeholder="Low" style="flex:1;padding:5px 8px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;font-size:12px;color:var(--input-text);font-family:inherit;outline:none;min-width:0;" value="${lead?.quote_low || ''}">
+          <span style="font-size:12px;color:var(--text-muted);">to $</span>
+          <input type="number" id="conv-quote-high" placeholder="High" style="flex:1;padding:5px 8px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;font-size:12px;color:var(--input-text);font-family:inherit;outline:none;min-width:0;" value="${lead?.quote_high || ''}">
+          <span style="font-size:11px;color:var(--text-muted);">/mo</span>
+        </div>
+        <button class="conv3-quick-btn" style="width:100%;margin-top:6px;justify-content:center;font-weight:600;" onclick="sendQuote('${lead?.id}','${conv.id}')">Send Quote</button>
+        <div id="conv-quote-status" style="display:none;font-size:10px;color:#00d4b4;font-weight:500;margin-top:2px;"></div>
       </div>
       <div class="conv3-right-section">
         <div class="conv3-section-title">Tags</div>

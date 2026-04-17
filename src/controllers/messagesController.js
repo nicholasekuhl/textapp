@@ -26,13 +26,43 @@ const isPositiveEngagement = (history) => {
   )
 }
 
+const STATE_NAMES = {
+  'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA',
+  'colorado':'CO','connecticut':'CT','delaware':'DE','florida':'FL','georgia':'GA',
+  'hawaii':'HI','idaho':'ID','illinois':'IL','indiana':'IN','iowa':'IA','kansas':'KS',
+  'kentucky':'KY','louisiana':'LA','maine':'ME','maryland':'MD','massachusetts':'MA',
+  'michigan':'MI','minnesota':'MN','mississippi':'MS','missouri':'MO','montana':'MT',
+  'nebraska':'NE','nevada':'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM',
+  'new york':'NY','north carolina':'NC','north dakota':'ND','ohio':'OH','oklahoma':'OK',
+  'oregon':'OR','pennsylvania':'PA','rhode island':'RI','south carolina':'SC',
+  'south dakota':'SD','tennessee':'TN','texas':'TX','utah':'UT','vermont':'VT',
+  'virginia':'VA','washington':'WA','west virginia':'WV','wisconsin':'WI','wyoming':'WY'
+}
+
 const autoExtractLeadData = async (lead, message) => {
   try {
     const updates = {}
+    const noteLines = []
+    const msg = message.toLowerCase()
+
+    // ZIP code
     const zipMatch = message.match(/\b(\d{5})\b/)
     if (zipMatch && !lead.zip_code) updates.zip_code = zipMatch[1]
-    const stateMatch = message.match(/\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/)
-    if (stateMatch && !lead.state) updates.state = stateMatch[1]
+
+    // State — abbreviation
+    const stateAbbrMatch = message.match(/\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/)
+    if (stateAbbrMatch && !lead.state) updates.state = stateAbbrMatch[1]
+
+    // State — full name (e.g. "I'm in Florida", "live in Texas")
+    if (!lead.state && !updates.state) {
+      const stateNameMatch = msg.match(/(?:i'm in|im in|i am in|live in|from|located in|i live in)\s+([a-z ]+)/i)
+      if (stateNameMatch) {
+        const candidate = stateNameMatch[1].trim().toLowerCase()
+        if (STATE_NAMES[candidate]) updates.state = STATE_NAMES[candidate]
+      }
+    }
+
+    // Income
     const incomeMatch = message.match(/\$?([\d,]+)\s*(?:k|thousand|a year|\/year|per year|annually|annual income)/i) ||
                         message.match(/(?:make|earn|income|salary)\s+(?:about|around|roughly)?\s*\$?([\d,]+)/i)
     if (incomeMatch && !lead.income) {
@@ -40,10 +70,58 @@ const autoExtractLeadData = async (lead, message) => {
       if (/k\b/i.test(message) || parseInt(inc) < 1000) inc = String(parseInt(inc) * 1000)
       updates.income = parseInt(inc)
     }
+
+    // Age extraction
+    const ageMatch = msg.match(/(?:i'm|im|i am)\s+(\d{2})\b/) ||
+                     msg.match(/\bage\s+(\d{2})\b/) ||
+                     msg.match(/(\d{2})\s+years?\s+old/)
+    if (ageMatch) {
+      const age = parseInt(ageMatch[1])
+      if (age >= 18 && age <= 99) {
+        noteLines.push(`[Auto] Age: ${age}`)
+      }
+    }
+
+    // Household extraction
+    if (!lead.household) {
+      let householdSize = null
+      let householdDesc = null
+      if (/just me|only me|myself$|single|just myself/i.test(msg)) {
+        householdSize = 1; householdDesc = 'Individual'
+      } else if (/me and my (wife|husband|spouse|partner)/i.test(msg)) {
+        householdSize = 2; householdDesc = 'Self + spouse'
+      } else {
+        const familyMatch = msg.match(/family of (\d)/i) || msg.match(/(\d) (?:people|in my household|in household|of us)/i)
+        if (familyMatch) {
+          householdSize = parseInt(familyMatch[1])
+          householdDesc = `${householdSize} people`
+        }
+        const kidsMatch = msg.match(/(?:myself|me) and (\d) kids/i) || msg.match(/(\d) kids/i)
+        if (kidsMatch && !householdSize) {
+          const kids = parseInt(kidsMatch[1])
+          householdSize = kids + 1
+          householdDesc = `Self + ${kids} kid${kids > 1 ? 's' : ''}`
+        }
+      }
+      if (householdSize) {
+        updates.household = householdSize
+        noteLines.push(`--- Household Info (Auto-extracted) ---`)
+        noteLines.push(`Size: ${householdSize} people`)
+        noteLines.push(`Members: ${householdDesc}`)
+        noteLines.push(`---`)
+      }
+    }
+
+    // Append notes if any were generated
+    if (noteLines.length > 0) {
+      const newNotes = noteLines.join('\n')
+      updates.notes = lead.notes ? lead.notes + '\n' + newNotes : newNotes
+    }
+
     if (Object.keys(updates).length > 0) {
       updates.updated_at = new Date().toISOString()
       await supabase.from('leads').update(updates).eq('id', lead.id)
-      console.log('Auto-extracted lead data:', updates)
+      console.log('[autoExtract] Lead', lead.id, '→', updates)
     }
   } catch (err) {
     console.error('autoExtractLeadData error:', err.message)
@@ -478,8 +556,10 @@ const processInboundMessage = async (body) => {
       const capturedUserId = userId
       const capturedBody = Body
 
-      // Debounce 8 seconds — if another message arrives within this window the
-      // timeout gets cancelled and reset, so the AI only sees the final message state
+      // Debounce 45-60 seconds — gives leads time to send multiple messages
+      // before the AI responds, so it sees the full context
+      const debounceMs = 45000 + Math.floor(Math.random() * 15000)
+      console.log(`[AI] Debounce set to ${Math.round(debounceMs / 1000)}s for conversation ${convId}`)
       const handle = setTimeout(async () => {
         pendingAiResponses.delete(convId)
 
@@ -719,7 +799,7 @@ const processInboundMessage = async (body) => {
         } catch (debounceErr) {
           console.error('[AI] Debounce handler error:', debounceErr.message)
         }
-      }, 20000)
+      }, debounceMs)
 
       pendingAiResponses.set(convId, handle)
     }
@@ -1022,7 +1102,7 @@ const generateAIResponse = async (lead, history, profile, inboundBody = '', user
 
     const calendlyUrl = profile?.calendly_url?.trim() || ''
 
-    const systemPrompt = `You are texting leads on behalf of a licensed health insurance brokerage. Your job is to qualify leads through short casual SMS and get them on a call with a benefits specialist.
+    let systemPrompt = `You are texting leads on behalf of a licensed health insurance brokerage. Your job is to qualify leads through short casual SMS and get them on a call with a benefits specialist.
 ${calendlyUrl ? 'Booking link: ' + calendlyUrl : ''}
 
 IDENTITY: Never introduce yourself by name or refer to yourself as anything. The outreach message already handled the introduction.
@@ -1095,7 +1175,24 @@ ${[
 ].filter(Boolean).join(' | ') || 'None pre-loaded'}
 
 Never re-ask for anything above.
-Never ask for availability again after appointment is confirmed.`
+Never ask for availability again after appointment is confirmed.
+
+INFORMATION EXTRACTION:
+When leads share personal information, acknowledge it naturally and remember it. Extract and use: age, location/state, household size, income range, employment status, health conditions mentioned.
+
+HOUSEHOLD AWARENESS:
+If a lead mentions family members, ask about their ages naturally as part of qualification. A family of 4 has different options than a single person. When a lead mentions household members, ages of family members, or dependents, acknowledge this information and use it to tailor your response.
+
+QUOTE HANDLING:
+If a lead resists a call and asks for a quote via text, respond with something like "ok let me pull something up real quick" and then wait. Do NOT make up numbers or estimate premiums. If QUOTE CONTEXT is provided in your instructions, use those exact numbers naturally.
+
+BATCHING AWARENESS:
+You may receive multiple messages from the same lead sent seconds or minutes apart. Always read all messages before responding. Respond to the full context of all recent messages, not just the last one.`
+
+    // Inject quote context if agent has provided quote numbers
+    if (lead.quote_low) {
+      systemPrompt += `\n\nQUOTE CONTEXT: The agent has provided a quote of $${lead.quote_low}-$${lead.quote_high}/mo. Reference these exact numbers naturally if relevant.`
+    }
 
     console.log('BEFORE - System prompt chars:', systemPrompt.length, 'approx tokens:', Math.round(systemPrompt.length / 4))
 
@@ -1154,6 +1251,83 @@ const suggestReply = async (req, res) => {
     const suggestion = await generateAIResponse(lead, history, req.user.profile, '', req.user.id)
     res.json({ suggestion: suggestion || '' })
   } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+const sendQuote = async (req, res) => {
+  try {
+    const { lead_id, conversation_id, quote_low, quote_high } = req.body
+    if (!quote_low || !quote_high) return res.status(400).json({ error: 'Quote low and high are required' })
+
+    const { data: lead } = await supabase
+      .from('leads').select('*').eq('id', lead_id).eq('user_id', req.user.id).single()
+    if (!lead) return res.status(404).json({ error: 'Lead not found' })
+
+    const now = new Date().toISOString()
+    const timestamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+    const quoteNote = `[${timestamp}] Quote provided: $${quote_low}-$${quote_high}/mo`
+
+    // Save quote to lead
+    await supabase.from('leads').update({
+      quote_low,
+      quote_high,
+      quoted_at: now,
+      pipeline_stage: 'quoted',
+      pipeline_stage_set_at: now,
+      notes: lead.notes ? lead.notes + '\n' + quoteNote : quoteNote,
+      updated_at: now
+    }).eq('id', lead_id)
+
+    // Fetch conversation history
+    const { data: messages } = await supabase
+      .from('messages').select('*')
+      .eq('conversation_id', conversation_id)
+      .order('sent_at', { ascending: true })
+
+    const history = (messages || []).map(m => ({
+      role: m.direction === 'inbound' ? 'user' : 'assistant',
+      content: m.body
+    }))
+
+    // Inject quote context and generate AI response immediately
+    const quoteContext = `AGENT_CONTEXT: Agent has provided a quote range of $${quote_low}-$${quote_high}/mo. Use these exact numbers naturally in your next response. Present the quote casually like you just ran the numbers.`
+    history.push({ role: 'user', content: quoteContext })
+
+    const mergedLead = { ...lead, quote_low, quote_high }
+    const aiResponse = await generateAIResponse(mergedLead, history, req.user.profile, quoteContext, req.user.id)
+
+    if (aiResponse) {
+      const fromNumber = await getNumberForLead(req.user.id, lead.state)
+      const profile = req.user.profile || {}
+      const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, mergedLead, false)
+
+      // Typing delay
+      const wordCount = aiResponse.split(' ').length
+      const delay = Math.min(12000 + (wordCount * 800) + Math.floor(Math.random() * 6000), 75000)
+      await new Promise(resolve => setTimeout(resolve, delay))
+
+      const result = await sendSMS(mergedLead.phone, aiBody, fromNumber)
+      if (result.success) {
+        await supabase.from('messages').insert({
+          conversation_id,
+          user_id: req.user.id,
+          direction: 'outbound',
+          body: aiBody,
+          sent_at: new Date().toISOString(),
+          is_ai: true,
+          twilio_sid: result.sid,
+          status: 'sent'
+        })
+        await supabase.from('conversations')
+          .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
+          .eq('id', conversation_id)
+      }
+    }
+
+    res.json({ success: true, message: 'Quote sent' })
+  } catch (err) {
+    console.error('[sendQuote] error:', err.message)
     res.status(500).json({ error: err.message })
   }
 }
@@ -1256,4 +1430,4 @@ const getMessagesByLead = async (req, res) => {
   }
 }
 
-module.exports = { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, handleStatusCallback, isPositiveEngagement, getMessagesByLead }
+module.exports = { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, sendQuote, handleStatusCallback, isPositiveEngagement, getMessagesByLead }

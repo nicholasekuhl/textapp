@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, handleStatusCallback, getMessagesByLead } = require('../controllers/messagesController')
+const { sendInitialOutreach, handleIncomingMessage, sendManualMessage, suggestReply, sendQuote, handleStatusCallback, getMessagesByLead } = require('../controllers/messagesController')
 const { authMiddleware } = require('../middleware/auth')
 
 // Public Twilio webhooks — no auth
@@ -13,5 +13,6 @@ router.get('/', authMiddleware, getMessagesByLead)
 router.post('/send/:leadId', authMiddleware, sendInitialOutreach)
 router.post('/send-manual', authMiddleware, sendManualMessage)
 router.post('/suggest', authMiddleware, suggestReply)
+router.post('/send-quote', authMiddleware, sendQuote)
 
 module.exports = router
