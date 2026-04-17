@@ -1235,16 +1235,8 @@ const updateBulkActions = () => {
   updateFab()
 }
 
-function toggleFabMenu(e) {
-  if (e) e.stopPropagation()
-  const m = document.getElementById('fab-menu')
-  if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none'
-}
-
-function closeFabMenu() {
-  const m = document.getElementById('fab-menu')
-  if (m) m.style.display = 'none'
-}
+function toggleFabMenu() {}
+function closeFabMenu() {}
 
 function updateFab() {
   const wrap = document.getElementById('fab-wrap')
@@ -1253,13 +1245,7 @@ function updateFab() {
   const n = selectedLeads.size
   count.textContent = n
   wrap.style.display = n > 0 ? 'block' : 'none'
-  if (n === 0) closeFabMenu()
 }
-
-document.addEventListener('click', e => {
-  const wrap = document.getElementById('fab-wrap')
-  if (wrap && !wrap.contains(e.target)) closeFabMenu()
-})
 
 const clearSelection = () => {
   selectedLeads.clear()
@@ -1645,17 +1631,32 @@ const openDispositionModal = (leadId, name) => {
   )
   const grid = document.getElementById('disp-picker-grid')
   if (!allDispositionTags.length) {
-    grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">No disposition tags yet. Create some in Settings → Disposition Tags.</div>`
+    grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:12px;">No disposition tags yet. Create some in Settings → Disposition Tags.</div>`
   } else {
-    grid.innerHTML = allDispositionTags.map(tag => `
-      <label class="disp-check-row" style="border-left:4px solid ${tag.color};">
-        <input type="checkbox" value="${tag.id}" ${currentIds.has(tag.id) ? 'checked' : ''}>
-        <span class="disp-check-dot" style="background:${tag.color};"></span>
-        <span class="disp-check-label">${tag.name}</span>
-      </label>
-    `).join('')
+    grid.innerHTML = allDispositionTags.map(tag => {
+      const isSelected = currentIds.has(tag.id)
+      const hasMessages = Array.isArray(tag.disposition_messages) && tag.disposition_messages.length > 0
+      const hasActions = (Array.isArray(tag.disposition_actions) && tag.disposition_actions.length > 0) || !!tag.automated_action_id
+      const icons = []
+      if (hasMessages) icons.push('<span title="Sends message(s)">💬</span>')
+      if (hasActions) icons.push('<span title="Runs automated action(s)">⚡</span>')
+      return `
+        <label class="disp-row ${isSelected ? 'selected' : ''}" style="border-left-color:${tag.color};" onclick="toggleDispRow(this)">
+          <input type="checkbox" value="${tag.id}" ${isSelected ? 'checked' : ''}>
+          <span class="disp-dot" style="background:${tag.color};"></span>
+          <span class="disp-name">${tag.name}</span>
+          <span class="disp-icons">${icons.join('')}</span>
+        </label>
+      `
+    }).join('')
   }
   document.getElementById('disposition-modal').classList.add('open')
+}
+
+const toggleDispRow = (el) => {
+  const cb = el.querySelector('input[type=checkbox]')
+  if (!cb) return
+  setTimeout(() => { el.classList.toggle('selected', cb.checked) }, 0)
 }
 
 const applyDisposition = async () => {
