@@ -258,11 +258,15 @@ const createAccessRequest = async (req, res) => {
     const cleanName = (name || '').trim()
     const cleanNotes = (notes || '').trim()
     // Silently deduplicate
-    const { data: existing } = await supabase
+    const { data: existing, error: dupeError } = await supabase
       .from('access_requests')
       .select('id')
       .eq('email', normalised)
-      .single()
+      .maybeSingle()
+    if (dupeError) {
+      console.error('[access-request] dedup lookup error:', dupeError)
+      return res.status(500).json({ error: dupeError.message })
+    }
     if (existing) return res.json({ success: true })
     const payload = { email: normalised, status: 'pending' }
     if (cleanName) payload.name = cleanName
@@ -270,7 +274,10 @@ const createAccessRequest = async (req, res) => {
     const { error } = await supabase
       .from('access_requests')
       .insert([payload])
-    if (error) throw error
+    if (error) {
+      console.error('[access-request] insert error:', error)
+      return res.status(500).json({ error: error.message })
+    }
 
     // Fire-and-forget notification emails — never block or fail the request
     sendAccessRequestEmails({ name: cleanName, email: normalised, notes: cleanNotes })
@@ -278,8 +285,8 @@ const createAccessRequest = async (req, res) => {
 
     res.json({ success: true })
   } catch (err) {
-    console.error('createAccessRequest error:', err.message)
-    res.status(500).json({ error: 'Failed to save' })
+    console.error('[access-request] unexpected error:', err)
+    res.status(500).json({ error: err.message || 'Failed to save' })
   }
 }
 
