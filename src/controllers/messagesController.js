@@ -588,7 +588,7 @@ const processInboundMessage = async (body) => {
             .eq('conversation_id', convId)
             .order('sent_at', { ascending: true })
 
-          const history = (freshMessages || []).map(m => ({
+          const history = (freshMessages || []).filter(m => m.direction !== 'system').map(m => ({
             role: m.direction === 'inbound' ? 'user' : 'assistant',
             content: m.body
           }))
@@ -723,6 +723,26 @@ const processInboundMessage = async (body) => {
                 await supabase.from('conversations')
                   .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
                   .eq('id', convId)
+
+                // ─── QUOTE STALL DETECTION ───────────────────────────────────
+                const quoteStallPhrases = ['pull something up', 'let me check', 'run some numbers', 'look that up', 'check on that', 'pull up some', 'one moment', 'give me a sec']
+                const aiBodyLower = aiBody.toLowerCase()
+                if (quoteStallPhrases.some(p => aiBodyLower.includes(p))) {
+                  console.log(`[AI] Quote stall detected for lead ${mergedLead.id} — pausing autopilot`)
+                  await supabase.from('leads').update({ autopilot: false, updated_at: new Date().toISOString() }).eq('id', mergedLead.id)
+                  const leadName = [mergedLead.first_name, mergedLead.last_name].filter(Boolean).join(' ') || mergedLead.phone
+                  createNotification(capturedUserId, 'quote_requested', 'Quote Requested', `${leadName} is asking for a quote. Enter a quote range in the conversation panel.`, mergedLead.id, convId)
+                  await supabase.from('messages').insert({
+                    conversation_id: convId,
+                    user_id: capturedUserId,
+                    direction: 'system',
+                    body: 'AI paused — waiting for agent to provide quote range',
+                    sent_at: new Date().toISOString(),
+                    is_ai: true,
+                    status: 'sent'
+                  })
+                }
+                // ─────────────────────────────────────────────────────────────
 
                 // ─── PIPELINE STAGE DETECTION ────────────────────────────────
                 try {
@@ -1187,11 +1207,19 @@ QUOTE HANDLING:
 If a lead resists a call and asks for a quote via text, respond with something like "ok let me pull something up real quick" and then wait. Do NOT make up numbers or estimate premiums. If QUOTE CONTEXT is provided in your instructions, use those exact numbers naturally.
 
 BATCHING AWARENESS:
-You may receive multiple messages from the same lead sent seconds or minutes apart. Always read all messages before responding. Respond to the full context of all recent messages, not just the last one.`
+You may receive multiple messages from the same lead sent seconds or minutes apart. Always read all messages before responding. Respond to the full context of all recent messages, not just the last one.
 
-    // Inject quote context if agent has provided quote numbers
-    if (lead.quote_low) {
-      systemPrompt += `\n\nQUOTE CONTEXT: The agent has provided a quote of $${lead.quote_low}-$${lead.quote_high}/mo. Reference these exact numbers naturally if relevant.`
+CONVERSATION CONTINUITY:
+You may be re-enabled mid-conversation after a human agent has been manually responding. Read the FULL conversation history carefully before responding. Pick up naturally from where the conversation left off. Never repeat information already discussed. If a quote has already been provided (check conversation history), do not ask for details again, continue the conversation forward.`
+
+    // Inject lead state context
+    const stateContext = [
+      lead.quote_low ? `Quote already provided: $${lead.quote_low}-$${lead.quote_high}/mo` : null,
+      lead.pipeline_stage ? `Current pipeline stage: ${lead.pipeline_stage}` : null,
+      lead.status ? `Current lead status: ${lead.status}` : null
+    ].filter(Boolean)
+    if (stateContext.length > 0) {
+      systemPrompt += `\n\nLEAD STATE:\n${stateContext.join('\n')}`
     }
 
     console.log('BEFORE - System prompt chars:', systemPrompt.length, 'approx tokens:', Math.round(systemPrompt.length / 4))
@@ -1279,43 +1307,63 @@ const sendQuote = async (req, res) => {
       updated_at: now
     }).eq('id', lead_id)
 
-    // Fetch conversation history
-    const { data: messages } = await supabase
-      .from('messages').select('*')
-      .eq('conversation_id', conversation_id)
-      .order('sent_at', { ascending: true })
-
-    const history = (messages || []).map(m => ({
-      role: m.direction === 'inbound' ? 'user' : 'assistant',
-      content: m.body
-    }))
-
-    // Inject quote context and generate AI response immediately
-    const quoteContext = `AGENT_CONTEXT: Agent has provided a quote range of $${quote_low}-$${quote_high}/mo. Use these exact numbers naturally in your next response. Present the quote casually like you just ran the numbers.`
-    history.push({ role: 'user', content: quoteContext })
-
+    const fromNumber = await getNumberForLead(req.user.id, lead.state)
+    const profile = req.user.profile || {}
     const mergedLead = { ...lead, quote_low, quote_high }
-    const aiResponse = await generateAIResponse(mergedLead, history, req.user.profile, quoteContext, req.user.id)
 
-    if (aiResponse) {
-      const fromNumber = await getNumberForLead(req.user.id, lead.state)
-      const profile = req.user.profile || {}
-      const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, mergedLead, false)
+    if (lead.autopilot) {
+      // Autopilot ON — generate AI response with quote context
+      const { data: messages } = await supabase
+        .from('messages').select('*')
+        .eq('conversation_id', conversation_id)
+        .order('sent_at', { ascending: true })
 
-      // Typing delay
-      const wordCount = aiResponse.split(' ').length
-      const delay = Math.min(12000 + (wordCount * 800) + Math.floor(Math.random() * 6000), 75000)
-      await new Promise(resolve => setTimeout(resolve, delay))
+      const history = (messages || []).map(m => ({
+        role: m.direction === 'inbound' ? 'user' : 'assistant',
+        content: m.body
+      }))
 
-      const result = await sendSMS(mergedLead.phone, aiBody, fromNumber)
+      const quoteContext = `AGENT_CONTEXT: Agent has provided a quote range of $${quote_low}-$${quote_high}/mo. Use these exact numbers naturally in your next response. Present the quote casually like you just ran the numbers.`
+      history.push({ role: 'user', content: quoteContext })
+
+      const aiResponse = await generateAIResponse(mergedLead, history, profile, quoteContext, req.user.id)
+
+      if (aiResponse) {
+        const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, mergedLead, false)
+        const wordCount = aiResponse.split(' ').length
+        const delay = Math.min(12000 + (wordCount * 800) + Math.floor(Math.random() * 6000), 75000)
+        await new Promise(resolve => setTimeout(resolve, delay))
+
+        const result = await sendSMS(mergedLead.phone, aiBody, fromNumber)
+        if (result.success) {
+          await supabase.from('messages').insert({
+            conversation_id,
+            user_id: req.user.id,
+            direction: 'outbound',
+            body: aiBody,
+            sent_at: new Date().toISOString(),
+            is_ai: true,
+            twilio_sid: result.sid,
+            status: 'sent'
+          })
+          await supabase.from('conversations')
+            .update({ updated_at: new Date().toISOString(), last_outbound_at: new Date().toISOString() })
+            .eq('id', conversation_id)
+        }
+      }
+    } else {
+      // Autopilot OFF — send manual quote message, agent stays in control
+      const quoteBody = `okay so i pulled up some numbers, looks like you're looking at $${quote_low}-$${quote_high}/mo depending on the plan. what date were you thinking for coverage to start?`
+      const finalBody = buildMessageBody(quoteBody, profile, mergedLead, false)
+      const result = await sendSMS(mergedLead.phone, finalBody, fromNumber)
       if (result.success) {
         await supabase.from('messages').insert({
           conversation_id,
           user_id: req.user.id,
           direction: 'outbound',
-          body: aiBody,
+          body: finalBody,
           sent_at: new Date().toISOString(),
-          is_ai: true,
+          is_ai: false,
           twilio_sid: result.sid,
           status: 'sent'
         })
