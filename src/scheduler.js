@@ -1,5 +1,5 @@
 const supabase = require('./db')
-const { sendSMS, buildMessageBody, pickNumberForLead } = require('./twilio')
+const { sendSMS, buildMessageBody, pickNumberForLead, getNumberForLead } = require('./twilio')
 const { deductSmsCredit } = require('./services/credits')
 const { spintext } = require('./spintext')
 const { smsQueue } = require('./smsQueue')
@@ -1365,7 +1365,8 @@ const processDrips = async () => {
         try {
           // Check quiet hours
           const tz = lead.timezone || 'America/New_York'
-          if (isWithinQuietHours && isWithinQuietHours(tz)) {
+          const quietCheck = isWithinQuietHours(lead.state, tz)
+          if (quietCheck.blocked) {
             skipped++
             continue
           }
@@ -1387,7 +1388,7 @@ const processDrips = async () => {
             .replace(/\{zip_code\}/gi, lead.zip_code || '')
             .replace(/\{date_of_birth\}/gi, lead.date_of_birth || '')
 
-          const fromNumber = await pickNumberForLead(lead.user_id, lead.state)
+          const fromNumber = await getNumberForLead(lead.user_id, lead.state)
           if (!fromNumber) {
             console.error(`[drips] No from number for user ${lead.user_id}`)
             continue
