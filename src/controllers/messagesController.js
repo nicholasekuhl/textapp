@@ -1,4 +1,5 @@
 const supabase = require('../db')
+const Anthropic = require('@anthropic-ai/sdk')
 const { sendSMS, buildMessageBody, getMasterClient, getNumberForLead } = require('../twilio')
 const { createNotification } = require('../notifications')
 const { spintext } = require('../spintext')
@@ -8,6 +9,12 @@ const { detectPipelineStage, extractLeadDataFromHistory, generateNoteSummary, ST
 const { deductAiCredit } = require('../services/credits')
 const { calcAge, assignRole } = require('./leadsController')
 const { bumpMessageCount } = require('../utils/messageCount')
+
+// Main AI reply model. Haiku 4.5 is sufficient for structured SMS replies and
+// costs ~33% of Sonnet 4.6. Override via env var if needed for testing.
+const AI_REPLY_MODEL = process.env.AI_REPLY_MODEL || 'claude-haiku-4-5-20251001'
+
+const anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const isPositiveEngagement = (history) => {
   const recentInbound = history.filter(m => m.role === 'user').slice(-5)
@@ -876,17 +883,22 @@ const processPendingAi = async (convId) => {
     // ─── APPOINTMENT DETECTION ───────────────────────────────────
     const { data: convCheck } = await supabase.from('conversations').select('appointment_confirmed').eq('id', convId).single()
     if (!convCheck?.appointment_confirmed) {
-      const hasDay = /monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week/i.test(aiBody)
-      const hasTime = /\d{1,2}(:\d{2})?\s*(am|pm)|noon|morning|afternoon/i.test(aiBody)
-      const hasConfirmation = /locked in|booked|scheduled|set up|confirmed|will call|give you a call|he'll call|i'll call|call you|reach out|talk soon|speak.*soon|call.*today|call.*tomorrow|call.*morning|call.*afternoon|set for|all set|you're set|you're all set/i.test(aiBody)
-      const hasBookingPattern = hasDay && hasTime && /call|speak|talk|reach/i.test(aiBody)
-      const mightBeBooking = hasDay || hasTime || hasConfirmation || hasBookingPattern
-      if (mightBeBooking) {
-        const apptData = await detectAppointment(history, aiResponse, userId)
-        if (apptData.confirmed) {
-          console.log('[AI worker] appointment detected:', apptData)
-          await bookAppointment(lead, convId, apptData, profile, fromNumber)
-        }
+      // Only run appointment detection if the reply shows real booking signals.
+      // Three-part gate: must have (day + time) OR explicit confirmation language.
+      // Checks both the AI's outbound reply and the lead's inbound message.
+      const textToCheck = (aiResponse || '') + ' ' + (lastInboundBody || '')
+      const hasDay = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|this evening|this morning|this afternoon|next week)\b/i.test(textToCheck)
+      const hasTime = /\b(\d{1,2}(:\d{2})?\s*(am|pm)|noon|midnight)\b/i.test(textToCheck)
+      const hasConfirmation = /\b(locked in|booked|scheduled|set up|confirmed|will call|give you a call|call you|reach out|talk soon|speak soon|set for|all set|you're set|you're all set)\b/i.test(textToCheck)
+      const shouldCheck = (hasDay && hasTime) || hasConfirmation
+
+      let apptData = { confirmed: false }
+      if (shouldCheck) {
+        apptData = await detectAppointment(history, aiResponse, userId)
+      }
+      if (apptData.confirmed) {
+        console.log('[AI worker] appointment detected:', apptData)
+        await bookAppointment(lead, convId, apptData, profile, fromNumber)
       }
     }
   } catch (err) {
@@ -967,8 +979,6 @@ const sendManualMessage = async (req, res) => {
 
 const detectAppointment = async (history, aiResponse, userId = null) => {
   try {
-    const Anthropic = require('@anthropic-ai/sdk')
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const today = new Date().toISOString().split('T')[0]
     const recentMessages = [
       ...history.slice(-6),
@@ -976,7 +986,7 @@ const detectAppointment = async (history, aiResponse, userId = null) => {
       { role: 'user', content: 'Based on this conversation, did both parties agree on a specific day and time for a phone call? Reply with the JSON format specified in the system prompt.' }
     ]
 
-    const response = await client.messages.create({
+    const response = await anthropicClient.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 100,
       system: `Did both parties agree on a specific day AND time for a call? Today is ${today}.
@@ -1185,15 +1195,7 @@ const removeExcessEmojis = (text) => {
   return text
 }
 
-const generateAIResponse = async (lead, history, profile, inboundBody = '', userId = null) => {
-  try {
-    const Anthropic = require('@anthropic-ai/sdk')
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-    const calendlyUrl = profile?.calendly_url?.trim() || ''
-
-    let systemPrompt = `You are texting leads on behalf of a licensed health insurance brokerage. Your job is to qualify leads through short casual SMS and get them on a call with a benefits specialist.
-${calendlyUrl ? 'Booking link: ' + calendlyUrl : ''}
+const SYSTEM_BASE = `You are texting leads on behalf of a licensed health insurance brokerage. Your job is to qualify leads through short casual SMS and get them on a call with a benefits specialist.
 
 IDENTITY: Never introduce yourself by name or refer to yourself as anything. The outreach message already handled the introduction.
 
@@ -1255,18 +1257,6 @@ No STOP reminder after the first message.
 GEOGRAPHY:
 Never mention a specific city or state as where the agent is based. If asked say "we work with clients all across the country" and redirect to the lead's situation.
 
-KNOWN LEAD DATA, do not re-ask:
-${[
-  lead.first_name ? `Name: ${lead.first_name}${lead.last_name ? ' ' + lead.last_name : ''}` : null,
-  lead.state ? `State: ${lead.state}` : null,
-  lead.zip_code ? `ZIP: ${lead.zip_code}` : null,
-  lead.income ? `Income: $${Number(lead.income).toLocaleString()}` : null,
-  lead.product ? `Product: ${lead.product}` : null
-].filter(Boolean).join(' | ') || 'None pre-loaded'}
-
-Never re-ask for anything above.
-Never ask for availability again after appointment is confirmed.
-
 INFORMATION EXTRACTION:
 When leads share personal information, acknowledge it naturally and remember it. Extract and use: age, location/state, household size, income range, employment status, health conditions mentioned.
 
@@ -1283,19 +1273,35 @@ BATCHING AWARENESS:
 You may receive multiple messages from the same lead sent seconds or minutes apart. Always read all messages before responding. Respond to the full context of all recent messages, not just the last one.
 
 CONVERSATION CONTINUITY:
-You may be re-enabled mid-conversation after a human agent has been manually responding. Read the FULL conversation history carefully before responding. Pick up naturally from where the conversation left off. Never repeat information already discussed. If a quote has already been provided (check conversation history), do not ask for details again, continue the conversation forward.`
+You may be re-enabled mid-conversation after a human agent has been manually responding. Read the FULL conversation history carefully before responding. Pick up naturally from where the conversation left off. Never repeat information already discussed. If a quote has already been provided (check conversation history), do not ask for details again, continue the conversation forward.
 
-    // Inject lead state context
+Never re-ask for information already provided. Never ask for availability again after appointment is confirmed.`
+
+const generateAIResponse = async (lead, history, profile, inboundBody = '', userId = null) => {
+  try {
+    const calendlyUrl = profile?.calendly_url?.trim() || ''
+    const dynamicParts = []
+    if (calendlyUrl) dynamicParts.push(`Booking link: ${calendlyUrl}`)
+
+    const leadData = [
+      lead.first_name ? `Name: ${lead.first_name}${lead.last_name ? ' ' + lead.last_name : ''}` : null,
+      lead.state ? `State: ${lead.state}` : null,
+      lead.zip_code ? `ZIP: ${lead.zip_code}` : null,
+      lead.income ? `Income: $${Number(lead.income).toLocaleString()}` : null,
+      lead.product ? `Product: ${lead.product}` : null
+    ].filter(Boolean).join(' | ') || 'None pre-loaded'
+    dynamicParts.push(`KNOWN LEAD DATA, do not re-ask: ${leadData}`)
+
     const stateContext = [
       lead.quote_low ? `Quote already provided: $${lead.quote_low}-$${lead.quote_high}/mo` : null,
       lead.pipeline_stage ? `Current pipeline stage: ${lead.pipeline_stage}` : null,
       lead.status ? `Current lead status: ${lead.status}` : null
     ].filter(Boolean)
     if (stateContext.length > 0) {
-      systemPrompt += `\n\nLEAD STATE:\n${stateContext.join('\n')}`
+      dynamicParts.push(`LEAD STATE:\n${stateContext.join('\n')}`)
     }
 
-    console.log('BEFORE - System prompt chars:', systemPrompt.length, 'approx tokens:', Math.round(systemPrompt.length / 4))
+    const dynamicTail = dynamicParts.join('\n\n')
 
     let rawMessages = history.length > 0 ? history : [{ role: 'user', content: inboundBody }]
     let cappedMessages = rawMessages.length > 12
@@ -1308,15 +1314,25 @@ You may be re-enabled mid-conversation after a human agent has been manually res
     }
     if (cappedMessages.length === 0) cappedMessages = [{ role: 'user', content: inboundBody }]
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+    const response = await anthropicClient.messages.create({
+      model: AI_REPLY_MODEL,
       max_tokens: 300,
-      system: systemPrompt,
+      system: [
+        {
+          type: 'text',
+          text: SYSTEM_BASE,
+          cache_control: { type: 'ephemeral' }
+        },
+        {
+          type: 'text',
+          text: dynamicTail
+        }
+      ],
       messages: cappedMessages
     })
 
     if (userId && response.usage) {
-      deductAiCredit(userId, response.usage.input_tokens, response.usage.output_tokens, 'claude-sonnet-4-6')
+      deductAiCredit(userId, response.usage.input_tokens, response.usage.output_tokens, AI_REPLY_MODEL)
         .catch(err => console.error('[credits] AI deduction failed:', err.message))
     }
 

@@ -21,7 +21,7 @@ const DNC_CREDIT_COST = 0.05   // placeholder; confirm with vendor
 const AI_MARKUP = 3
 
 const PRICING = {
-  'claude-haiku-4-5-20251001': { input: 0.0000008, output: 0.000004 },
+  'claude-haiku-4-5-20251001': { input: 0.000001, output: 0.000005 },
   'claude-sonnet-4-6':         { input: 0.000003,  output: 0.000015 },
 }
 
