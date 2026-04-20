@@ -142,4 +142,41 @@ function calcAiCost(usage, model) {
   return (usage.input_tokens * pricing.input) + (usage.output_tokens * pricing.output)
 }
 
-module.exports = { getBalance, deductSmsCredit, deductAiCredit, addCredits, calcAiCost, InsufficientCreditsError, SMS_CREDIT_COST }
+/**
+ * Refund a previously-deducted SMS charge. Called when Twilio rejects a send
+ * AFTER we've already deducted. Never applies the balance floor — always succeeds.
+ * Returns new balance.
+ */
+async function refundSmsCredit(userId, amount, description) {
+  if (!userId || !amount || amount <= 0) return null
+  const { data, error } = await supabase.rpc('refund_credit', {
+    p_user_id: userId,
+    p_amount: parseFloat(amount.toFixed(4)),
+    p_description: description || 'SMS send failed — refund'
+  })
+  if (error) {
+    console.error('[credits] refundSmsCredit error:', error.message)
+    return null
+  }
+  return data?.[0]?.balance_after ?? null
+}
+
+/**
+ * Check whether the user just crossed below their low-balance threshold.
+ * Returns true if a warning notification should be created (atomic — will only
+ * return true for one concurrent caller per 24-hour window).
+ */
+async function checkLowBalanceWarning(userId, currentBalance) {
+  if (!userId || currentBalance == null) return false
+  const { data, error } = await supabase.rpc('check_low_balance_warning', {
+    p_user_id: userId,
+    p_current_balance: parseFloat(currentBalance.toFixed(4))
+  })
+  if (error) {
+    console.error('[credits] checkLowBalanceWarning error:', error.message)
+    return false
+  }
+  return data === true
+}
+
+module.exports = { getBalance, deductSmsCredit, deductAiCredit, addCredits, calcAiCost, InsufficientCreditsError, SMS_CREDIT_COST, refundSmsCredit, checkLowBalanceWarning }

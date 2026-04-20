@@ -1,6 +1,5 @@
 const supabase = require('./db')
 const { sendSMS, buildMessageBody, pickNumberForLead, getNumberForLead } = require('./twilio')
-const { deductSmsCredit } = require('./services/credits')
 const { spintext } = require('./spintext')
 const { smsQueue } = require('./smsQueue')
 const nodemailer = require('nodemailer')
@@ -231,7 +230,7 @@ const checkGhostedConversations = async () => {
       const followupText = await generateFollowupMessage(lead, history, profile, { stage: targetStage })
       if (!followupText) continue
 
-      const result = await sendSMS(lead.phone, followupText, fromNumber)
+      const result = await sendSMS(lead.phone, followupText, fromNumber, { userId: lead.user_id, leadId: lead.id })
       if (!result.success) {
         console.error(`Follow-up send failed for lead ${lead.id}:`, result.error)
         continue
@@ -497,7 +496,7 @@ const processQuickFollowups = async () => {
         stepToSend,
 
         sendFn: async (job) => {
-          const result = await sendSMS(job.phone, job.message, job.fromNumber)
+          const result = await sendSMS(job.phone, job.message, job.fromNumber, { userId: job.userId, leadId: job.leadId })
           if (!result.success) throw new Error(result.error || 'sendSMS failed')
           job._twilioSid = result.sid
           job._segments = result.segments || 1
@@ -569,7 +568,6 @@ const processQuickFollowups = async () => {
 
           await supabase.from('campaign_leads').update(stepUpdates).eq('id', job.enrollmentId)
           console.log(`[quickFollowups] Step ${job.stepToSend} sent to lead ${job.leadId}`)
-          if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, job._twilioSid, job._segments || 1).catch(err => console.error('[credits] SMS deduction failed:', err.message))
         },
 
         onFailure: async (job, err) => {
@@ -808,7 +806,7 @@ const processScheduledMessages = async () => {
         currentStep: enrollment.current_step,
 
         sendFn: async (job) => {
-          const result = await sendSMS(job.phone, job.message, job.fromNumber)
+          const result = await sendSMS(job.phone, job.message, job.fromNumber, { userId: job.userId, leadId: job.leadId })
           if (!result.success) throw new Error(result.error || 'sendSMS failed')
           job._twilioSid = result.sid
           job._segments = result.segments || 1
@@ -874,7 +872,6 @@ const processScheduledMessages = async () => {
           }
           messagesSent++
           console.log('[scheduler] Day-based send queued successfully for lead', job.leadId)
-          if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, job._twilioSid, job._segments || 1).catch(err => console.error('[credits] SMS deduction failed:', err.message))
         },
 
         onFailure: async (job, err) => {
@@ -970,7 +967,7 @@ const processScheduledMessages = async () => {
           scheduledMessageId: sm.id,
 
           sendFn: async (job) => {
-            const result = await sendSMS(job.phone, job.message, job.fromNumber)
+            const result = await sendSMS(job.phone, job.message, job.fromNumber, { userId: job.userId, leadId: job.leadId })
             if (!result.success) throw new Error(result.error || 'sendSMS failed')
             job._twilioSid = result.sid
             job._segments = result.segments || 1
@@ -1000,8 +997,7 @@ const processScheduledMessages = async () => {
               await bumpMessageCount(job.conversationId)
               await supabase.from('conversations').update({ updated_at: sentAt }).eq('id', job.conversationId)
             }
-            if (job.userId) deductSmsCredit(job.userId, job.fromNumber, job.phone, job._twilioSid, job._segments || 1).catch(err => console.error('[credits] SMS deduction failed:', err.message))
-          },
+            },
 
           onFailure: async (job, err) => {
             errorsCount++
@@ -1419,7 +1415,7 @@ const processDrips = async () => {
             body = buildMessageBody(body, profile, lead, !lead.first_message_sent)
           }
 
-          const smsResult = await sendSMS(lead.phone, body, fromNumber)
+          const smsResult = await sendSMS(lead.phone, body, fromNumber, { userId: lead.user_id, leadId: lead.id })
 
           if (smsResult.success) {
             // Record send to prevent duplicates

@@ -51,36 +51,100 @@ const checkAndEnforceRateLimit = async (fromNumber) => {
 }
 // ──────────────────────────────────────────────────────────────────────────
 
-const sendSMS = async (to, body, fromNumber) => {
+const sendSMS = async (to, body, fromNumber, options = {}) => {
+  // options.userId       — who to bill. Required unless skipBilling=true.
+  // options.skipBilling  — true for internal notifications (agent personal phone
+  //                        forwarding, appointment alerts, etc). Caller must
+  //                        explicitly opt out.
+  // options.leadId       — optional, included in notification if low-balance fires
   try {
     const from = fromNumber || process.env.TWILIO_PHONE_NUMBER
     if (!from) throw new Error('No from number available — purchase a phone number in Settings')
 
-    await checkAndEnforceRateLimit(from)
+    const { userId, skipBilling, leadId } = options
 
-    const client = getMasterClient()
-    const params = { body, from, to }
-    const appUrl = process.env.APP_URL
-    if (appUrl) {
-      params.statusCallback = `${appUrl}/messages/status`
+    // Guardrail: every non-skipBilling send must pass a userId. This prevents
+    // accidental unbilled sends from new code paths.
+    if (!skipBilling && !userId) {
+      console.error('[sendSMS] BILLING ERROR — no userId passed and skipBilling not set. Refusing send to', to)
+      return { success: false, error: 'billing_misconfigured' }
     }
 
-    const message = await client.messages.create(params)
+    await checkAndEnforceRateLimit(from)
+
+    // Pre-flight billing: deduct expected 1-segment cost BEFORE calling Twilio.
+    // If the message turns out to be >1 segment, we deduct the delta after.
+    const { deductSmsCredit, refundSmsCredit, checkLowBalanceWarning, SMS_CREDIT_COST } = require('./services/credits')
+    let preDeductedCost = 0
+    let postDeductBalance = null
+
+    if (!skipBilling) {
+      try {
+        postDeductBalance = await deductSmsCredit(userId, from, to, null, 1)
+        preDeductedCost = SMS_CREDIT_COST
+      } catch (err) {
+        console.error(`[sendSMS] billing blocked send to ${to}:`, err.message)
+        return { success: false, error: 'insufficient_credits', billingError: err.message }
+      }
+    }
+
+    let message
+    try {
+      const client = getMasterClient()
+      const params = { body, from, to }
+      const appUrl = process.env.APP_URL
+      if (appUrl) {
+        params.statusCallback = `${appUrl}/messages/status`
+      }
+      message = await client.messages.create(params)
+    } catch (twilioErr) {
+      if (!skipBilling && preDeductedCost > 0) {
+        refundSmsCredit(userId, preDeductedCost, `Twilio rejected send to ${to}: ${twilioErr.message}`)
+          .catch(err => console.error('[sendSMS] refund after Twilio error failed:', err.message))
+      }
+      console.error(`SMS failed to ${to}:`, twilioErr.message)
+      return { success: false, error: twilioErr.message }
+    }
+
     console.log(`SMS sent to ${to} from ${from} — SID: ${message.sid}`)
 
-    // Increment sent_today counter for this number
     incrementSentToday(from).catch(() => {})
+
+    const segments = parseInt(message.numSegments || '1', 10)
+
+    // Post-send: if >1 segment, deduct the delta. Floor may be exceeded here
+    // but is bounded by the -$0.375 grace since we already passed the floor once.
+    if (!skipBilling && segments > 1) {
+      const deltaSegments = segments - 1
+      try {
+        postDeductBalance = await deductSmsCredit(userId, from, to, message.sid, deltaSegments)
+      } catch (err) {
+        console.error(`[sendSMS] delta-segment deduction failed for ${to} (${deltaSegments} extra segments):`, err.message)
+      }
+    }
+
+    if (!skipBilling && userId && postDeductBalance != null) {
+      checkLowBalanceWarning(userId, postDeductBalance).then(shouldWarn => {
+        if (shouldWarn) {
+          const { createNotification } = require('./notifications')
+          createNotification(
+            userId,
+            'low_balance',
+            'SMS credits running low',
+            `Balance: $${postDeductBalance.toFixed(2)}. Top up in Settings to avoid interruption.`,
+            leadId || null,
+            null
+          ).catch(err => console.error('[sendSMS] low-balance notification failed:', err.message))
+        }
+      }).catch(err => console.error('[sendSMS] checkLowBalanceWarning failed:', err.message))
+    }
 
     return {
       success: true,
       sid: message.sid,
-      // Twilio's numSegments is the billable segment count (160 chars GSM-7,
-      // 70 chars UCS-2). Used by deductSmsCredit so multi-segment messages
-      // are billed correctly.
-      segments: parseInt(message.numSegments || '1', 10),
-      // price is in Twilio's billing currency (may not be USD) — informational
-      // only, used for periodic reconciliation, not for billing the user.
-      price: message.price ? parseFloat(message.price) : null
+      segments,
+      price: message.price ? parseFloat(message.price) : null,
+      balanceAfter: postDeductBalance
     }
   } catch (err) {
     console.error(`SMS failed to ${to}:`, err.message)

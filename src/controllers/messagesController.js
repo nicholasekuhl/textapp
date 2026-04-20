@@ -237,7 +237,7 @@ const sendInitialOutreach = async (req, res) => {
     const fromNumber = await getNumberForLead(req.user.id, lead.state)
     const rawBody = getInitialMessage(lead)
     const messageBody = buildMessageBody(rawBody, req.user.profile, lead, true)
-    const result = await sendSMS(lead.phone, messageBody, fromNumber)
+    const result = await sendSMS(lead.phone, messageBody, fromNumber, { userId: req.user.id, leadId })
     if (!result.success) return res.status(500).json({ error: result.error })
 
     const sentAt = new Date().toISOString()
@@ -403,7 +403,7 @@ const executeHandoff = async (lead, conversation, handoff, fromNumber) => {
     }).eq('id', lead.id)
 
     if (handoff.message) {
-      const result = await sendSMS(lead.phone, handoff.message, fromNumber)
+      const result = await sendSMS(lead.phone, handoff.message, fromNumber, { userId: lead.user_id, leadId: lead.id })
       if (result.success) {
         await supabase.from('messages').insert({
           conversation_id: conversation.id,
@@ -628,7 +628,7 @@ const processInboundMessage = async (body) => {
         const msgBody = Body.length > 100 ? Body.slice(0, 100) + '...' : Body
         const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || ''
         const forwardText = `${agencyName}: msg from ${leadName} ${lead.phone}: ${msgBody}`.trim()
-        sendSMS(profile.personal_phone, forwardText, process.env.FORWARDING_NUMBER)
+        sendSMS(profile.personal_phone, forwardText, process.env.FORWARDING_NUMBER, { skipBilling: true })
       }
     }
 
@@ -790,7 +790,7 @@ const processPendingAi = async (convId) => {
     await new Promise(resolve => setTimeout(resolve, delay))
 
     const aiBody = buildMessageBody(removeExcessEmojis(naturalizeText(aiResponse)), profile, lead, false)
-    const result = await sendSMS(lead.phone, aiBody, fromNumber)
+    const result = await sendSMS(lead.phone, aiBody, fromNumber, { userId, leadId: lead.id })
     if (!result.success) {
       console.error('[AI worker] SMS send failed for lead', lead.id, result.error)
       return
@@ -932,7 +932,7 @@ const sendManualMessage = async (req, res) => {
       .replace(/\[Agency Name\]/gi, profile.agency_name || '')
       .replace(/\[Calendly Link\]/gi, profile.calendly_url || '')
     const finalBody = buildMessageBody(processedBody, profile, lead, false)
-    const result = await sendSMS(lead.phone, finalBody, fromNumber)
+    const result = await sendSMS(lead.phone, finalBody, fromNumber, { userId: req.user.id, leadId: lead.id })
     if (!result.success) return res.status(500).json({ error: result.error })
 
     await supabase.from('messages').insert({
@@ -1137,7 +1137,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
       console.log(`[bookAppointment] pipeline_stage → appointment_scheduled for lead ${lead.id}`)
 
       const confirmText = `Locked in. Our benefits specialist will call you ${day} at ${time} and walk you through everything.`
-      const confirmResult = await sendSMS(lead.phone, confirmText, fromNumber)
+      const confirmResult = await sendSMS(lead.phone, confirmText, fromNumber, { userId: lead.user_id, leadId: lead.id })
       if (confirmResult.success) {
         await supabase.from('messages').insert({
           conversation_id: conversationId,
@@ -1155,7 +1155,7 @@ const bookAppointment = async (lead, conversationId, appointmentData, profile, f
 
       if (profile?.notify_appointment_sms !== false && profile?.personal_phone) {
         const notificationBody = `Veloxo: New appointment booked!\nLead: ${lead.first_name || ''} ${lead.last_name || ''}\nPhone: ${lead.phone}\nTime: ${apptTime}\nCalendly: ${profile.calendly_url || 'N/A'}`
-        sendSMS(profile.personal_phone, notificationBody, process.env.FORWARDING_NUMBER)
+        sendSMS(profile.personal_phone, notificationBody, process.env.FORWARDING_NUMBER, { skipBilling: true })
           .catch(err => console.error('bookAppointment: agent SMS notification error:', err.message))
       }
     }
@@ -1425,7 +1425,7 @@ const sendQuote = async (req, res) => {
         const delay = Math.min(12000 + (wordCount * 800) + Math.floor(Math.random() * 6000), 75000)
         await new Promise(resolve => setTimeout(resolve, delay))
 
-        const result = await sendSMS(mergedLead.phone, aiBody, fromNumber)
+        const result = await sendSMS(mergedLead.phone, aiBody, fromNumber, { userId: req.user.id, leadId: mergedLead.id })
         if (result.success) {
           await supabase.from('messages').insert({
             conversation_id,
@@ -1448,7 +1448,7 @@ const sendQuote = async (req, res) => {
       // Autopilot OFF — send manual quote message, agent stays in control
       const quoteBody = `okay so i pulled up some numbers, looks like you're looking at $${quote_low}-$${quote_high}/mo depending on the plan. what date were you thinking for coverage to start?`
       const finalBody = buildMessageBody(quoteBody, profile, mergedLead, false)
-      const result = await sendSMS(mergedLead.phone, finalBody, fromNumber)
+      const result = await sendSMS(mergedLead.phone, finalBody, fromNumber, { userId: req.user.id, leadId: mergedLead.id })
       if (result.success) {
         await supabase.from('messages').insert({
           conversation_id,

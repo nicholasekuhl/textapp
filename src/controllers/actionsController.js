@@ -144,7 +144,7 @@ const executeActions = async (lead, actions, dispositionTagId, profile) => {
               .replace(/\{state\}/gi, lead.state || '')
               .replace(/\{zip_code\}/gi, lead.zip_code || '')
             const fromNumber = await getNumberForLead(lead.user_id, lead.state)
-            const result = await sendSMS(lead.phone, body, fromNumber)
+            const result = await sendSMS(lead.phone, body, fromNumber, { userId: lead.user_id, leadId: lead.id })
             if (result.success) {
               let { data: conversation } = await supabase
                 .from('conversations')

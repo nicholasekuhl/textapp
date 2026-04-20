@@ -498,7 +498,7 @@ const uploadLeads = async (req, res) => {
             const leadTimezone = lead.timezone || 'America/New_York'
 
             try {
-              const result = await sendSMS(lead.phone, messageBody, fromNumber)
+              const result = await sendSMS(lead.phone, messageBody, fromNumber, { userId, leadId: lead.id })
               if (!result.success) throw new Error(result.error || 'send failed')
 
               const sentAt = new Date().toISOString()
