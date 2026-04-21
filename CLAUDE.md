@@ -22,15 +22,27 @@ Cornerstone Legacy Group LLC (Coverage by Kuhl)
 is a separate insurance agency — never
 conflate the two.
 
-BANNED — never appear anywhere in code:
+BANNED as placeholders, examples, sample data,
+or default values anywhere in code:
 - "Dynasty", "Redmedia", "Gold Bars", "30 EXL"
 - "Nick Kuhl", "Nicholas Kuhl", "Nick"
 - "Coverage by Kuhl", "Cornerstone Legacy Group"
-- "Kuhl Technologies" (use generic or env vars)
+- "Kuhl Technologies" as a placeholder
 - Any email containing "kuhl" or "coveragebykuhl"
 - "+15614805670", "+15616526496"
 - "USHA", "USHealth", "US Health Advisors"
 - "Vanessa" as a default agent name
+
+LEGITIMATE usages that are allowed:
+- "Kuhl Technologies LLC" in legal attribution
+  contexts: copyright notices in footers, privacy
+  policy, terms of service, and anywhere the
+  actual operating entity must be identified.
+  Veloxo operates under Kuhl Technologies LLC,
+  so this name is the accurate legal attribution
+  in those specific contexts — not a placeholder.
+  It remains banned in code comments, sample
+  data, default values, and UI copy.
 
 REPLACE ALL with generic versions:
 - Campaign names: "My First Campaign",
