@@ -140,6 +140,9 @@ app.post('/access-requests', async (req, res) => {
   return createAccessRequest(req, res)
 })
 
+app.get('/privacy', (_req, res) => res.sendFile(path.join(__dirname, '../public/privacy.html')))
+app.get('/terms', (_req, res) => res.sendFile(path.join(__dirname, '../public/terms.html')))
+
 app.post('/api/waitlist', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
