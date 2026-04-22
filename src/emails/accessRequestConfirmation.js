@@ -4,6 +4,7 @@
 const { resend, FROM, brand } = require('../utils/email')
 
 const sendAccessRequestConfirmationEmail = async ({ name, email }) => {
+  console.log('[email:accessRequestConfirmation] called with', { name, email })
   const displayName = name || 'there'
 
   const bodyHtml = `<h1 style="font-size:22px;font-weight:700;letter-spacing:-0.3px;color:#fff;margin:0 0 18px;">You're on the list</h1>
@@ -14,12 +15,14 @@ const sendAccessRequestConfirmationEmail = async ({ name, email }) => {
           <p style="margin:0;color:rgba(255,255,255,0.55);">— The Veloxo Team</p>`
 
   try {
+    console.log('[email:accessRequestConfirmation] calling resend.emails.send')
     await resend.emails.send({
       from: FROM.invites,
       to: email,
       subject: "You're on the list — Veloxo Early Access",
       html: brand({ bodyHtml })
     })
+    console.log('[email:accessRequestConfirmation] resend send returned')
   } catch (err) {
     console.error('[email:accessRequestConfirmation]', err.message)
   }

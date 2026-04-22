@@ -5,6 +5,7 @@
 const { resend, FROM } = require('../utils/email')
 
 const sendAccessRequestNotificationEmail = async ({ name, email, notes }) => {
+  console.log('[email:accessRequestNotification] called with', { name, email })
   const displayName = name || 'Anonymous'
   const displayNotes = notes || 'None provided'
   const timestamp = new Date().toLocaleString('en-US', {
@@ -30,12 +31,14 @@ const sendAccessRequestNotificationEmail = async ({ name, email, notes }) => {
   `
 
   try {
+    console.log('[email:accessRequestNotification] calling resend.emails.send')
     await resend.emails.send({
       from: FROM.noreply,
       to: process.env.ADMIN_EMAIL || 'you@youragency.com',
       subject: `New Access Request — ${displayName} (${email})`,
       html
     })
+    console.log('[email:accessRequestNotification] resend send returned')
   } catch (err) {
     console.error('[email:accessRequestNotification]', err.message)
   }
