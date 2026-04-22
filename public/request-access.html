@@ -148,6 +148,23 @@
     .success-state .email-highlight {
       color: #34d8b8; font-weight: 600;
     }
+    .success-state .success-back-btn {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #00c9a7, #0ea5e9);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.2px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .success-state .success-back-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 24px rgba(0, 201, 167, 0.4);
+    }
 
     .footer-link {
       text-align: center; margin-top: 22px;
@@ -223,6 +240,7 @@
       </div>
       <h2>Thanks!</h2>
       <p>We'll review your request and reach out to <span class="email-highlight" id="success-email"></span> shortly.</p>
+      <a href="/" class="success-back-btn">← Back to Veloxo</a>
     </div>
 
   </div>
